@@ -179,21 +179,22 @@ describe('shells', () => {
   it('shows the install card in the trainer shell too', async () => {
     signedInAs(trainer);
     renderAt('/t', fakeInstallPlatform({ device: { ios: true } }).platform);
-    const card = await screen.findByRole('region', { name: t.install.title });
+    const card = await screen.findByRole('complementary', { name: t.install.title });
     expect(within(card).getByText(t.install.iosShare)).toBeInTheDocument();
+    expect(within(card).getByText(t.install.iosWhyTrainer)).toBeInTheDocument();
   });
 
   it('keeps the install card on every customer page until it is dismissed', async () => {
     signedInAs(customer);
     renderAt('/c', fakeInstallPlatform({ device: { ios: true } }).platform);
-    await screen.findByRole('region', { name: t.install.title });
+    await screen.findByRole('complementary', { name: t.install.title });
     await userEvent.click(screen.getByRole('link', { name: t.nav.history }));
     await screen.findByRole('heading', { name: t.customer.historyTitle });
-    expect(screen.getByRole('region', { name: t.install.title })).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: t.install.title })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: t.install.notNow }));
 
-    expect(screen.queryByRole('region', { name: t.install.title })).not.toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: t.install.title })).not.toBeInTheDocument();
   });
 
   it('navigates between customer pages', async () => {
@@ -357,11 +358,11 @@ describe('invite flow', () => {
     const install = fakeInstallPlatform({ device: { android: true } });
     install.firePrompt();
     renderAt('/invite/tok-123', install.platform);
-    expect(screen.queryByRole('region', { name: t.install.title })).not.toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: t.install.title })).not.toBeInTheDocument();
 
     await fillAndSubmit('secret1', 'secret1');
 
-    const card = await screen.findByRole('region', { name: t.install.title });
+    const card = await screen.findByRole('complementary', { name: t.install.title });
     expect(within(card).getByRole('button', { name: t.install.install })).toBeInTheDocument();
   });
 

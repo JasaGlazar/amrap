@@ -277,8 +277,11 @@ export const sl = {
   },
   install: {
     title: 'Namestite aplikacijo',
-    why: 'Dodajte AMRAP na začetni zaslon: odprete ga z enim dotikom in prejemate obvestila.',
-    iosWhy: 'Na iPhonu obvestila delujejo le v aplikaciji, odprti z začetnega zaslona.',
+    why: 'Dodajte AMRAP na začetni zaslon: odprete ga z enim dotikom, kot vsako aplikacijo.',
+    iosWhyCustomer:
+      'Na iPhonu obvestila delujejo le v aplikaciji, odprti z začetnega zaslona. Brez nje ne prejmete opomnika pred rokom za brezplačno odpoved, edinega opozorila, preden se termin zaračuna.',
+    iosWhyTrainer:
+      'Na iPhonu obvestila o rezervacijah in odpovedih strank delujejo le v aplikaciji, odprti z začetnega zaslona.',
     install: 'Namesti aplikacijo',
     notNow: 'Ne zdaj',
     stepsLabel: 'Koraki za namestitev',

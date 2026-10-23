@@ -2,7 +2,7 @@ import { useId } from 'react';
 import { t } from '../../i18n';
 import { useInstall } from '../../install/useInstall';
 
-export function InstallCard() {
+export function InstallCard({ audience }: { audience: 'customer' | 'trainer' }) {
   const { mode, cardShown, install, dismiss } = useInstall();
   const titleId = useId();
   if (!cardShown) return null;
@@ -15,10 +15,12 @@ export function InstallCard() {
         : [];
 
   return (
-    <section className="card install-card" aria-labelledby={titleId}>
+    <aside className="card install-card" aria-labelledby={titleId}>
       <h2 id={titleId}>{t.install.title}</h2>
       <p>{t.install.why}</p>
-      {mode === 'ios' && <p>{t.install.iosWhy}</p>}
+      {mode === 'ios' && (
+        <p>{audience === 'customer' ? t.install.iosWhyCustomer : t.install.iosWhyTrainer}</p>
+      )}
       {steps.length > 0 && (
         <ol className="install-steps" aria-label={t.install.stepsLabel}>
           {steps.map((step) => (
@@ -37,6 +39,6 @@ export function InstallCard() {
           {t.install.notNow}
         </button>
       </div>
-    </section>
+    </aside>
   );
 }

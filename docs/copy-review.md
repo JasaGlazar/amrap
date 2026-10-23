@@ -133,8 +133,9 @@ Prosimo:
 | Ključ | Besedilo | Vprašanje |
 |---|---|---|
 | `install.title` | Namestite aplikacijo |  |
-| `install.why` | Dodajte AMRAP na začetni zaslon: odprete ga z enim dotikom in prejemate obvestila. | Je razlog dovolj jasen za stranke in za trenerja? |
-| `install.iosWhy` | Na iPhonu obvestila delujejo le v aplikaciji, odprti z začetnega zaslona. |  |
+| `install.why` | Dodajte AMRAP na začetni zaslon: odprete ga z enim dotikom, kot vsako aplikacijo. | Je razlog dovolj jasen? |
+| `install.iosWhyCustomer` | Na iPhonu obvestila delujejo le v aplikaciji, odprti z začetnega zaslona. Brez nje ne prejmete opomnika pred rokom za brezplačno odpoved, edinega opozorila, preden se termin zaračuna. | Le stranke na iPhonu. Dovolj jasno, zakaj je namestitev pomembna? |
+| `install.iosWhyTrainer` | Na iPhonu obvestila o rezervacijah in odpovedih strank delujejo le v aplikaciji, odprti z začetnega zaslona. | Le trener na iPhonu. |
 | `install.install` | Namesti aplikacijo |  |
 | `install.notNow` | Ne zdaj |  |
 | `install.stepsLabel` | Koraki za namestitev |  |

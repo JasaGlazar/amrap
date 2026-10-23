@@ -7,5 +7,5 @@ export function CustomerShell() {
     { to: '/c/koledar', label: t.nav.calendar },
     { to: '/c/zgodovina', label: t.nav.history },
   ];
-  return <AppShell items={items} label={t.nav.customerLabel} />;
+  return <AppShell items={items} label={t.nav.customerLabel} audience="customer" />;
 }

@@ -9,11 +9,14 @@ import { InstallContext, type InstallPlatform } from '../../install/platform';
 import { fakeInstallPlatform } from '../../test/fakeInstall';
 import { InstallCard } from './InstallCard';
 
-function renderWith(platform: InstallPlatform, children: ReactNode = <InstallCard />) {
+function renderWith(
+  platform: InstallPlatform,
+  children: ReactNode = <InstallCard audience="customer" />,
+) {
   return render(<InstallContext.Provider value={platform}>{children}</InstallContext.Provider>);
 }
 
-const card = () => screen.queryByRole('region', { name: t.install.title });
+const card = () => screen.queryByRole('complementary', { name: t.install.title });
 
 describe('InstallCard', () => {
   it('offers the browser install prompt and hides once it is accepted', async () => {
@@ -55,7 +58,21 @@ describe('InstallCard', () => {
     expect(steps).toHaveTextContent(t.install.iosShare);
     expect(steps).toHaveTextContent(t.install.iosAdd);
     expect(steps).toHaveTextContent(t.install.openFromHome);
-    expect(screen.getByText(t.install.iosWhy)).toBeInTheDocument();
+    expect(screen.getByText(t.install.iosWhyCustomer)).toBeInTheDocument();
+  });
+
+  it('tells the trainer on iOS which notifications need the installed app', () => {
+    const { platform } = fakeInstallPlatform({ device: { ios: true } });
+    renderWith(platform, <InstallCard audience="trainer" />);
+    expect(screen.getByText(t.install.iosWhyTrainer)).toBeInTheDocument();
+    expect(screen.queryByText(t.install.iosWhyCustomer)).not.toBeInTheDocument();
+  });
+
+  it('does not claim notifications need installing outside iOS', () => {
+    const { platform } = fakeInstallPlatform({ device: { android: true } });
+    renderWith(platform);
+    expect(screen.getByText(t.install.why)).toBeInTheDocument();
+    expect(screen.queryByText(t.install.iosWhyCustomer)).not.toBeInTheDocument();
   });
 
   it('gives the browser menu steps on Android without a prompt', () => {

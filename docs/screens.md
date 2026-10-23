@@ -218,9 +218,11 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 ## Install card
 
 `pages/shared/InstallCard.tsx`, rendered by `AppShell` above every customer and trainer screen
-(a region named `install.title`), so it is also the first thing a new customer sees after
-accepting an invite. It says why to install (`install.why`, plus `install.iosWhy` on iOS, where
-push needs the home-screen app) and then, by mode:
+(an `aside`, a complementary landmark named `install.title`), so it is also the first thing a
+new customer sees after accepting an invite. It says why to install (`install.why`) and, on iOS,
+where push works only in the home-screen app, what that means for the role:
+`install.iosWhyCustomer` (no reminder before a charge without it) or `install.iosWhyTrainer`
+(booking and cancel notifications). Then, by mode:
 
 | Mode | When | Shows |
 |---|---|---|
@@ -297,6 +299,7 @@ How the guards and the auth state work is in [auth.md](auth.md).
   build, serves `index.html` for every navigation (deep links work offline), updates itself
   (`skipWaiting` + `clientsClaim`, the `autoUpdate` behaviour) and shows push notifications
   ([notifications.md](notifications.md#service-worker)). `display: standalone`, manifest
-  language `sl`, icons 192 and 512 px. The [install card](#install-card) guides installing it. Cloudflare Pages falls back to `index.html` for unknown
-  paths natively; `app/public/_redirects` is a belt-and-braces measure
+  language `sl`, icons 192 and 512 px. The [install card](#install-card) guides installing it.
+  Cloudflare Pages falls back to `index.html` for unknown paths natively;
+  `app/public/_redirects` is a belt-and-braces measure
   ([runbook.md](runbook.md#cloudflare-pages-build-settings)).

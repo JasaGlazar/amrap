@@ -8,5 +8,5 @@ export function TrainerShell() {
     { to: '/t/stranke', label: t.nav.customers },
     { to: '/t/nastavitve', label: t.nav.settings },
   ];
-  return <AppShell items={items} label={t.nav.trainerLabel} />;
+  return <AppShell items={items} label={t.nav.trainerLabel} audience="trainer" />;
 }
