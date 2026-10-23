@@ -1,7 +1,7 @@
 import type { ActionResult, Client } from '../data/client';
 import { deletePushSubscription, savePushSubscription } from '../data/push';
 import { t } from '../i18n';
-import type { PushPlatform } from './browser';
+import type { DeviceSubscription, PushPlatform } from './browser';
 
 export async function enablePush(
   client: Client,
@@ -14,7 +14,7 @@ export async function enablePush(
 
   let keys: { endpoint: string; p256dh: string; auth: string };
   try {
-    const subscription = await platform.subscribe(base64UrlToBytes(vapidKey));
+    const subscription = await subscribeReplacingStale(platform, base64UrlToBytes(vapidKey));
     const json = subscription.toJSON();
     keys = {
       endpoint: subscription.endpoint,
@@ -26,6 +26,22 @@ export async function enablePush(
     return { ok: false, message: t.pushToggle.failed };
   }
   return savePushSubscription(client, keys);
+}
+
+async function subscribeReplacingStale(
+  platform: PushPlatform,
+  key: Uint8Array<ArrayBuffer>,
+): Promise<DeviceSubscription> {
+  try {
+    return await platform.subscribe(key);
+  } catch (error) {
+    // A subscription made with a previous VAPID key blocks a new one until it is removed.
+    if ((error as { name?: unknown } | null)?.name !== 'InvalidStateError') throw error;
+    const stale = await platform.getSubscription();
+    if (stale === null) throw error;
+    await stale.unsubscribe();
+    return platform.subscribe(key);
+  }
 }
 
 export async function disablePush(

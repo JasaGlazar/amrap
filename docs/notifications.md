@@ -101,7 +101,9 @@ and registered by the plugin's `registerSW.js`:
   for `navigator.serviceWorker.ready` once a registration exists, because a worker that is still
   installing (first visit, right after an update) cannot subscribe.
 - `subscribe.ts`: `enablePush` (permission, `pushManager.subscribe({userVisibleOnly: true,
-  applicationServerKey})`, `save_push_subscription`) and `disablePush` (delete this device's row,
+  applicationServerKey})`, `save_push_subscription`; when the browser refuses because an existing
+  subscription was made with another VAPID key, `InvalidStateError`, it unsubscribes that one and
+  retries once) and `disablePush` (delete this device's row,
   unsubscribe). Signing out calls `disablePush` first, best effort, so a shared device stops
   getting the previous user's notifications.
 

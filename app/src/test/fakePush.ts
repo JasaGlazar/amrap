@@ -23,6 +23,7 @@ export function fakePlatform(options: {
   subscribedEndpoint?: string;
   newEndpoint?: string;
   subscribeError?: Error;
+  subscribeFailures?: Error[];
 }) {
   const state: { permission: NotificationPermission; subscription: DeviceSubscription | null } = {
     permission: options.permission ?? 'default',
@@ -38,6 +39,7 @@ export function fakePlatform(options: {
     unsubscribe,
   });
   if (options.subscribedEndpoint) state.subscription = device(options.subscribedEndpoint);
+  const failures = [...(options.subscribeFailures ?? [])];
 
   const platform = {
     environment: () => ({ ...supportedEnvironment, ...options.environment }),
@@ -49,6 +51,8 @@ export function fakePlatform(options: {
     getSubscription: vi.fn(async () => state.subscription),
     subscribe: vi.fn<PushPlatform['subscribe']>(async () => {
       if (options.subscribeError) throw options.subscribeError;
+      const failure = failures.shift();
+      if (failure) throw failure;
       state.subscription ??= device(options.newEndpoint ?? 'https://push.test/device');
       return state.subscription;
     }),

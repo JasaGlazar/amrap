@@ -43,12 +43,31 @@ describe('enablePush', () => {
     expect(fakeSupabase.rpc).not.toHaveBeenCalled();
   });
 
-  it('reports a failed browser subscription', async () => {
+  it('replaces a subscription made with an older VAPID key and retries once', async () => {
+    const keyChanged = Object.assign(new Error('different applicationServerKey'), {
+      name: 'InvalidStateError',
+    });
+    const { platform, unsubscribe } = fakePlatform({
+      permission: 'granted',
+      subscribedEndpoint: 'https://push.test/old-key',
+      newEndpoint: 'https://push.test/new-key',
+      subscribeFailures: [keyChanged],
+    });
+    expect(await enablePush(client, platform, vapidKey)).toEqual({ ok: true, data: null });
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(platform.subscribe).toHaveBeenCalledTimes(2);
+    expect(db.tables.push_subscriptions.map((row) => row.endpoint)).toEqual([
+      'https://push.test/new-key',
+    ]);
+  });
+
+  it('reports a failed browser subscription without retrying', async () => {
     const { platform } = fakePlatform({ subscribeError: new Error('push service down') });
     expect(await enablePush(client, platform, vapidKey)).toEqual({
       ok: false,
       message: t.pushToggle.failed,
     });
+    expect(platform.subscribe).toHaveBeenCalledOnce();
     expect(fakeSupabase.rpc).not.toHaveBeenCalled();
   });
 
