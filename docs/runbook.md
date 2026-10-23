@@ -17,20 +17,22 @@ before it is removed.
 
 ## Bootstrap the trainer
 
-The trainer is the only user not created through an invite. This is done once per environment.
-The SQL below is a placeholder and is finalized in Task 2 once the schema exists.
+The trainer is the only user not created through an invite. This is done once per environment,
+after the initial schema migration is deployed. Locally, `supabase db reset` already seeds a
+trainer (`trainer@amrap.local` / `password`, see `supabase/seeds/dev.sql`).
 
-1. Create the trainer's auth user in the dashboard (Authentication, Add user) with email and
-   password.
+1. Create the trainer's auth user in the dashboard (Authentication, Users, Add user, Create new
+   user) with email and password, and tick "Auto Confirm User". Copy the new user's UID.
 2. Run in the SQL editor, replacing the placeholders:
 
 ```sql
--- PLACEHOLDER: finalized in Task 2
-insert into customers (name, email, role, auth_user_id)
-values ('<trainer name>', '<trainer email>', 'trainer', '<auth user uuid>');
+insert into public.customers (name, email, role, auth_user_id)
+values ('<trainer name>', '<trainer email>', 'trainer', '<auth user uid>');
 ```
 
-3. Sign in to the app and confirm the trainer shell is shown.
+3. Check the link: `select id, name, role from public.customers where role = 'trainer';`
+   returns exactly the one row.
+4. Sign in to the app and confirm the trainer shell is shown.
 
 ## Deploy migrations after merge
 

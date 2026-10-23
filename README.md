@@ -28,8 +28,13 @@ Requires Docker, the Supabase CLI and Node.js.
 supabase start        # local Postgres, Auth, Studio
 supabase db reset     # apply migrations and seeds
 supabase test db      # run pgTAP tests
+supabase gen types typescript --local > app/src/lib/database.types.ts   # after a schema change
 cd app && npm i && npm run dev
 ```
+
+The local seed (`supabase/seeds/dev.sql`) signs in as `trainer@amrap.local` or
+`ana@amrap.local`, both with password `password`. Writing tests: see the "Testing" section of
+[docs/harness.md](docs/harness.md#testing).
 
 ## Operations
 

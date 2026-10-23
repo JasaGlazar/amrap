@@ -76,3 +76,46 @@ committed is `app/src/lib/database.types.ts` (Supabase types, generated in Task 
 
 Tests compute expected counts and balances from the data they insert. No hardcoded totals
 that break when fixtures change.
+
+## Testing
+
+Database tests are pgTAP files in `supabase/tests/`, run by `supabase test db` against the
+local stack after `supabase db reset` (which applies the migrations, then the seeds listed in
+`supabase/config.toml` `[db.seed] sql_paths`). The CLI enables the `pgtap` extension for the
+run, so test files do not create it.
+
+| File | Covers |
+|---|---|
+| `001_schema.sql` | tables, enums, keys, indexes, check constraints, the one-charge index, default privileges, `customer_balances` |
+| `002_rls.sql` | what a customer, the trainer, an unlinked auth user, `anon` and `service_role` can read and write directly |
+
+Helpers in `supabase/seeds/test_helpers.sql` (schema `tests`, local only):
+
+- `tests.create_user(email text, password text default 'password') returns uuid` — a confirmed
+  email/password auth user (rows in `auth.users` and `auth.identities`) that can also sign in
+  through the API.
+- `tests.authenticate_as(user_id uuid)` — until the end of the transaction, act as that user:
+  role `authenticated` and `request.jwt.claims` with `sub` and `role`, so `auth.uid()` and
+  RLS behave as for a real request.
+- `tests.authenticate_as_service_role()` — act as `service_role` (bypasses RLS).
+- `tests.clear_authentication()` — drop the claims and return to the test superuser
+  (`postgres`, which bypasses RLS). To test `anon`, use `set local role anon;` directly.
+
+How to write a test:
+
+1. One file per area, numbered (`0NN_name.sql`). Wrap it in `begin;` … `rollback;` so fixtures
+   never leak, and start with `select plan(N);` where N is the exact number of assertions;
+   end with `select * from finish();`.
+2. Insert fixtures as the superuser first (RLS does not apply). Create users with
+   `tests.create_user` and link them through `customers.auth_user_id`.
+3. Compute expected rows, counts and balances from the fixtures before switching roles (for
+   example into a temp table, `grant select` on it to `authenticated`), then switch with
+   `tests.authenticate_as(...)` and compare (`set_eq`, `is`, `results_eq`). Never hardcode a
+   total: the dev seed data is present in the database while tests run.
+4. Assert failures by SQLSTATE: `throws_ok(sql, '42501', null, ...)` for privilege and RLS
+   insert violations, `'23505'` for unique, `'23514'` for check constraints. An update or
+   delete blocked by RLS affects zero rows instead of failing: assert it with
+   `is_empty('update … returning id')`.
+5. Call `tests.clear_authentication()` before going back to superuser fixtures.
+6. Write the test first and watch it fail, then write the migration; run
+   `supabase db reset && supabase test db` until the output is green with no notices.
