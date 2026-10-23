@@ -15,6 +15,7 @@ mark the old one `Status: Superseded by NNNN`.
 | [0006](0006-auth-invite-token-password.md) | Email/password auth with invite tokens | Accepted |
 | [0007](0007-relink-by-deleting-auth-user.md) | Re-link a customer by deleting their auth user | Accepted |
 | [0008](0008-recurrence-and-occupancy.md) | Recurrence, blocked periods, slot occupancy and cron roles | Accepted |
+| [0009](0009-web-push-design.md) | Web push through a notification log, pg_net and one edge function | Accepted |
 
 ## Template
 
