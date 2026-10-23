@@ -36,7 +36,7 @@ function signedInAs(row: typeof trainer) {
 beforeEach(() => resetFake());
 
 describe('unauthenticated visitor', () => {
-  it.each(['/', '/c', '/t', '/t/settings'])('is sent from %s to /login', async (path) => {
+  it.each(['/', '/c', '/t', '/t/nastavitve'])('is sent from %s to /login', async (path) => {
     const router = renderAt(path);
     await screen.findByRole('heading', { name: t.login.title });
     expect(router.state.location.pathname).toBe('/login');

@@ -3,8 +3,7 @@
 The app (`app/`) is one single-page app with role-gated areas. Routing is a React Router v7 data
 router; the route tree is `app/src/routes.tsx` and the same tree is what the routing tests
 render. Every user-visible string lives in `app/src/i18n/sl.ts` (Slovenian); the "Strings"
-column names the key group in `t`. Rows marked **placeholder** are navigable stubs that are
-built out later in Stage 2 (see `PLAN.md`, "Screens").
+column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as of Stage 2.
 
 ## Route table
 
@@ -23,7 +22,7 @@ built out later in Stage 2 (see `PLAN.md`, "Screens").
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/t/stranke` | trainer | Customer list with balance and invite status; create a customer. | `trainer`, `customers` | Stage 2 |
 | `/t/stranke/:id` | trainer | One customer: credits, invite link, recurring rules, upcoming appointments, details, ledger. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType` | Stage 2 |
-| `/t/nastavitve` | trainer | Slot templates, cutoff hours, blocked periods. | `trainer.settingsTitle`, `common.comingSoon` | placeholder |
+| `/t/nastavitve` | trainer | Slot templates, cutoff hours, blocked periods. | `settings`, `trainer` | Stage 2 |
 | anything else | anyone | Redirects to `/`. | none | Stage 1 |
 
 ## Customer screens
@@ -169,6 +168,28 @@ are matched to appointments by customer id. Load failures show `customer.loadFai
   (trainer cancel dialog).
 - **Podatki:** name, phone, email; **Shrani** updates the record through RLS.
 - **Zgodovina kreditov:** the ledger, as on the customer's History.
+
+### Settings (`/t/nastavitve`)
+
+- **Data:** `getSettings`, `allTemplates` (active and inactive), `upcomingBlocked` (periods
+  that have not ended). Every write goes through RLS and shows `settings.saved` or the error.
+- **Termini v tednu:** each template as `{weekday} ob {time} · {minutes} min · {capacity}
+  mest`, inactive ones greyed with `neaktiven`, each with **Uredi** (the form inline). The form
+  (also **Nov termin** below the list): weekday, start time, duration in minutes, capacity and
+  an active checkbox. Validation: start time required, duration and capacity positive whole
+  numbers (`settings.durationInvalid`, `settings.capacityInvalid`). There is no delete: a
+  template that has appointments or rules cannot be deleted, so it is deactivated (customers no
+  longer see or book it, materialization skips it). Changing a template's time or weekday does
+  not move appointments already booked.
+- **Rok za brezplačno odpoved:** `settings.late_cancel_hours`, a whole number of hours, 0 or
+  more (`settings.cutoffInvalid`). It applies to every later cancel and to the customers'
+  cancel dialog.
+- **Zaprta obdobja:** upcoming blocked periods with their range and reason, each with
+  **Uredi** and **Izbriši** (deletes at once). The form (also **Novo zaprto obdobje**): from
+  date and time, to date and time (in the gym timezone, via `zonedInstant`) and an optional
+  reason; a time that does not exist that day or an end not after the start is rejected
+  (`trainer.invalidTime`, `trainer.invalidRange`). A new block does not cancel appointments
+  already booked in it; `book()` and materialization reject or skip later ones.
 
 ## Access rules
 

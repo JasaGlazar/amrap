@@ -155,14 +155,12 @@ describe('customer detail', () => {
     const rule = db.tables.recurring_rules.find((row) => row.customer_id === ana.id);
     expect(rule).toMatchObject({ slot_template_id: template.id, active: true });
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('activate_rule', { p_rule_id: rule?.id });
-    expect(
-      await within(rules).findByText(
-        fill(t.customerDetail.ruleLabel, {
-          weekday: weekdayName(template.weekday),
-          time: template.start_time.slice(0, 5),
-        }),
-      ),
-    ).toBeVisible();
+    expect(await within(rules).findByRole('listitem')).toHaveTextContent(
+      fill(t.customerDetail.ruleLabel, {
+        weekday: weekdayName(template.weekday),
+        time: template.start_time.slice(0, 5),
+      }),
+    );
   });
 
   it('stops an active rule through deactivate_rule and reports the cancelled count', async () => {

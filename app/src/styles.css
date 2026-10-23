@@ -419,3 +419,15 @@ select {
 .row.muted {
   opacity: 0.6;
 }
+
+.checkbox {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.5rem !important;
+  font-weight: 400 !important;
+}
+
+h3 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
