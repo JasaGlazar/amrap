@@ -14,7 +14,7 @@
 | [data-layer.md](data-layer.md) | App data layer: reads and RPC wrappers in `app/src/data/`, what each selects |
 | [time.md](time.md) | Gym-timezone date math: local dates, weeks, template occurrences, DST, cutoff, formatting |
 | [app-structure.md](app-structure.md) | App folders, install onboarding, i18n rule, data layer contract, testing with the fake Supabase client |
-| [copy-review.md](copy-review.md) | Every UI string by screen for the trainer's sign-off: conventions, changes made, open questions |
+| [copy-review.md](copy-review.md) | Temporary: every UI string by screen for the trainer's sign-off (changes made, open questions); kept in step with `sl.ts` until sign-off, then deleted |
 | [screens.md](screens.md) | Routes, role gating and strings of the customer and trainer screens |
 
 ## Architecture diagrams

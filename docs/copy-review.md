@@ -2,9 +2,14 @@
 
 Every user-visible string of the app, screen by screen, for the trainer to read and sign off
 before the pilot. The copy lives in `app/src/i18n/sl.ts` (the only place it may live, see
-[app-structure.md](app-structure.md#i18n-rule)); this page is a snapshot of it as of Stage 4
-Task 16. Sign-off by the trainer is an owner action; after it, answers are applied to `sl.ts`
-and this page is updated in the same commit.
+[app-structure.md](app-structure.md#i18n-rule)); this page mirrors it by hand and is temporary.
+
+- **Until sign-off:** every commit that changes `sl.ts` updates the matching rows here (and the
+  "Changes" table when it changes existing copy).
+- **At sign-off** (an owner action): one commit applies the trainer's answers to `sl.ts`, moves
+  any lasting decision (for example "vi" or "ti") into
+  [app-structure.md](app-structure.md#i18n-rule), and deletes this file together with its
+  entry in [README.md](README.md) and every link to it.
 
 ## Za trenerja: kako odgovoriti
 
@@ -20,22 +25,11 @@ Prosimo:
 
 ## Conventions this pass applied
 
-- **Form of address:** formal "vi" in every message ("Vpišite", "Obrnite se", "boste"), as the
-  app already did. Buttons, menu items and select placeholders keep the short form
-  ("Rezerviraj", "Kopiraj", "Izberi stranko"), the usual style of Slovenian app buttons.
-- **Terms** (see [CONTEXT.md](../CONTEXT.md)): termin (appointment and slot), rezervacija
-  (booking), kredit (credit), stanje kreditov (balance), dodati kredite / nakup kreditov
-  (top-up), popravek (adjustment), pozna odpoved (late cancel), vračilo (refund), rok za
-  brezplačno odpoved (cutoff), stalni termin (recurring rule), zaprto obdobje (blocked period),
-  povabilo (invite).
-- **Plurals:** where a noun follows a count the app picks the Slovenian form with
-  `Intl.PluralRules('sl')` (1 mesto, 2 mesti, 3 mesta, 5 mest). Elsewhere copy uses a label and
-  a colon ("Novih terminov: 3") or a fixed number ("1 kredit").
-- **Punctuation:** `…` after a space for "in progress" lines, en dash for ranges (`26. 10. –
-  1. 11.`), `»«` around the names of buttons and screens quoted in a sentence.
-- **Dates and times:** `Intl.DateTimeFormat('sl-SI')` in the gym timezone: `pon., 26. 10.`,
-  `ponedeljek, 26. oktober`, `26. 10. 2026`, 24-hour `07:00` ([time.md](time.md)). No error
-  found; the hour style is a question below.
+The copy conventions (formal "vi" in messages, short buttons, one Slovenian word per domain
+term, plurals, punctuation) are in [app-structure.md](app-structure.md#i18n-rule). Dates and
+times use `Intl.DateTimeFormat('sl-SI')` in the gym timezone (`pon., 26. 10.`, `ponedeljek, 26.
+oktober`, `26. 10. 2026`, 24-hour `07:00`, [time.md](time.md)); no error found, the hour style
+is a question below.
 
 ## Changes made in this pass
 

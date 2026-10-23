@@ -1061,6 +1061,11 @@ Branch `stage-4-pilot` off `main` (Stage 3 merged as #4). Rulings proposed for t
 - **Dismissal is per device in `localStorage`** (key `amrap.install.dismissed`), every access in
   try/catch; storage that throws or is empty means "not dismissed" and the card still works.
   This is a per-device convenience, not state that must survive.
+- **Copy review lifecycle** (Task 16 review): `docs/copy-review.md` mirrors `sl.ts` by hand
+  until the trainer signs it off. Until then every commit that changes `sl.ts` updates its
+  rows in the same commit (Tasks 17 and 18 included). The sign-off commit applies the answers
+  to `sl.ts`, moves lasting decisions into `docs/app-structure.md` (i18n rule) and deletes
+  `copy-review.md` with its README entry and links.
 - **Starting balances from the paper sheet** are ledger rows with a fixed note
   (`sl.customerDetail.startingNote`, "Začetno stanje (papir)"): a positive balance is a top-up,
   a negative one an adjustment (`top_up` rejects ≤ 0), zero needs nothing. No bulk import: the

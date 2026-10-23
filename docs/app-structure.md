@@ -58,17 +58,22 @@ English. `fromError(error)` turns an error into copy:
 2. else a Supabase Auth `error.code` → `sl.authErrors[code]`;
 3. else `sl.genericError`.
 
-Copy conventions (the trainer's review of all copy is [copy-review.md](copy-review.md)):
+Copy conventions:
 
 - Messages address the user formally ("vi": "Vpišite", "Obrnite se"); buttons, menu items and
   select placeholders use the short form ("Rezerviraj", "Izberi stranko").
-- One Slovenian word per domain term, as listed in copy-review.md "Conventions".
+- One Slovenian word per domain term ([CONTEXT.md](../CONTEXT.md) has the English ones):
+  termin (appointment and slot), rezervacija (booking), kredit (credit), stanje kreditov
+  (balance), dodati kredite / nakup kreditov (top-up), popravek (adjustment), pozna odpoved
+  (late cancel), vračilo (refund), rok za brezplačno odpoved (cutoff), stalni termin
+  (recurring rule), zaprto obdobje (blocked period), povabilo (invite).
 - A noun after a count takes its Slovenian plural form: the string is a `Plural`
   (`{ one, two, few, other }`, each a template with `{count}`) and the component calls
   `plural(forms, count)` from `i18n/fill.ts`, which picks the form with
   `Intl.PluralRules('sl')` (1 mesto, 2 mesti, 3 mesta, 5 mest). Copy that avoids the noun
   ("Novih terminov: {count}") needs no plural.
-- Button and screen names quoted inside a sentence use `»«`.
+- Punctuation: `…` after a space for "in progress" lines, en dash for ranges, `»«` around the
+  names of buttons and screens quoted in a sentence. Dates and times as in [time.md](time.md).
 
 `sl.test.ts` checks that every token in the [rpcs.md](rpcs.md#error-tokens) error table has
 an entry in `sl.errors`, that every `sl.errors` key appears in backticks somewhere in
