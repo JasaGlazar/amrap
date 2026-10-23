@@ -83,15 +83,23 @@ sign-out control links to `/logout`: the top bar of both shells, `NotLinkedPage`
    navigate to `/`, which lands on the customer Home with the
    [install card](screens.md#install-card) on top on a device where the app is not installed.
 
-## Token issued in the same second
+## Token refused as issued in the future
 
-PostgREST answers a request whose JWT `iat` is later than its own clock with HTTP 401 and the
-code `PGRST303` ("JWT issued at future"). Right after a sign-in or sign-up the first requests
-(the customer lookup, `accept_invite`, the keep-alive) can carry a token issued in that same
-second and be refused; it happened on the local stack (PostgREST v16.2, Auth v2.196.0) in the
-Stage 4 browser check.
+PostgREST answers a request whose JWT `iat` lies more than 30 seconds after its own clock with
+HTTP 401 and the code `PGRST303` ("JWT issued at future"; `allowedSkewSeconds = 30` in
+PostgREST's `Auth/Jwt.hs`). In the Stage 4 browser check on the local stack (PostgREST v16.2,
+Auth v2.196.0) this hit the first requests right after a sign-in or sign-up (the customer
+lookup, `accept_invite`, the keep-alive), with the body
+`{"code":"PGRST303",…,"message":"JWT issued at future"}`.
 
-The one client in `lib/supabase.ts` therefore fetches through `retryIssuedAtFuture(fetch)`
+Cause: not found (a capped check, 2026-10-24). Auth and PostgREST run on the same Docker VM
+clock, and fresh tokens had `iat` equal to the host time; a fresh token used at once, after 10
+seconds and after 70 seconds of idle was accepted every time. One trace had two requests sent
+in the same millisecond with the same token, one refused and one accepted, so it is not a
+steady clock offset between the containers; a stale "now" inside PostgREST for a single request
+fits, but was not reproduced. Whether the hosted project can show it is unknown.
+
+Whatever the cause, the one client in `lib/supabase.ts` fetches through `retryIssuedAtFuture(fetch)`
 (`global.fetch` of `createClient`): a response with status 401 whose JSON body has
 `code: "PGRST303"` is retried exactly once, after one second, with the same request; the
 retry's answer is returned whatever it is. Any other response, including other 401s and bodies

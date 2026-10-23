@@ -24,7 +24,7 @@ describe('supabase client', () => {
   });
 });
 
-describe('retrying a token used in the second it was issued', () => {
+describe('retrying a fresh token refused as issued in the future', () => {
   const issuedAtFuture = () =>
     new Response(
       JSON.stringify({

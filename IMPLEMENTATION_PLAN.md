@@ -282,6 +282,15 @@ the two Stage 3 migrations (Workflow); exact steps in `docs/runbook.md`.
   onboarding), `notifications.md`, `auth.md`, README and harness layer tables. Vitest 253.
 
 - PGRST303 fix (16cdc35): `retryIssuedAtFuture` in `lib/supabase.ts`, documented in `auth.md`.
+- Task 15 review fixes: invite-flow diagram ends on Home with the install card; the prompt is
+  kept until the browser answers (no second prompt meanwhile); `amrap.install.installed`
+  remembers an install per device (`flags.ts`); `install.why` general plus an iOS line per
+  role (`iosWhyCustomer` names the reminder before a charge, `iosWhyTrainer`); the card is an
+  `aside`. No `install.installed` string is needed: an installed app just hides the card.
+- PGRST303 root cause (capped check): PostgREST allows 30 s of `iat` skew, so "same second" was
+  wrong; the clocks agree and idle probes (10 s, 70 s) all passed; two same-millisecond
+  requests with one token split 401/200, so a steady container offset is ruled out. Not
+  reproduced; recorded in `auth.md`; the single retry stays as a defensive measure.
 - Task 16 done: `plural()` / `Plural` in `i18n/fill.ts` (`Intl.PluralRules('sl')`),
   `settings.places` for the template line, eleven copy fixes (list in `docs/copy-review.md`
   "Changes made in this pass"), new `docs/copy-review.md` (conventions, changes, questions for
@@ -320,14 +329,16 @@ Not verified:
 
 Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedule):
 - **`PGRST303 "JWT issued at future"`** on the local stack (PostgREST v16.2, Auth v2.196.0):
-  a request made within the same second the token was issued is sometimes rejected with 401.
+  a request made right after the token was issued is sometimes rejected with 401.
   Seen three times in this check: `accept_invite` right after an invite sign-up (the page
   showed `genericError`; the 79-byte 401 body matches PGRST303 exactly), the customer lookup
   right after sign-in (the "Podatkov ni mogoče naložiti" page), and the keep-alive (logged
   only). Captured with a fetch logger injected at document start. Each recovers on retry
   (the invite link again, **Poskusi znova**). Whether the hosted project shows it is unknown.
   Fixed after Task 15 (orchestrator ruling): `retryIssuedAtFuture` in `lib/supabase.ts` retries
-  a 401 `PGRST303` once after one second, nothing else ([auth.md](docs/auth.md)).
+  a 401 `PGRST303` once after one second, nothing else ([auth.md](docs/auth.md)). The
+  "same second" explanation turned out wrong (PostgREST allows 30 s of skew); the cause is
+  open, see auth.md.
 
 ---
 

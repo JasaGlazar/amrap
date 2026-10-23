@@ -24,7 +24,7 @@ async function isIssuedAtFuture(response: Response): Promise<boolean> {
   }
 }
 
-// PostgREST rejects a token used in the second it was issued (PGRST303); later it passes.
+// PostgREST sometimes refuses a fresh token as issued in the future (PGRST303); a retry passes.
 export function retryIssuedAtFuture(fetchImpl: typeof fetch): typeof fetch {
   return async (input, init) => {
     const retryInput = input instanceof Request ? input.clone() : input;
