@@ -1,0 +1,86 @@
+import { Navigate, Outlet, redirect, type RouteObject } from 'react-router';
+import { AuthProvider } from './auth/AuthProvider';
+import { RequireAuth, RequireRole, RoleRedirect } from './auth/guards';
+import { fromError } from './i18n';
+import { supabase } from './lib/supabase';
+import {
+  CustomerCalendar,
+  CustomerHistory,
+  CustomerHome,
+  CustomerShell,
+} from './pages/CustomerPages';
+import { InvitePage } from './pages/InvitePage';
+import { LoginPage } from './pages/LoginPage';
+import { LogoutFailedPage } from './pages/LogoutFailedPage';
+import {
+  TrainerCalendar,
+  TrainerCustomers,
+  TrainerSettings,
+  TrainerShell,
+  TrainerToday,
+} from './pages/TrainerPages';
+
+function Root() {
+  return (
+    <AuthProvider>
+      <Outlet />
+    </AuthProvider>
+  );
+}
+
+// Redirects to /login once signed out; if signing out fails the page stays and says so.
+async function logout() {
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    console.error('sign out failed', error);
+    return { message: fromError(error) };
+  }
+  return redirect('/login');
+}
+
+export const routes: RouteObject[] = [
+  {
+    element: <Root />,
+    children: [
+      { path: '/login', element: <LoginPage /> },
+      { path: '/invite/:token', element: <InvitePage /> },
+      { path: '/logout', loader: logout, element: <LogoutFailedPage /> },
+      {
+        element: <RequireAuth />,
+        children: [
+          { path: '/', element: <RoleRedirect /> },
+          {
+            element: <RequireRole role="customer" />,
+            children: [
+              {
+                path: '/c',
+                element: <CustomerShell />,
+                children: [
+                  { index: true, element: <CustomerHome /> },
+                  { path: 'calendar', element: <CustomerCalendar /> },
+                  { path: 'history', element: <CustomerHistory /> },
+                ],
+              },
+            ],
+          },
+          {
+            element: <RequireRole role="trainer" />,
+            children: [
+              {
+                path: '/t',
+                element: <TrainerShell />,
+                children: [
+                  { index: true, element: <TrainerToday /> },
+                  { path: 'calendar', element: <TrainerCalendar /> },
+                  { path: 'customers', element: <TrainerCustomers /> },
+                  { path: 'settings', element: <TrainerSettings /> },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      { path: '*', element: <Navigate to="/" replace /> },
+    ],
+  },
+];

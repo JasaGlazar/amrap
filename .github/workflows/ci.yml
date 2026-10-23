@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # Pinned to the CLI version database.types.ts was generated with; bumping it means
+      # regenerating app/src/lib/database.types.ts in the same PR.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+      # start applies the migrations and the seeds listed in supabase/config.toml
+      - run: supabase start -x studio,imgproxy,logflare,vector,edge-runtime
+      - run: supabase test db
+      - run: supabase db lint
+      - name: Generated types are current
+        run: |
+          supabase gen types typescript --local > /tmp/database.types.ts
+          diff -u app/src/lib/database.types.ts /tmp/database.types.ts
+
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: app/.node-version
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --run
+      - run: npm run build
+
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/check-docs.sh

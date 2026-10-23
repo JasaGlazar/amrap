@@ -1,0 +1,385 @@
+# AMRAP — Implementation Plan
+
+Source of truth: `PLAN.md` (revised 2026-10-23). Every stage below is a PR on its own
+branch (`stage-N-<name>`), opened with `--label patch --assignee @me`. Stage N+1 branches
+off stage N until it merges.
+
+## Global Constraints
+
+- Supabase Free Plan and Cloudflare Pages free tier only. No paid add-ons, no custom SMTP.
+- Ledger-first: no mutable balance column; balance = `SUM(credit_transactions.amount)`.
+- All credit/capacity mutations go through `SECURITY DEFINER` RPCs with explicit role checks.
+- Partial unique index on `credit_transactions(appointment_id) WHERE type IN ('session','late_cancel')`.
+- Appointment status enum: `booked | charged | cancelled | cancelled_late | cancelled_by_trainer`.
+- Transaction type enum: `topup | session | late_cancel | refund | adjustment`.
+- Defaults: cutoff 5 h, slot 60 min, capacity 5, gym timezone `Europe/Ljubljana`.
+- Slovenian UI; every user-visible string lives in `app/src/i18n/sl.ts`. No hardcoded UI strings.
+- Docs 1:1: a diff touching schema, RPCs, jobs or screens touches the matching doc and
+  diagram in the same commit (`docs/schema.md`, `docs/rpcs.md`, `docs/jobs.md`,
+  `docs/screens.md`, `docs/architecture/*.md`).
+- Do not commit generated artifacts except `app/src/lib/database.types.ts` (Supabase types).
+- Tests derive expected counts/balances from the data they insert; no hardcoded totals.
+- No git hooks or Claude hooks that block mid-turn.
+- Auth: email/password with email confirmations disabled (default SMTP is 2 emails/hour and
+  non-production). Customers join only via trainer invite token (`create_invite` /
+  `accept_invite`). Magic links and OTP are not used.
+- Tests: pgTAP via `supabase test db` (`supabase/tests/*.sql`); role switching through
+  helper functions in `supabase/seeds/test_helpers.sql` (local-only seed). Frontend logic
+  tests with Vitest.
+- Layout: `supabase/` (migrations, seeds, tests, functions), `app/` (Vite PWA), `docs/`,
+  `CONTEXT.md`, `.claude/agents/`, `.claude/skills/`, `scripts/`, `.github/workflows/`.
+- Commits: small, each compiles and passes tests; message explains why; end with
+  `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`.
+- Never `supabase db push` to the remote from a feature branch; remote migration happens
+  after merge (documented in `docs/runbook.md`).
+
+## Stage 1: Foundation
+**Goal**: Harness scaffolding, Supabase schema + RLS + RPCs with pgTAP tests, Vite PWA shell
+with auth and invite flow, CI with docs check. Branch `stage-1-foundation`.
+**Success Criteria**: `supabase test db` green on a fresh `supabase db reset`; `npm run build`
+and `npm test` green in `app/`; `scripts/check-docs.sh` green; CI workflow green; a customer
+can be invited, sign up through the link, log in and see an empty home screen; the trainer can
+log in and see the trainer shell.
+**Tests**: RLS isolation per table; capacity overflow at the boundary; late-cancel boundary
+±1 min; charge job idempotency; charge-vs-late-cancel race (one charge); trainer cancel after
+charge → refund, net 0; customer cancel after start → rejected, no transaction; negative
+balance allowed; invite token reuse/expiry rejected; custom duration/capacity respected;
+Vitest for strings module and auth routing.
+**Status**: Complete (PR open; remote `db push` and owner steps in docs/runbook.md pending)
+
+## Stage 2: Credits & appointments core
+**Goal**: Recurring rules + nightly materialization (4 weeks ahead, idempotent), pg_cron
+schedules for materialization and `charge_due_appointments()`, trainer blackout periods
+enforced in `book()`, both calendars, customer Home/History, trainer Today/Customers/Settings
+screens. Pilot-ready. Branch `stage-2-core`.
+**Success Criteria**: Paper sheet and whiteboard fully replaced: trainer manages grid, rules,
+customers, credits; customers book/cancel and see balance and history.
+**Tests**: materialization idempotency and blocked-period skipping; booking rejected in a
+blocked period; screen-level Vitest for calendar/capacity rendering and cancel warning copy.
+**Carry-over from Stage 1 review**: materialization must take the same
+`pg_advisory_xact_lock` key as `book()` (template id + start epoch) or it can overfill a slot;
+add a sign-out link to both shells; add an automated two-session test for `accept_invite` if a
+harness allows it.
+The customer calendar must show remaining capacity per slot while RLS hides other customers'
+appointments: add a `SECURITY DEFINER` counting RPC or view (e.g. `slot_occupancy`). Route the
+not-linked and lookup-failed sign-out buttons through `/logout` so failures surface.
+**Status**: Not Started
+
+## Stage 3: Automation & notifications
+**Goal**: Web push (VAPID) via edge function + pg_net, `push_subscriptions` UI, pre-cutoff
+reminder job (~1 h before cutoff, required before pilot), trainer booking/cancel
+notifications, keep-alive read on app load, unpause runbook verified. Branch
+`stage-3-notifications`.
+**Success Criteria**: Reminder arrives on Android and iOS (home-screen install) before the
+cutoff; no duplicate reminders.
+**Tests**: reminder selection query idempotency with fixture dates; edge function unit tests.
+**Status**: Not Started
+
+## Stage 4: Polish & pilot
+**Goal**: Install onboarding, Slovenian copy review with the trainer, real trial, release
+checklist skill. Branch `stage-4-pilot`.
+**Success Criteria**: Trainer runs one full week on AMRAP without the paper sheet.
+**Tests**: manual E2E on both roles on real phones.
+**Status**: Not Started
+
+---
+
+## Stage 1 tasks
+
+### Task 1: Harness foundation (docs before code)
+
+Create, in one commit `docs: harness foundation (CONTEXT, ADRs 0001-0006, diagrams)`:
+
+1. `.gitignore` at repo root: `node_modules/`, `dist/`, `.env`, `.env.*`, `!.env.example`,
+   `supabase/.temp/`, `supabase/.branches/`, `.claude/settings.local.json`, `.superpowers/`,
+   `.DS_Store`, `coverage/`.
+2. `CONTEXT.md` — domain language, one term per entry with a one-sentence definition and the
+   DB/RPC name it maps to: credit, balance (ledger sum), top-up, adjustment, charge, session
+   charge, late cancel, refund, cutoff (`late_cancel_hours`, default 5), slot template
+   (weekday, start time, duration default 60, capacity default 5), slot (a concrete
+   occurrence of a template), appointment (statuses listed), recurring rule, materialization,
+   ad-hoc appointment, blocked period, debtor (negative balance), invite (single-use,
+   expiring token), trainer, customer, keep-alive. Also a "Rules" section: one charge per
+   appointment, negative balances allowed, nobody logs attendance, trainer may cancel
+   anything at any time without charge.
+3. `docs/adr/` with `README.md` (index + template) and ADRs in the format: title line
+   `# NNNN. <title>`, `Status: Accepted`, `Date: 2026-10-23`, sections Context / Decision /
+   Consequences:
+   - `0001-remove-qr-check-in.md` — cutoff-based charging replaces QR/attendance.
+   - `0002-charge-timing.md` — session charge at session start by a 15-min job; late cancel
+     charged at cancel time; trainer cancel never charges and refunds an existing charge.
+   - `0003-ledger-only-balance.md` — no balance column; partial unique index on charges
+     (`session`,`late_cancel`) excludes `refund`.
+   - `0004-slot-templates-per-slot-capacity.md` — weekly grid as templates with per-slot
+     duration/capacity; capacity counted over `booked`+`charged`.
+   - `0005-supabase-free-tier-cloudflare-pages.md` — stack choice; consequences: project
+     pauses after ~7 days low activity, 500 MB read-only limit, keep-alive read on app load,
+     unpause from dashboard; Firebase rejected.
+   - `0006-auth-invite-token-password.md` — email/password with confirmations disabled;
+     customers only via trainer-generated invite tokens (`create_invite`/`accept_invite`,
+     7-day expiry, single use); rationale: default SMTP is 2 emails/hour, best-effort,
+     non-production (Supabase docs 2026-10-23); consequence: no self-service password reset
+     in Stage 1 (trainer re-issues an invite to re-link), public sign-up yields a user with
+     no customer row and therefore no data access.
+4. `docs/architecture/` Mermaid diagrams, each a `.md` with a one-paragraph intro and one
+   ```mermaid fence: `system-context.md` (PWA on Cloudflare Pages, Supabase Auth/Postgres/
+   pg_cron/edge functions, push service, trainer + customer phones), `data-model.md` (erDiagram
+   of all tables in PLAN.md incl. `settings.timezone`), `appointment-states.md`
+   (stateDiagram-v2: booked → charged | cancelled | cancelled_late | cancelled_by_trainer;
+   charged → cancelled_by_trainer with refund), `charging-sequence.md` (cron → RPC → ledger,
+   plus a late-cancel race lane), `booking-sequence.md` (customer → `book()` → lock →
+   capacity count → insert), `auth-invite-flow.md` (trainer creates invite → link → sign-up →
+   `accept_invite` → role-gated home).
+5. `docs/README.md` index; `docs/harness.md` describing the conventions: docs 1:1 rule, ADR
+   rule (one per decision, Superseded never deleted), diagram rule, skill rule ("second time a
+   task repeats"), reviewer gate, no blocking hooks, no regenerated artifacts except DB
+   types, tests derive counts. `docs/runbook.md` with sections: unpause a paused Supabase
+   project, bootstrap the trainer (placeholder SQL to be finalized in Task 2), deploy
+   migrations after merge (`supabase db push` from main only), Cloudflare Pages build settings
+   (root `app`, build `npm run build`, output `dist`).
+6. Stubs with the heading and a "filled in Task N" note: `docs/schema.md`, `docs/rpcs.md`,
+   `docs/jobs.md`, `docs/screens.md`.
+7. `.claude/agents/reviewer.md` — a project reviewer agent (frontmatter `name: reviewer`,
+   `description`, `tools: Read, Grep, Glob, Bash`) whose body is the review checklist: spec
+   vs PLAN.md, docs 1:1 (schema/RPC/job/screen change ⇒ doc + diagram in same commit), no
+   generated artifacts beyond DB types, no hardcoded counts in tests, Slovenian strings only
+   in `app/src/i18n/sl.ts`, RLS/role check present on every RPC, no blocking hooks, free-tier
+   only. Output format: Spec ✅/❌, Critical/Important/Minor, verdict.
+8. `README.md` at root: what AMRAP is, layout, how to run locally (`supabase start`,
+   `supabase db reset`, `supabase test db`, `cd app && npm i && npm run dev`).
+
+Do not write any code or migrations in this task. Verify every Mermaid block parses with
+`npx -y @mermaid-js/mermaid-cli@11 -i <file>` is NOT required; instead keep syntax to the
+documented subset and double-check fences. Commit once.
+
+### Task 2: Schema, RLS, test harness, generated types
+
+Migration `supabase/migrations/<ts>_initial_schema.sql` (one file), using TDD with pgTAP:
+write the failing RLS tests first, then the migration.
+
+Schema (all in `public`, all tables `enable row level security`):
+- `customer_role` enum (`trainer`,`customer`); `appointment_status` enum; `appointment_source`
+  enum (`recurring`,`self_booked`,`trainer`); `transaction_type` enum.
+- `customers(id uuid pk default gen_random_uuid(), name text not null, phone text, email text,
+  role customer_role not null default 'customer', auth_user_id uuid unique references
+  auth.users(id) on delete set null, invite_token text unique, invite_expires_at timestamptz,
+  created_at timestamptz not null default now())`. Invite status is derived: linked if
+  `auth_user_id` is set, pending if a token exists and is not expired, otherwise none.
+- `slot_templates(id, weekday smallint not null check 0..6 (0 = Monday), start_time time not
+  null, duration_minutes int not null default 60 check > 0, capacity int not null default 5
+  check > 0, active boolean not null default true, created_at)`.
+- `recurring_rules(id, customer_id fk, slot_template_id fk, active boolean default true,
+  created_at)`, unique `(customer_id, slot_template_id)`.
+- `appointments(id, customer_id fk not null, slot_template_id fk null, starts_at timestamptz
+  not null, ends_at timestamptz not null check ends_at > starts_at, status
+  appointment_status not null default 'booked', source appointment_source not null, rule_id
+  uuid fk recurring_rules null, cancelled_at timestamptz, created_at)`. Partial unique index
+  `(customer_id, starts_at) where status in ('booked','charged')` (one live booking per
+  customer per start time). Index `(slot_template_id, starts_at)` and `(status, starts_at)`.
+- `credit_transactions(id, customer_id fk not null, amount int not null check amount <> 0,
+  type transaction_type not null, appointment_id uuid fk appointments null, created_by uuid
+  references auth.users(id) null, note text, created_at)`. Partial unique index
+  `(appointment_id) where type in ('session','late_cancel')`. Check: `session` and
+  `late_cancel` must have amount = -1 and an appointment_id; `refund` must have amount = 1 and
+  an appointment_id; `topup` amount > 0; `adjustment` any non-zero.
+- `blocked_periods(id, starts_at, ends_at check >, reason text, created_at)`.
+- `settings(id int pk check (id = 1), late_cancel_hours int not null default 5 check >= 0,
+  timezone text not null default 'Europe/Ljubljana')`, seeded with the single row in the
+  migration.
+- `push_subscriptions(id, user_id uuid fk auth.users not null, endpoint text not null unique,
+  p256dh text not null, auth text not null, created_at)`.
+- View `customer_balances(customer_id, balance)` with `security_invoker = true`:
+  `coalesce(sum(amount),0)` per customer over `customers left join credit_transactions`.
+- Helpers (`security definer`, `stable`, `set search_path = ''`): `public.current_customer_id()
+  returns uuid` (customer row for `auth.uid()`), `public.is_trainer() returns boolean`.
+- RLS: trainer full access on every table. Customer: `select` own row in `customers`, own
+  rows in `recurring_rules`, `appointments`, `credit_transactions`; `select` on active
+  `slot_templates`, `blocked_periods`, `settings`; full CRUD on own `push_subscriptions`.
+  No `insert/update/delete` for customers on any other table (writes happen via RPCs in
+  Task 3). `anon` has no access at all (revoke).
+- `revoke all on all tables in schema public from anon` and keep `authenticated` grants
+  consistent with the policies.
+
+Test harness:
+- `supabase/seeds/test_helpers.sql` creating schema `tests` with:
+  `tests.create_user(email text, password text default 'password') returns uuid` (inserts
+  into `auth.users` + `auth.identities` the way Supabase CLI seeds do),
+  `tests.authenticate_as(user_id uuid)` (`set local role authenticated; set local
+  request.jwt.claims` with `sub` and `role`), `tests.authenticate_as_service_role()`,
+  `tests.clear_authentication()`. `supabase/seeds/dev.sql` with a local trainer
+  (`trainer@amrap.local` / `password`) and two customers (one invited, one linked:
+  `ana@amrap.local` / `password`), two slot templates, and a top-up. Wire both into
+  `config.toml` `[db.seed] sql_paths = ["./seeds/test_helpers.sql", "./seeds/dev.sql"]`.
+- `supabase/tests/001_schema.sql`: tables, enums, indexes, constraints exist (use pgTAP
+  `has_table`, `has_index`, `col_is_pk`, etc.); the partial unique index rejects a second
+  `session` charge for the same appointment but allows a `refund`; the balance view sums
+  correctly for inserted rows (derive the expected value from the inserted amounts).
+- `supabase/tests/002_rls.sql`: as a customer, I see only my rows in every table, cannot
+  see other customers, cannot insert/update appointments or transactions directly; as the
+  trainer, I see all; as anon, nothing.
+- Run `supabase start` (if not running), `supabase db reset`, `supabase test db`. All green,
+  pristine output.
+- Generate `app/src/lib/database.types.ts` with `supabase gen types typescript --local
+  > app/src/lib/database.types.ts` (create the directory; the file is the only generated
+  artifact committed).
+
+Docs in the same commits: `docs/schema.md` (every table with columns, constraints, indexes,
+RLS policy summary; a "Migrations" section listing each migration filename with one line),
+`docs/architecture/data-model.md` ERD updated if it differs, `docs/runbook.md` trainer
+bootstrap finalized (create the auth user in the dashboard, then
+`insert into public.customers (name, role, auth_user_id) values (...)`), `docs/harness.md`
+"Testing" section describing the pgTAP harness and how to write a test. `README.md` run
+instructions updated if needed.
+
+Commits: (1) `test: pgTAP harness and failing schema/RLS tests`, (2) `feat(db): initial
+schema, RLS and balance view`, (3) `chore: generated database types` — or fewer if the TDD
+evidence is kept in the report. Do not create a `.claude/skills/new-migration` skill yet
+(first migration).
+
+### Task 3: Core RPCs with pgTAP tests (TDD) + new-migration skill
+
+Migration `supabase/migrations/<ts>_core_rpcs.sql`. All functions `security definer`,
+`set search_path = ''`, `language plpgsql`, raise `exception` with a stable error code via
+`using errcode = 'P0001'` and a message prefixed by a machine-readable token (e.g.
+`'AMRAP_CAPACITY_FULL: ...'`) so the UI can map it to Slovenian copy. `grant execute` to
+`authenticated` only, except `charge_due_appointments` which is `revoke`d from
+`authenticated` and `anon` (service role / cron only).
+
+Role rules: `public.is_trainer()` decides trainer; customers act only on themselves
+(`public.current_customer_id()`), otherwise `AMRAP_FORBIDDEN`.
+
+- `book(p_customer_id uuid, p_starts_at timestamptz, p_slot_template_id uuid default null,
+  p_ends_at timestamptz default null) returns uuid`.
+  Customer: `p_customer_id` must be own id, `p_slot_template_id` required, template must be
+  active, `p_starts_at` must be in the future and match the template's weekday/start_time
+  in `settings.timezone`; `ends_at = starts_at + duration`. Trainer: any customer; with a
+  template the same rules minus the future check; without a template `p_ends_at` required
+  (ad-hoc). Source: `trainer` if trainer else `self_booked`. Take
+  `pg_advisory_xact_lock(hashtext(p_slot_template_id::text || p_starts_at::text))` when a
+  template is given, then count appointments with that template and start in
+  (`booked`,`charged`); if `>= capacity` → `AMRAP_CAPACITY_FULL`. Reject if the start falls
+  inside a `blocked_periods` row → `AMRAP_BLOCKED`. Duplicate live booking surfaces as
+  `AMRAP_ALREADY_BOOKED` (catch `unique_violation`).
+- `cancel(p_appointment_id uuid) returns void`. `select ... for update` the appointment.
+  Customer: must own it; status must be `booked` else `AMRAP_NOT_CANCELLABLE` (covers
+  already charged/started); if `now() < starts_at - late_cancel_hours * interval '1 hour'`
+  → status `cancelled`, no transaction; else → `cancelled_late` + insert `late_cancel` (−1)
+  with `created_by = auth.uid()`. Trainer: status `booked` → `cancelled_by_trainer`;
+  status `charged` → `cancelled_by_trainer` + insert `refund` (+1) referencing the
+  appointment; any cancelled status → `AMRAP_NOT_CANCELLABLE`. Always set `cancelled_at`.
+- `top_up(p_customer_id uuid, p_amount int, p_note text default null) returns uuid` —
+  trainer only, amount > 0, type `topup`.
+- `adjust(p_customer_id uuid, p_amount int, p_note text default null) returns uuid` —
+  trainer only, amount <> 0, type `adjustment`.
+- `charge_due_appointments() returns int` — for each `booked` appointment with
+  `starts_at <= now()`, lock the row (`for update skip locked`), set `charged`, insert
+  `session` (−1) with `created_by = null`; return the number charged. Idempotent.
+- `create_invite(p_customer_id uuid) returns text` — trainer only; customer must not be
+  linked; sets `invite_token = encode(gen_random_bytes(24),'hex')`,
+  `invite_expires_at = now() + interval '7 days'`; returns the token.
+- `accept_invite(p_token text) returns uuid` — authenticated; locks the customer row by
+  token; rejects missing/expired (`AMRAP_INVITE_INVALID`), already linked
+  (`AMRAP_INVITE_USED`), or a caller already linked to another customer
+  (`AMRAP_ALREADY_LINKED`); sets `auth_user_id = auth.uid()`, clears the token; returns the
+  customer id.
+
+Tests (TDD: write each failing test first; one file per RPC under `supabase/tests/`, named
+`010_book.sql`, `011_cancel.sql`, `012_credits.sql`, `013_charge_job.sql`,
+`014_invites.sql`), covering at minimum: capacity overflow exactly at the boundary (fill to
+capacity, the next book fails, a cancel frees it); custom duration/capacity respected;
+customer cannot book for another customer; booking in a blocked period rejected; past start
+rejected; wrong weekday/time rejected; duplicate live booking rejected; late-cancel boundary
+(start = now() + cutoff + 1 min → free; start = now() + cutoff − 1 min → late with one
+`late_cancel` row); customer cancel of a `charged` appointment rejected with no new
+transaction; trainer cancel of `charged` → refund and net balance 0 (derive from the view);
+trainer cancel of `booked` → no transaction; charge job on two due + one future → returns 2,
+run again → returns 0 and still exactly one `session` row per appointment; charge vs late
+cancel: after charging, a late cancel is rejected and the partial unique index still holds
+one charge; negative balance: cancel late with balance 0 → balance −1 and the view shows it;
+`top_up`/`adjust` rejected for customers; invite: token works once, second use rejected,
+expired token rejected (update `invite_expires_at` into the past in the test), a user
+already linked cannot accept another; `charge_due_appointments` not executable by
+`authenticated`. Use `tests.authenticate_as` helpers; insert fixture appointments with past
+`starts_at` directly as superuser/service role where `book()` would refuse them.
+
+Docs in the same commits: `docs/rpcs.md` (one section per RPC: signature, who may call,
+rules, error tokens, side effects), `docs/schema.md` migrations list, `docs/jobs.md`
+describing `charge_due_appointments()` as the 15-min job (scheduling itself lands in
+Stage 2), `docs/architecture/charging-sequence.md`, `booking-sequence.md` and
+`auth-invite-flow.md` adjusted to the real names. Regenerate
+`app/src/lib/database.types.ts`.
+
+This is the second migration, so create the project skill
+`.claude/skills/new-migration/SKILL.md` (frontmatter `name`, `description`) describing the
+repeatable procedure: timestamped file via `supabase migration new <name>`, write failing
+pgTAP test first, `supabase db reset` + `supabase test db`, update `docs/schema.md` and/or
+`docs/rpcs.md` plus the affected diagram, regenerate types, commit together. Mention this in
+`docs/harness.md` "Skills" section.
+
+### Task 4: Vite PWA shell, auth, invite flow
+
+Create `app/` with Vite 7 + React 19 + TypeScript (strict), `react-router` v7 (data
+router), `@supabase/supabase-js` v2, `vite-plugin-pwa`, Vitest + Testing Library,
+ESLint (flat config) + Prettier. Use `npm`. Node 25 is installed locally; set
+`"engines": { "node": ">=22" }`.
+
+Structure:
+- `app/src/i18n/sl.ts` — single exported `const sl = {...} as const` with every string;
+  `app/src/i18n/index.ts` exporting `t = sl`. Error-token map `errorMessages: Record<string,
+  string>` for the `AMRAP_*` tokens from `docs/rpcs.md`, plus a `fromError(e)` helper that
+  maps a Postgres error message to Slovenian copy (fallback generic message).
+- `app/src/lib/supabase.ts` — client from `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`
+  (fail fast with a descriptive error if missing), typed with `Database` from
+  `database.types.ts`. `app/.env.example` with the two keys and local defaults
+  (`http://127.0.0.1:54321` and the local anon key printed by `supabase start`).
+- `app/src/auth/` — `AuthProvider` (session + current `customers` row + role),
+  `useAuth()`, `RequireAuth`, `RequireRole('trainer'|'customer')`.
+- `app/src/lib/keepAlive.ts` — on app load after sign-in, one lightweight authenticated
+  read (`select id from settings limit 1`) to keep the free project active (ADR 0005).
+- Routes: `/login` (email + password sign-in), `/invite/:token` (sign-up form: name shown
+  read-only is not needed; email + password + confirm; on success call `accept_invite`,
+  then redirect to `/`), `/` → redirects to `/t` for trainer or `/c` for customer,
+  `/c` customer shell (bottom nav: Domov, Koledar, Zgodovina — placeholder pages that
+  render the balance from `customer_balances` and "ni prihajajočih terminov"), `/t` trainer
+  shell (nav: Danes, Koledar, Stranke, Nastavitve — placeholder pages), `/logout`.
+  A signed-in user with no `customers` row sees a "račun ni povezan" page with a sign-out
+  button.
+- PWA: `vite-plugin-pwa` with `registerType: 'autoUpdate'`, manifest name "AMRAP",
+  `lang: 'sl'`, theme colour, 192/512 PNG icons (generate simple placeholder icons with a
+  script committed under `app/scripts/` — the PNGs themselves are committed as assets, they
+  are not regenerated artifacts), `display: standalone`.
+- Cloudflare Pages: `app/public/_redirects` with `/* /index.html 200`.
+- Tests (Vitest, jsdom): `sl.ts` has no empty strings and `fromError` maps a known token and
+  falls back; route guard redirects unauthenticated users to `/login` and routes roles to
+  `/t` and `/c` (mock the Supabase client module).
+- `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` all green.
+
+Docs in the same commits: `docs/screens.md` (route table with role, purpose, strings used;
+mark Stage 1 placeholders), `docs/architecture/auth-invite-flow.md` adjusted,
+`README.md` local run instructions for `app/`, `docs/runbook.md` Cloudflare section with
+the env vars to set in the Pages dashboard.
+
+Commits: `feat(app): Vite PWA shell with Slovenian strings`, `feat(app): auth and invite
+flow`, or similar small steps. Do not implement calendar, booking or ledger UI (Stage 2).
+
+### Task 5: CI and docs check
+
+- `scripts/check-docs.sh` (bash, exits non-zero with a listing of what is missing):
+  every `supabase/migrations/*.sql` basename must appear in `docs/schema.md`; every
+  function name declared by `create or replace function public.<name>` or
+  `create function public.<name>` in any migration must appear in `docs/rpcs.md` (helper
+  functions `current_customer_id` and `is_trainer` count too — document them under a
+  "Helpers" section if missing). Make it runnable locally and keep it under 60 lines.
+- `.github/workflows/ci.yml` on `pull_request` and `push` to `main`: job `db` —
+  `supabase/setup-cli@v1`, `supabase start -x studio,imgproxy,logflare,vector,edge-runtime`,
+  `supabase db reset` is not needed after start (start applies migrations and seeds),
+  `supabase test db`; job `app` — Node 22, `npm ci`, `npm run lint`, `npm run typecheck`,
+  `npm test -- --run`, `npm run build` in `app/`; job `docs` — `scripts/check-docs.sh`.
+  Also verify generated types are current: `supabase gen types typescript --local | diff -
+  app/src/lib/database.types.ts` in the `db` job.
+- `docs/harness.md` "CI" section describing the three jobs and what the docs check
+  enforces. `README.md` badge not needed.
+- Run `scripts/check-docs.sh` locally; it must pass on the current tree. Add
+  `"check:docs": "bash ../scripts/check-docs.sh"` is NOT needed; keep the script standalone.
+
+Commit: `ci: pgTAP, app and docs checks`.

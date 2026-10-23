@@ -1,0 +1,156 @@
+# Runbook
+
+Supabase project "AMRAP", ref `etzkbwqgjuipihypokjp`, eu-central-1, Free Plan.
+
+## Unpause a paused Supabase project
+
+The Free Plan pauses a project after about 7 days of low user-database activity (ADR 0005).
+The app's keep-alive read on every load normally prevents this.
+
+1. Open the Supabase dashboard and select the project "AMRAP".
+2. Click the restore/unpause button on the paused-project banner.
+3. Wait until the project status is healthy (a few minutes).
+4. Open the app and sign in to confirm data is intact.
+
+If the project stays paused past the restore window, download the backup from the dashboard
+before it is removed.
+
+## Bootstrap the trainer
+
+The trainer is the only user not created through an invite. This is done once per environment,
+after the initial schema migration is deployed. Locally, `supabase db reset` already seeds a
+trainer (`trainer@amrap.local` / `password`, see `supabase/seeds/dev.sql`).
+
+1. Create the trainer's auth user in the dashboard (Authentication, Users, Add user, Create new
+   user) with email and password, and tick "Auto Confirm User". Copy the new user's UID.
+2. Run in the SQL editor, replacing the placeholders:
+
+```sql
+insert into public.customers (name, email, role, auth_user_id)
+values ('<trainer name>', '<trainer email>', 'trainer', '<auth user uid>');
+```
+
+3. Check the link: `select id, name, role from public.customers where role = 'trainer';`
+   returns exactly the one row.
+4. Sign in to the app and confirm the trainer shell is shown.
+
+## Invite a customer (Stage 1, until the Customers screen exists)
+
+The trainer UI for invites arrives in Stage 2. Until then the owner creates the record and
+issues the token in the Supabase SQL editor.
+
+1. Insert the customer record and note its id:
+
+```sql
+insert into public.customers (name, email, phone)
+values ('<name>', '<email>', '<phone or null>')
+returning id;
+```
+
+2. Issue a token (24 random bytes as hex, valid 7 days, replaces any earlier token). This is
+   the same update `create_invite` performs:
+
+```sql
+update public.customers
+set invite_token = encode(extensions.gen_random_bytes(24), 'hex'),
+    invite_expires_at = now() + interval '7 days'
+where id = '<id>' and auth_user_id is null and role = 'customer'
+returning invite_token;
+```
+
+   No row returned means the record is already linked (see "Re-link a customer") or is
+   not a customer record.
+3. Send the customer `https://<pages-domain>/invite/<token>`.
+
+`create_invite` itself cannot be called from the SQL editor: the editor runs without a JWT,
+so `is_trainer()` is false and the function raises `AMRAP_FORBIDDEN`. The alternative is to
+call it as the signed-in trainer from the browser devtools console of the running app. The
+app does not expose its client globally, so `supabase.rpc('create_invite', { p_customer_id })`
+only works where the client is in scope (a local dev server); on the deployed app use a plain
+request with the trainer's session token:
+
+```js
+const { access_token } = JSON.parse(localStorage.getItem('sb-etzkbwqgjuipihypokjp-auth-token'));
+fetch('https://etzkbwqgjuipihypokjp.supabase.co/rest/v1/rpc/create_invite', {
+  method: 'POST',
+  headers: { apikey: '<anon key>', Authorization: `Bearer ${access_token}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ p_customer_id: '<id>' }),
+}).then((r) => r.json()).then(console.log);
+```
+
+## Re-link a customer
+
+When a linked customer loses access (forgotten password, lost device, wrong email), there is
+no password reset (ADR 0006). `create_invite` refuses linked records (`AMRAP_ALREADY_LINKED`),
+so the old auth user is removed first (ADR 0007).
+
+1. In the app (or SQL editor), find the customer and note their `auth_user_id`:
+   `select id, name, auth_user_id from public.customers where name ilike '%<name>%';`
+2. In the Supabase dashboard open Authentication, Users, find the user with that UID, and
+   delete it. The foreign key `on delete set null` clears `customers.auth_user_id`; the
+   customer's appointments and credits stay as they are. Their push subscriptions are deleted.
+3. Check the record is unlinked: the query from step 1 now shows `auth_user_id` null.
+4. Issue a new invite token and send the new link, as in
+   [Invite a customer](#invite-a-customer-stage-1-until-the-customers-screen-exists).
+5. The customer opens the link and signs up again with a new password (same or new email);
+   `accept_invite` links the new auth user. They re-enable notifications on their device.
+
+This does not work for the trainer: only the trainer can create invites. To re-link the
+trainer, create a new auth user as in "Bootstrap the trainer" step 1, then run
+`update public.customers set auth_user_id = '<new auth user uid>' where role = 'trainer';`
+(after deleting the old auth user).
+
+## Deploy migrations after merge
+
+Migrations reach the remote project only after the PR is merged. Never from a feature branch.
+
+1. `git checkout main && git pull`
+2. `supabase link --project-ref etzkbwqgjuipihypokjp` (once per machine)
+3. `supabase db push`
+4. Verify in the dashboard that the migration is listed and the app still works.
+
+## Cloudflare Pages build settings
+
+| Setting | Value |
+|---|---|
+| Root directory | `app` |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Environment variables | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `NODE_VERSION=22` |
+
+Production branch is `main`. Pull request branches get preview deployments.
+
+Set `VITE_SUPABASE_URL` (the project URL, `https://etzkbwqgjuipihypokjp.supabase.co`) and
+`VITE_SUPABASE_ANON_KEY` (the project's anon key from the Supabase dashboard, Project Settings,
+API) for both Production and Preview. Both are public by design; access is controlled by RLS.
+If either is missing the app shows a start-up error page that names the missing variable
+(and logs it to the console) instead of a blank page, so a misconfigured deploy is visible.
+`NODE_VERSION=22` pins the build's Node version (`app/.node-version` says the same, and
+`app/package.json` requires Node 22 or newer). Vite inlines the variables at build time, so
+changing them needs a new deployment.
+
+Cloudflare Pages already falls back to `index.html` for unknown paths when a site has no
+`404.html`, so deep links such as `/invite/<token>` work natively. `app/public/_redirects`
+(`/* /index.html 200`) is a belt-and-braces measure; after the first deployment check the build
+log for the redirects being parsed (and that `/invite/test` loads the app) and delete the file
+if it is flagged.
+
+### Auth URL configuration (dashboard action for the owner)
+
+The remote Supabase project does not read `supabase/config.toml`. After the first Pages
+deployment, open the dashboard, Authentication, URL Configuration, and set Site URL to the
+Pages production URL; add the Pages URL (and `https://*.<project>.pages.dev` if preview
+deployments should work) to Redirect URLs.
+
+Then turn email confirmations off on the hosted project (ADR 0006). `config.toml` only
+affects the local stack; a new hosted project has "Confirm email" ON by default.
+
+1. Open Authentication, Sign In / Providers, Email.
+2. Turn "Confirm email" off.
+3. Keep "Allow new users to sign up" on (invite sign-up uses `signUp`).
+
+If this is skipped, `signUp` succeeds but returns no session, so the invite page cannot call
+`accept_invite` and stops, and every sign-up sends a confirmation mail through Supabase's
+built-in SMTP, which is limited to 2 mails per hour on the Free Plan. The app shows a
+"contact the trainer" message for the resulting `email_not_confirmed` error, but the fix is
+the dashboard setting.
