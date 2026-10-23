@@ -76,19 +76,20 @@ insert into public.blocked_periods (starts_at, ends_at, reason)
   select ts - interval '1 hour', ts + interval '2 hours', 'Book test closure'
   from times where key = 'slot_next_week';
 
+create temp table slot as
+  select id, capacity, duration_minutes from public.slot_templates
+  where id = (select id from fx where key = 'slot');
+
 -- A block that starts 30 minutes after the 'slot_overlap' occurrence starts (the start itself
--- is free, the 45-minute appointment would run into it), and one that starts exactly when the
+-- is free, the appointment would run into it), and one that starts exactly when the
 -- 'slot_adjacent' occurrence ends (blocked ranges are [starts_at, ends_at), so no overlap).
 insert into public.blocked_periods (starts_at, ends_at, reason)
   select ts + interval '30 minutes', ts + interval '3 hours', 'Book test overlap'
   from times where key = 'slot_overlap';
 insert into public.blocked_periods (starts_at, ends_at, reason)
-  select ts + interval '45 minutes', ts + interval '3 hours', 'Book test adjacent'
-  from times where key = 'slot_adjacent';
-
-create temp table slot as
-  select id, capacity, duration_minutes from public.slot_templates
-  where id = (select id from fx where key = 'slot');
+  select t.ts + s.duration_minutes * interval '1 minute', t.ts + interval '3 hours',
+         'Book test adjacent'
+  from times t, slot s where t.key = 'slot_adjacent';
 
 -- Ids returned by book(), for later assertions.
 create temp table booked (key text primary key, id uuid not null) on commit drop;

@@ -9,7 +9,7 @@
 -- dates, never hardcoded.
 begin;
 
-select plan(28);
+select plan(33);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
@@ -272,6 +272,32 @@ select case
           'instances of a rule on both sides of a DST change keep the same wall-clock time')
   else skip('the materialization window does not cross a DST change today', 1)
 end;
+
+-- DST on fixed dates, with the migration's expression, so it asserts on every run.
+create temp table dst as
+  select d.key, d.local_time,
+         (d.day + d.local_time) at time zone g.tz as ts,
+         ((d.day + d.local_time) at time zone g.tz) at time zone g.tz as back
+  from gym g, (values ('autumn_before', date '2026-10-24', time '10:00'),
+                      ('autumn_after', date '2026-10-26', time '10:00'),
+                      ('spring_before', date '2026-03-28', time '10:00'),
+                      ('spring_after', date '2026-03-30', time '10:00'),
+                      ('spring_gap', date '2026-03-29', time '02:30')) d(key, day, local_time);
+
+select ok((select bool_and(back::time = local_time) from dst
+           where key in ('autumn_before', 'autumn_after')),
+  '10:00 on both sides of the autumn change converts back to 10:00 local');
+select is((select extract(epoch from a.ts - b.ts) from dst a, dst b
+           where a.key = 'autumn_after' and b.key = 'autumn_before'),
+  (2 * 86400 + 3600)::numeric, 'the autumn change adds one hour between the two instants');
+select ok((select bool_and(back::time = local_time) from dst
+           where key in ('spring_before', 'spring_after')),
+  '10:00 on both sides of the spring change converts back to 10:00 local');
+select is((select extract(epoch from a.ts - b.ts) from dst a, dst b
+           where a.key = 'spring_after' and b.key = 'spring_before'),
+  (2 * 86400 - 3600)::numeric, 'the spring change removes one hour between the two instants');
+select ok((select back::time <> local_time from dst where key = 'spring_gap'),
+  'a start time in the spring-forward gap does not convert back, so materialization skips it');
 
 -- Second run: idempotent -------------------------------------------------------------------
 
