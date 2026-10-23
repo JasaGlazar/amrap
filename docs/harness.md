@@ -118,7 +118,9 @@ Project skills live in `.claude/skills/<name>/SKILL.md`.
 
 Every task is reviewed by the `reviewer` agent (`.claude/agents/reviewer.md`) against
 `PLAN.md` and this checklist before it counts as done. Critical and Important findings are
-fixed before merge.
+fixed before merge. Since Stage 4 the checklist also covers the phone UI rules in
+[screens.md](screens.md#behaviour-shared-by-all-screens) and keeping `docs/copy-review.md` in
+step with `sl.ts` until the trainer's sign-off.
 
 ## No blocking hooks
 

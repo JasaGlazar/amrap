@@ -260,6 +260,31 @@ describe('cancel dialog', () => {
     expect(fakeSupabase.rpc).not.toHaveBeenCalledWith('cancel', expect.anything());
   });
 
+  it.each([
+    ['Escape', () => userEvent.keyboard('{Escape}')],
+    ['Nazaj', () => userEvent.click(screen.getByRole('button', { name: t.cancelDialog.back }))],
+  ])('gives focus back to the button that opened it after %s', async (_name, close) => {
+    await openDialog();
+    await close();
+    const row = screen.getByRole('listitem', { name: slotLabel(startsAt) });
+    expect(within(row).getByRole('button', { name: t.slot.cancel })).toHaveFocus();
+  });
+
+  it('keeps Tab inside the dialog', async () => {
+    const dialog = await openDialog();
+    const confirm = within(dialog).getByRole('button', { name: t.cancelDialog.confirm });
+    const back = within(dialog).getByRole('button', { name: t.cancelDialog.back });
+
+    await userEvent.tab();
+    expect(confirm).toHaveFocus();
+    await userEvent.tab();
+    expect(back).toHaveFocus();
+    await userEvent.tab();
+    expect(confirm).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(back).toHaveFocus();
+  });
+
   it('shows the server error when the appointment changed meanwhile', async () => {
     const dialog = await openDialog();
     fakeSupabase.rpc.mockResolvedValueOnce({

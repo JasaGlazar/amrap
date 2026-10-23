@@ -116,6 +116,22 @@ describe('customer detail', () => {
     });
   });
 
+  it('asks phones for a keyboard with a minus sign in the amount field', async () => {
+    renderAt(`/t/stranke/${ana.id}`);
+    const credits = await screen.findByRole('region', { name: t.customerDetail.creditsTitle });
+    const amount = within(credits).getByLabelText(t.customerDetail.amount);
+    expect(amount).toHaveAttribute('type', 'number');
+    expect(amount).not.toHaveAttribute('inputmode', 'numeric');
+  });
+
+  it('keeps the browser from autofilling the trainer’s own details into a customer', async () => {
+    renderAt(`/t/stranke/${ana.id}`);
+    const details = await screen.findByRole('form', { name: t.customerDetail.detailsTitle });
+    for (const label of [t.customers.name, t.customers.phone, t.customers.email]) {
+      expect(within(details).getByLabelText(label)).toHaveAttribute('autocomplete', 'off');
+    }
+  });
+
   it('creates an invite and shows the full link', async () => {
     renderAt(`/t/stranke/${cvet.id}`);
     const invite = await screen.findByRole('region', { name: t.customerDetail.inviteTitle });

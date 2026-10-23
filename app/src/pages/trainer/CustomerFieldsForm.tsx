@@ -43,15 +43,25 @@ export function CustomerFieldsForm({
       <h2>{title}</h2>
       <label>
         {t.customers.name}
-        <input value={name} onChange={(e) => setName(e.target.value)} />
+        <input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
       </label>
       <label>
         {t.customers.phone}
-        <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <input
+          type="tel"
+          autoComplete="off"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+        />
       </label>
       <label>
         {t.customers.email}
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input
+          type="email"
+          autoComplete="off"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
       </label>
       {invalid && (
         <p role="alert" className="error">

@@ -26,7 +26,8 @@ confirmed) and the "Binding constraints" section of `docs/harness.md`.
 4. **No hardcoded counts in tests.** Expected counts and balances are derived from inserted
    data.
 5. **Slovenian strings only in `app/src/i18n/sl.ts`.** No hardcoded user-visible text in
-   components.
+   components. Until the trainer signs off `docs/copy-review.md`, a commit that changes
+   `sl.ts` updates that file's rows in the same commit.
 6. **RLS and role checks.** Every RPC is `SECURITY DEFINER` with an explicit role check
    (`is_trainer()` or `current_customer_id()`), a fixed `search_path`, and revoked execute
    from `anon`. Cron-only functions (`charge_due_appointments`) have no role check; instead
@@ -42,6 +43,11 @@ confirmed) and the "Binding constraints" section of `docs/harness.md`.
 10. **Process.** Small commit that compiles and passes tests, message explains why and ends
    with the Co-Authored-By line; `.superpowers/`, `supabase/.temp/` and
    `.claude/settings*.json` are not committed.
+
+11. **Phone UI.** A new or changed screen keeps the rules in `docs/screens.md` "Behaviour
+   shared by all screens" (no horizontal scroll at 360 px, tap targets ≥ 44 px, focus ring,
+   contrast, no opacity for greyed text, 16 px inputs, minus key for negative numbers, no
+   autofill of the trainer's details).
 
 ## Output format
 

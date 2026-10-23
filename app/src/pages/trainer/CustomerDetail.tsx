@@ -71,7 +71,9 @@ export function TrainerCustomerDetail() {
   if (state.status === 'error') {
     return (
       <>
-        <Link to="/t/stranke">{t.customerDetail.back}</Link>
+        <Link to="/t/stranke" className="back-link">
+          {t.customerDetail.back}
+        </Link>
         <p role="alert" className="error">
           {t.common.loadFailed}
         </p>
@@ -176,7 +178,9 @@ export function TrainerCustomerDetail() {
 
   return (
     <>
-      <Link to="/t/stranke">{t.customerDetail.back}</Link>
+      <Link to="/t/stranke" className="back-link">
+        {t.customerDetail.back}
+      </Link>
       <h1>{customer.name}</h1>
       <section className="card">
         <p className="label">{t.customer.balanceLabel}</p>
@@ -193,7 +197,6 @@ export function TrainerCustomerDetail() {
           {t.customerDetail.amount}
           <input
             type="number"
-            inputMode="numeric"
             step="1"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -201,7 +204,7 @@ export function TrainerCustomerDetail() {
         </label>
         <label>
           {t.customerDetail.note}
-          <input value={note} onChange={(e) => setNote(e.target.value)} />
+          <input autoComplete="off" value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
         <NoticeLine notice={notices.credits} />
         <div className="actions">

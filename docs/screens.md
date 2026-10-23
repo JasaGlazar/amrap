@@ -78,7 +78,8 @@ data.
 - Shows the appointment (`slot.when`), the cutoff (`Brezplačna odpoved do {day} ob {time}`,
   `starts_at − settings.late_cancel_hours`) and either `cancelDialog.free` (now before the
   cutoff) or `cancelDialog.late` (`zaračunan bo 1 kredit`, from the cutoff on), like `cancel()`.
-- It takes focus when it opens; Escape and **Nazaj** close it.
+- It takes focus when it opens, keeps Tab and Shift+Tab inside, and Escape and **Nazaj** close
+  it; on close, focus returns to the button that opened it (when that button still exists).
 - **Odpovej termin** first re-checks free vs late against the current time. If the answer
   changed since the dialog opened (it stayed open past the cutoff), it only switches the copy
   and does not cancel; a second click confirms. Otherwise it calls `cancel`; on success the
@@ -287,6 +288,21 @@ How the guards and the auth state work is in [auth.md](auth.md).
   same split with RLS and RPC role checks, so the guards are navigation, not security.
 
 ## Behaviour shared by all screens
+
+- **Phone layout and accessibility** (Stage 4 Task 17; every new screen follows these):
+  - no horizontal scroll at 360 px wide; the fixed bottom navigation never covers the last item;
+  - every tap target (buttons, links outside running text, inputs, selects, checkbox labels)
+    is at least 44 × 44 px (`--tap` in `styles.css`);
+  - everything focusable shows a 3 px accent ring on `:focus-visible` (not the dialog box
+    itself, which only receives focus so screen readers start there);
+  - text contrast at least 4.5:1, control borders at least 3:1 (`--muted` #4b5563,
+    `--control-border` #6b7280); greyed rows use the muted colour, never opacity;
+  - inputs are 16 px, so iOS does not zoom on focus; a number that may be negative uses
+    `type="number"` without `inputMode="numeric"` (the iOS numeric pad has no minus key);
+    fields the trainer fills in about someone else have `autoComplete="off"`;
+  - in a row, text wraps anywhere but buttons and amounts never wrap or shrink;
+  - safe-area insets on the top bar, the page sides, the bottom navigation and the dialog;
+  - errors are `role="alert"`, results `role="status"`.
 
 - **Keep-alive.** Once per signed-in user per page load, `AuthProvider` runs
   `select id from settings limit 1` (ADR 0005). A failure is logged with `console.warn` and
