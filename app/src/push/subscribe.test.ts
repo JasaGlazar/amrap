@@ -95,7 +95,7 @@ describe('disablePush', () => {
       permission: 'granted',
       subscribedEndpoint: endpoint,
     });
-    expect(await disablePush(client, platform)).toEqual({ ok: true, data: null });
+    expect(await disablePush(client, platform, 'user-a')).toEqual({ ok: true, data: null });
     expect(db.tables.push_subscriptions.map((row) => row.endpoint)).toEqual([
       'https://push.test/other',
     ]);
@@ -104,7 +104,7 @@ describe('disablePush', () => {
 
   it('does nothing without a browser subscription', async () => {
     const { platform } = fakePlatform({});
-    expect(await disablePush(client, platform)).toEqual({ ok: true, data: null });
+    expect(await disablePush(client, platform, 'user-a')).toEqual({ ok: true, data: null });
     expect(fakeSupabase.from).not.toHaveBeenCalled();
   });
 });

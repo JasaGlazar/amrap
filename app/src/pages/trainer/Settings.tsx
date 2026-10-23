@@ -17,6 +17,7 @@ import { formatDay, formatTime, localDateOf, weekdayName } from '../../lib/time'
 import { useLoad } from '../../lib/useLoad';
 import { NoticeLine, type Notice } from '../shared/NoticeLine';
 import { PushToggle } from '../shared/PushToggle';
+import { useCustomer } from '../../auth/AuthContext';
 import { BlockedForm } from './BlockedForm';
 import { TemplateForm } from './TemplateForm';
 
@@ -29,6 +30,7 @@ const newTemplate: TemplateFields = {
 };
 
 export function TrainerSettings() {
+  const trainer = useCustomer();
   const load = useCallback(async () => {
     const now = new Date();
     const [settings, templates, blocked] = await Promise.all([
@@ -276,7 +278,7 @@ export function TrainerSettings() {
         />
       </section>
 
-      <PushToggle audience="trainer" />
+      <PushToggle audience="trainer" userId={trainer.auth_user_id ?? ''} />
     </>
   );
 }

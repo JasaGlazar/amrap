@@ -47,10 +47,11 @@ async function subscribeReplacingStale(
 export async function disablePush(
   client: Client,
   platform: PushPlatform,
+  userId: string,
 ): Promise<ActionResult<null>> {
   const subscription = await platform.getSubscription();
   if (subscription === null) return { ok: true, data: null };
-  const deleted = await deletePushSubscription(client, subscription.endpoint);
+  const deleted = await deletePushSubscription(client, subscription.endpoint, userId);
   await subscription.unsubscribe();
   return deleted;
 }

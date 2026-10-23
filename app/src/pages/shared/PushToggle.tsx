@@ -21,9 +21,11 @@ const stateText: Record<ToggleState, string> = {
 
 export function PushToggle({
   audience,
+  userId,
   platform = browserPlatform,
 }: {
   audience: 'customer' | 'trainer';
+  userId: string;
   platform?: PushPlatform;
 }) {
   const load = useCallback(async (): Promise<ToggleState> => {
@@ -32,8 +34,8 @@ export function PushToggle({
     if (platform.permission() === 'denied') return 'blocked';
     const subscription = await platform.getSubscription();
     if (subscription === null || platform.permission() !== 'granted') return 'off';
-    return (await hasPushSubscription(supabase, subscription.endpoint)) ? 'on' : 'off';
-  }, [platform]);
+    return (await hasPushSubscription(supabase, subscription.endpoint, userId)) ? 'on' : 'off';
+  }, [platform, userId]);
   const [state, reload] = useLoad(load);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
@@ -44,7 +46,7 @@ export function PushToggle({
     const vapidKey = platform.environment().vapidKey ?? '';
     const result = enable
       ? await enablePush(supabase, platform, vapidKey)
-      : await disablePush(supabase, platform);
+      : await disablePush(supabase, platform, userId);
     setNotice(
       result.ok
         ? { error: false, text: enable ? t.pushToggle.enabled : t.pushToggle.disabled }

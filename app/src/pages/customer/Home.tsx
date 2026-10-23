@@ -84,7 +84,7 @@ export function CustomerHome() {
           ))}
         </ul>
       )}
-      <PushToggle audience="customer" />
+      <PushToggle audience="customer" userId={customer.auth_user_id ?? ''} />
       {cancelling !== null && (
         <CancelDialog
           appointment={cancelling}

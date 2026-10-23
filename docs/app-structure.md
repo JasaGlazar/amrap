@@ -87,6 +87,7 @@ vi.mock('./lib/supabase', async () => ({
   like the real client.
 - `emitAuth(event, session)` simulates Supabase Auth announcing a change (sign-in, token
   refresh, sign-out).
+- `auth.getSession` returns the current `db.session` (the `/logout` loader reads it).
 - `makeSession`, `makeCustomer`, `authError` build fixtures; the `auth.signUp` /
   `signInWithPassword` mocks and any other RPC are set per test.
 - `src/data/data.test.ts` and `trainer.test.ts` call the data layer with the fake directly

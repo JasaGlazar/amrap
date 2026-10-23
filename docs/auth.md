@@ -56,7 +56,8 @@ offers sign out only (the trainer has to invite or re-link the record, see ADR 0
 ## Sign-out
 
 `/logout` is a route loader: it first removes this device's push subscription
-(`disablePush`: deletes the row and unsubscribes the browser; a failure is logged with
+(`disablePush` for the user of `supabase.auth.getSession()`: deletes that user's row for this
+endpoint and unsubscribes the browser; a failure is logged with
 `console.warn` and never stops the sign-out, see [notifications.md](notifications.md#subscribing-in-the-app)),
 then calls `supabase.auth.signOut()` and redirects to `/login`. If
 signing out fails, the loader logs it and returns the `fromError` message, and

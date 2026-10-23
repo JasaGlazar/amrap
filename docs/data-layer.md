@@ -41,7 +41,7 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 | `upcomingBlocked(client, now)` | `blocked_periods` | `ends_at > now`, by start |
 | `chargedSince(client, customerId, since)` | `appointments` | that customer's `charged` appointments with `starts_at >= since`, newest first |
 | `futureBookedCount(client, templateId, now)` | `appointments` | the number of `booked` appointments of that template with `starts_at > now` |
-| `hasPushSubscription(client, endpoint)` | `push_subscriptions` | whether the caller has a row with that endpoint (RLS: own rows) |
+| `hasPushSubscription(client, endpoint, userId)` | `push_subscriptions` | whether a row with that endpoint belongs to `userId` (the signed-in auth user); filtered by `user_id` because the trainer's RLS policy returns every user's rows |
 
 `inviteStatus(customer, now)` derives a customer's invite status: `linked` (an auth user is
 linked), `pending` (an invite token that has not expired) or `none`.
@@ -92,7 +92,7 @@ Table writes go through RLS (the trainer's `for all` policies):
 | `saveBlocked(client, id \| null, { startsAt, endsAt, reason })` | insert or update a `blocked_periods` row |
 | `deleteBlocked(client, id)` | delete a `blocked_periods` row |
 | `setLateCancelHours(client, hours)` | update `settings.late_cancel_hours` |
-| `deletePushSubscription(client, endpoint)` | delete the caller's `push_subscriptions` row with that endpoint (RLS: own rows) |
+| `deletePushSubscription(client, endpoint, userId)` | delete the `push_subscriptions` row with that endpoint and `user_id = userId`, so the trainer never deletes another user's row |
 
 After an action the page reloads what it shows; nothing is updated optimistically.
 

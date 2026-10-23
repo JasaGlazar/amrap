@@ -410,6 +410,7 @@ export const fakeSupabase = {
     signInWithPassword: vi.fn(),
     signUp: vi.fn(),
     signOut: vi.fn(),
+    getSession: vi.fn(),
   },
   from: vi.fn(),
   rpc: vi.fn(),
@@ -440,6 +441,9 @@ export function resetFake(initial: { session?: Session; customer?: CustomerRow |
     emitAuth('SIGNED_OUT', null);
     return Promise.resolve({ error: null });
   });
+  fakeSupabase.auth.getSession
+    .mockReset()
+    .mockImplementation(async () => ({ data: { session: db.session }, error: null }));
   fakeSupabase.auth.signInWithPassword.mockReset();
   fakeSupabase.auth.signUp.mockReset();
   fakeSupabase.from.mockReset().mockImplementation((table: string) => makeQuery(table));

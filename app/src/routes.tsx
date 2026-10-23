@@ -29,8 +29,10 @@ function Root() {
 
 async function logout() {
   try {
-    const removed = await disablePush(supabase, browserPlatform);
-    if (!removed.ok) console.warn('removing the push subscription failed', removed.message);
+    const userId = (await supabase.auth.getSession()).data.session?.user.id;
+    const removed = userId ? await disablePush(supabase, browserPlatform, userId) : null;
+    if (removed && !removed.ok)
+      console.warn('removing the push subscription failed', removed.message);
   } catch (error) {
     console.warn('removing the push subscription failed', error);
   }

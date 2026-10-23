@@ -30,14 +30,14 @@ describe('PushToggle', () => {
     ],
   ])('explains %s and offers no button', async (_name, options, text) => {
     const { platform } = fakePlatform(options);
-    render(<PushToggle audience="customer" platform={platform} />);
+    render(<PushToggle audience="customer" userId="user-a" platform={platform} />);
     expect(await screen.findByText(text)).toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('turns notifications on for this device', async () => {
     const { platform } = fakePlatform({ newEndpoint: endpoint });
-    render(<PushToggle audience="customer" platform={platform} />);
+    render(<PushToggle audience="customer" userId="user-a" platform={platform} />);
     expect(await screen.findByText(t.pushToggle.off)).toBeInTheDocument();
     expect(screen.getByText(t.pushToggle.customerHint)).toBeInTheDocument();
 
@@ -62,7 +62,7 @@ describe('PushToggle', () => {
       permission: 'granted',
       subscribedEndpoint: endpoint,
     });
-    render(<PushToggle audience="trainer" platform={platform} />);
+    render(<PushToggle audience="trainer" userId="user-a" platform={platform} />);
     expect(await screen.findByText(t.pushToggle.on)).toBeInTheDocument();
     expect(screen.getByText(t.pushToggle.trainerHint)).toBeInTheDocument();
 
@@ -76,13 +76,13 @@ describe('PushToggle', () => {
 
   it('shows off when the browser is subscribed but the server no longer has the device', async () => {
     const { platform } = fakePlatform({ permission: 'granted', subscribedEndpoint: endpoint });
-    render(<PushToggle audience="customer" platform={platform} />);
+    render(<PushToggle audience="customer" userId="user-a" platform={platform} />);
     expect(await screen.findByText(t.pushToggle.off)).toBeInTheDocument();
   });
 
   it('shows why turning on failed', async () => {
     const { platform } = fakePlatform({ answer: 'denied' });
-    render(<PushToggle audience="customer" platform={platform} />);
+    render(<PushToggle audience="customer" userId="user-a" platform={platform} />);
     await userEvent.click(await screen.findByRole('button', { name: t.pushToggle.enable }));
     expect(await screen.findByRole('alert')).toHaveTextContent(t.pushToggle.denied);
     expect(await screen.findByText(t.pushToggle.blocked)).toBeInTheDocument();
