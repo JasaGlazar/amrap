@@ -45,7 +45,8 @@ log in and see the trainer shell.
 charge → refund, net 0; customer cancel after start → rejected, no transaction; negative
 balance allowed; invite token reuse/expiry rejected; custom duration/capacity respected;
 Vitest for strings module and auth routing.
-**Status**: Complete (PR open; remote `db push` and owner steps in docs/runbook.md pending)
+**Status**: Complete (PR #1 merged 2026-10-23; hosted `db push` of both Stage 1 migrations done;
+owner steps tracked in issue #2)
 
 ## Stage 2: Credits & appointments core
 **Goal**: Recurring rules + nightly materialization (4 weeks ahead, idempotent), pg_cron
