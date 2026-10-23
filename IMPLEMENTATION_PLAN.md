@@ -99,7 +99,7 @@ checklist skill. Branch `stage-4-pilot`.
   and the build continues past it. Issue #2 holds the Stage 1 owner actions.
 
 ### Handoff state (2026-10-23, end of Fable session)
-- Stage 1: PR #1 open, CI green. Not merged yet.
+- Stage 1: PR #1 merged to `main` (418f876); `db push` after merge per Workflow.
 - Stage 2: branch `stage-2-core`. Task 6 committed (c99c787..d2bce86), reviewed (approve with
   fixes); fixes done: ADR 0008, deterministic DST tests, docs index/jobs/schema notes. Next:
   Task 9. The implementer's concerns were all ruled acceptable and are recorded in ADR 0008.
