@@ -123,8 +123,17 @@ checklist skill. Branch `stage-4-pilot`.
 - Stage 3: branch `stage-3-notifications`. Item 0 done: "Stage 3 tasks" below and ADR 0009
   (push design). Research (Context7 + local stack): pg_net 0.20.4 available but not installed,
   Vault installed, `npm:web-push@3.6.7` verified in edge runtime 1.74.3 (Deno 2.1.4), Deno not
-  installed on the host (tests via the `denoland/deno:2.1.4` image). Waiting for plan approval
-  before Task 10.
+  installed on the host (tests via the `denoland/deno:2.1.4` image). Plan approved with
+  rulings: dev-seed Vault placeholders, Docker Deno, 45-75 min window, no row without config or
+  subscription, trainer cancels do not notify customers (owner question), `save_push_subscription`
+  RPC, `apikey` fallback documented for the owner to verify.
+- Task 10 done: migration `20261023214654_notifications_and_reminders.sql` (pg_net in
+  `extensions`, `notifications` log, `push_config`, `dispatch_notifications`,
+  `claim_notifications`, `send_cutoff_reminders` + cron every 15 min), tests 030/031, dev-seed
+  Vault rows, docs (`notifications.md`, `push-sequence.md`, schema/rpcs/jobs/ERD/context,
+  runbook pg_net check). Checked by hand: pg_net from the db container reaches
+  `host.docker.internal:54321` (gateway 503 until `send-push` exists, Task 12). pg_net 0.20.4's
+  default timeout is 5000 ms (docs say 2000); dispatch sets 10000.
 
 ---
 
