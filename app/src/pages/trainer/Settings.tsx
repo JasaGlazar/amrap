@@ -11,7 +11,7 @@ import {
   type BlockedPeriod,
   type TemplateFields,
 } from '../../data/slots';
-import { fill, t } from '../../i18n';
+import { fill, fromError, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { formatDay, formatTime, localDateOf, weekdayName } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
@@ -97,7 +97,21 @@ export function TrainerSettings() {
         before.start_time.slice(0, 5) !== fields.start_time.slice(0, 5));
     const key = `${id}|${JSON.stringify(fields)}`;
     if (strands && id !== null && stranded?.key !== key) {
-      const count = await futureBookedCount(supabase, id, new Date());
+      setBusy(true);
+      setNotice((current) => ({ ...current, templates: null }));
+      let count: number;
+      try {
+        count = await futureBookedCount(supabase, id, new Date());
+      } catch (error) {
+        console.warn('stranded booking count failed', error);
+        setNotice((current) => ({
+          ...current,
+          templates: { error: true, text: fromError(error) },
+        }));
+        return;
+      } finally {
+        setBusy(false);
+      }
       if (count > 0) {
         setStranded({ key, id, count });
         return;

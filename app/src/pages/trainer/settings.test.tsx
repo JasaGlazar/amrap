@@ -140,6 +140,22 @@ describe('stranded bookings', () => {
     expect(db.tables.slot_templates[0].active).toBe(false);
   });
 
+  it('shows an error and saves nothing when the count cannot be read', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    renderSettings();
+    const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
+    const form = await screen.findByRole('form', { name: t.settings.editTemplate });
+    db.readErrors.appointments = { message: 'FetchError: network down' };
+    await userEvent.click(within(form).getByLabelText(t.settings.active));
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+    expect(await within(list).findByRole('alert')).toHaveTextContent(t.genericError);
+    expect(within(form).getByRole('button', { name: t.settings.save })).toBeEnabled();
+    expect(db.tables.slot_templates[0].active).toBe(true);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it('warns when the start time moves too', async () => {
     renderSettings();
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });

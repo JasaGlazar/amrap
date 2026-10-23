@@ -197,8 +197,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   active template first counts its future `booked` appointments (`futureBookedCount`). If there
   are any, the form shows `settings.strandedWarning` with the count (they stay booked and
   charged and appear under "Termini zunaj urnika" in the trainer calendar) and saves only when
-  **Shrani** is clicked again with the same values. Capacity, duration and reactivation save
-  at once.
+  **Shrani** is clicked again with the same values. The form is busy while the count is read;
+  if the read fails, the section shows the error (`genericError` for a network failure) and
+  nothing is saved. Capacity, duration and reactivation save at once.
 - **Rok za brezplačno odpoved:** `settings.late_cancel_hours`, a whole number of hours, 0 or
   more (`settings.cutoffInvalid`). It applies to every later cancel and to the customers'
   cancel dialog.

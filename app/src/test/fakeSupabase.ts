@@ -44,6 +44,7 @@ export const db: {
   settings: { id: number; late_cancel_hours: number; timezone: string };
   settingsError: { message: string } | null;
   customersError: { message: string } | null;
+  readErrors: Record<string, { message: string }>;
   tables: Tables;
 } = {
   session: null,
@@ -52,6 +53,7 @@ export const db: {
   settings: defaultSettings(),
   settingsError: null,
   customersError: null,
+  readErrors: {},
   tables: emptyTables(),
 };
 
@@ -114,6 +116,7 @@ function signedInCustomer(): Row[] {
 }
 
 function rowsOf(table: string): Row[] | Result {
+  if (table in db.readErrors) return { data: null, error: db.readErrors[table] };
   if (table === 'customers') {
     if (db.customersError) return { data: null, error: db.customersError };
     return [...signedInCustomer(), ...db.tables.customers];
@@ -407,6 +410,7 @@ export function resetFake(initial: { session?: Session; customer?: CustomerRow |
   selects.length = 0;
   db.settingsError = null;
   db.customersError = null;
+  db.readErrors = {};
   listeners.clear();
 
   fakeSupabase.auth.onAuthStateChange.mockReset().mockImplementation((listener: AuthListener) => {

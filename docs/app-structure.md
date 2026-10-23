@@ -62,7 +62,8 @@ vi.mock('./lib/supabase', async () => ({
 `fakeSupabase.ts` is an in-memory stand-in that answers only what the app asks for:
 
 - `db` holds the state: the session, the signed-in user's customer row and balance
-  (`db.customer`, `db.balance`), the `settings` row, injected errors, and `db.tables` with rows
+  (`db.customer`, `db.balance`), the `settings` row, injected errors (`customersError`,
+  `settingsError`, and `readErrors` keyed by table for any other read), and `db.tables` with rows
   for `customers` and `customer_balances` (added to the signed-in row, for the trainer's
   lists), `recurring_rules`, `slot_templates`, `slot_occupancy`, `appointments`,
   `credit_transactions` and `blocked_periods`. The query fake supports `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `or`
