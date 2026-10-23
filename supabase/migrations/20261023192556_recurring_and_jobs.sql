@@ -351,3 +351,20 @@ create view public.slot_occupancy as
 
 revoke all on public.slot_occupancy from anon, authenticated;
 grant select on public.slot_occupancy to authenticated, service_role;
+
+-- Schedules (pg_cron) ----------------------------------------------------------------------
+
+-- pg_cron must live in pg_catalog on Supabase; the grants are the ones Supabase documents for
+-- scheduling as postgres. Jobs run as the role that scheduled them (postgres, the owner of the
+-- job functions) with no JWT, so auth.uid() is null. cron.schedule with a job name updates
+-- the job if it exists, so re-running this is harmless. Schedules are in the server's
+-- timezone (UTC on the hosted project): 02:00 UTC is 03:00 or 04:00 in Ljubljana.
+create extension if not exists pg_cron with schema pg_catalog;
+
+grant usage on schema cron to postgres;
+grant all privileges on all tables in schema cron to postgres;
+
+select cron.schedule('charge_due_appointments', '*/15 * * * *',
+                     $$select public.charge_due_appointments()$$);
+select cron.schedule('materialize_recurring', '0 2 * * *',
+                     $$select public.materialize_recurring()$$);

@@ -1,7 +1,8 @@
 # Charging sequence
 
 How a credit is deducted. The first lane is the normal path: pg_cron calls
-`charge_due_appointments()` every 15 minutes (schedule added in Stage 2), which locks every due
+`charge_due_appointments()` every 15 minutes (job `charge_due_appointments`, see
+[jobs.md](../jobs.md#schedules)), which locks every due
 `booked` row with `for update skip locked`, sets it `charged` and writes one `session`
 transaction per appointment, returning the count. The second lane is the race: a `cancel()`
 arrives at the same time as the job. `cancel` locks the appointment row with `for update`

@@ -201,7 +201,7 @@ public.accept_invite(p_token text) returns uuid
 public.charge_due_appointments() returns int
 ```
 
-- **Who may call:** pg_cron (as `postgres`) and `service_role` only. There is no role check
+- **Who may call:** pg_cron (as `postgres`, every 15 minutes, see [jobs.md](jobs.md#schedules)) and `service_role` only. There is no role check
   inside; `execute` is revoked from `public`, `anon` and `authenticated`, so a signed-in user
   (trainer included) gets SQLSTATE `42501`.
 - **Rules:** every appointment with `status = 'booked'` and `starts_at <= now()`, locked with
@@ -268,7 +268,7 @@ public.materialize_recurring(p_weeks int default 4) returns int
 - **Idempotent:** an instance that exists for a rule and start, in any status, is never
   inserted again (`appointments_rule_id_starts_at_idx`), so a second run returns 0 and an
   instance the customer or trainer cancelled is not recreated.
-- Scheduled nightly, see [jobs.md](jobs.md).
+- Scheduled nightly by pg_cron as `postgres`, see [jobs.md](jobs.md#schedules).
 - **Diagram:** [architecture/materialization-sequence.md](architecture/materialization-sequence.md).
 
 ## Helpers

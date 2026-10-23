@@ -2,13 +2,13 @@
 -- booked instances as cancelled_by_trainer (no charge) and leaves past, charged and already
 -- cancelled ones alone; activating materializes the rule at once (an instance cancelled
 -- earlier is not recreated). slot_occupancy: counts of live appointments per slot occurrence
--- for linked users, without customer identities.
+-- for linked users, without customer identities. pg_cron: both jobs are scheduled.
 --
 -- Fixture times are built from today's local date in settings.timezone; expectations are
 -- derived from the inserted rows.
 begin;
 
-select plan(30);
+select plan(33);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
@@ -284,6 +284,19 @@ set local request.jwt.claims = '{"role":"anon"}';
 select throws_ok($$select 1 from public.slot_occupancy$$, '42501', null,
   'anon cannot read slot_occupancy');
 select tests.clear_authentication();
+
+-- pg_cron ----------------------------------------------------------------------------------
+
+select ok(exists (select 1 from pg_extension where extname = 'pg_cron'), 'pg_cron is installed');
+select results_eq(
+  $$select jobname::text, schedule::text, command::text, active from cron.job
+    where jobname in ('charge_due_appointments', 'materialize_recurring') order by jobname$$,
+  $$values ('charge_due_appointments', '*/15 * * * *', 'select public.charge_due_appointments()', true),
+           ('materialize_recurring', '0 2 * * *', 'select public.materialize_recurring()', true)$$,
+  'both jobs are scheduled: the charge every 15 minutes, materialization nightly');
+-- pg_cron runs the command as the scheduling role (postgres) without a JWT.
+select lives_ok($$select public.materialize_recurring()$$,
+  'materialize_recurring runs without a signed-in user, as the cron job does');
 
 select * from finish();
 rollback;

@@ -28,7 +28,7 @@ flowchart LR
     customer -->|"supabase-js: auth, RPC, reads"| auth
     customer -->|"supabase-js: RPC, reads"| pg
     auth --- pg
-    cron -->|"charge_due_appointments, materialization"| pg
+    cron -->|"charge_due_appointments (every 15 min), materialize_recurring (nightly)"| pg
     cron -->|"pg_net: reminders"| edge
     edge -->|"reads subscriptions"| pg
     edge -->|"VAPID push"| push
