@@ -134,6 +134,14 @@ checklist skill. Branch `stage-4-pilot`.
   runbook pg_net check). Checked by hand: pg_net from the db container reaches
   `host.docker.internal:54321` (gateway 503 until `send-push` exists, Task 12). pg_net 0.20.4's
   default timeout is 5000 ms (docs say 2000); dispatch sets 10000.
+- Task 11 done: migration `20261023215339_event_notifications.sql` (`enqueue_notification`,
+  triggers `appointments_notify_booking_created` / `_booking_cancelled` /
+  `credit_transactions_notify_credit_change`, `save_push_subscription` upsert on endpoint), test
+  032, docs (notifications event section, schema triggers, rpcs, booking and push sequences).
+  Best effort is tested by replacing `enqueue_notification` with a raising body inside the test
+  (the trigger's guard keeps book/cancel/top_up succeeding); the notification row is not kept in
+  that case. Single-trainer assumption documented (the triggers loop over every trainer, the
+  `(kind, appointment_id)` key lets only the first one with a device get it).
 
 ---
 
