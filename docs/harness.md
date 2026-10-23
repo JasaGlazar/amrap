@@ -92,6 +92,7 @@ run, so test files do not create it.
 | `011_cancel.sql` | `cancel`: the cutoff boundary ±1 min, started/charged/cancelled rejections, negative balance, trainer cancel and refund, a cancel freeing a full slot |
 | `012_credits.sql` | `top_up` and `adjust`: trainer only, amount rules, ledger rows and balances |
 | `013_charge_job.sql` | `charge_due_appointments`: due rows charged once, idempotent second run, grants, charge vs late cancel |
+| `014_invites.sql` | `create_invite` and `accept_invite`: token format and expiry, single use, expired/superseded/unknown tokens, already linked users and records |
 
 Helpers in `supabase/seeds/test_helpers.sql` (schema `tests`, local only):
 

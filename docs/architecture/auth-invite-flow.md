@@ -1,11 +1,13 @@
 # Auth and invite flow
 
-How a customer gets an account (ADR 0006). The trainer creates an invite for a customer record
-with `create_invite`, which returns a single-use token valid for 7 days. The customer opens the
+How a customer gets an account (ADR 0006). The trainer creates an invite for an unlinked
+customer record with `create_invite(customer_id)`, which returns a single-use token (24 random
+bytes, hex) valid for 7 days; re-issuing replaces the previous token. The customer opens the
 link, signs up with email and password (no confirmation email), and the app calls
-`accept_invite`, which links the new auth user to the customer record. After that the app routes
-by role: the trainer sees the trainer shell, a customer sees the customer home. A user with no
-`customers` row has no data access.
+`accept_invite(token)`, which locks the record by token, checks it, links the new auth user
+(`customers.auth_user_id`) and clears the token. After that the app routes by role: the trainer
+sees the trainer shell, a customer sees the customer home. A user with no `customers` row has
+no data access. Error tokens are listed in [rpcs.md](../rpcs.md#accept_invite).
 
 ```mermaid
 sequenceDiagram
@@ -17,20 +19,28 @@ sequenceDiagram
 
     T->>App: Invite customer
     App->>DB: create_invite(customer_id)
-    DB-->>App: token (7 days, single use)
+    DB->>DB: is_trainer(), record exists and not linked, else AMRAP_FORBIDDEN / AMRAP_NOT_FOUND / AMRAP_ALREADY_LINKED
+    DB-->>App: token (expires now() + 7 days, single use)
     App-->>T: invite link
     T->>C: send link (text message)
     C->>App: open link with token
     App->>Auth: sign up (email, password)
     Auth-->>App: session (no email confirmation)
     App->>DB: accept_invite(token)
-    alt token valid and unused
-        DB->>DB: set customers.auth_user_id, clear invite_token
-        DB-->>App: customer linked
+    DB->>DB: lock customers row where invite_token = token
+    alt token valid, record unlinked, caller not linked
+        DB->>DB: set auth_user_id = auth.uid(), clear invite_token and invite_expires_at
+        DB-->>App: customer id
         App->>DB: read role via is_trainer()
         App-->>C: role-gated home
-    else expired or already used
-        DB-->>App: error
+    else unknown, used (token cleared) or expired
+        DB-->>App: AMRAP_INVITE_INVALID
+        App-->>C: invite rejected
+    else record already linked
+        DB-->>App: AMRAP_INVITE_USED
+        App-->>C: invite rejected
+    else caller already linked to another customer
+        DB-->>App: AMRAP_ALREADY_LINKED
         App-->>C: invite rejected
     end
 ```

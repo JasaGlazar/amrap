@@ -25,15 +25,18 @@ app relies on.
 
 | Token | Meaning | Raised by |
 |---|---|---|
-| `AMRAP_FORBIDDEN` | The caller's role does not allow this call, or a customer acts on someone else's record | all except `charge_due_appointments` |
+| `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record, or (`accept_invite`) there is no signed-in user | all except `charge_due_appointments` |
 | `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination | `book`, `top_up`, `adjust` |
-| `AMRAP_NOT_FOUND` | The referenced customer, slot template or appointment does not exist | `book`, `cancel`, `top_up`, `adjust` |
+| `AMRAP_NOT_FOUND` | The referenced customer, slot template or appointment does not exist | `book`, `cancel`, `top_up`, `adjust`, `create_invite` |
 | `AMRAP_SLOT_INACTIVE` | The slot template is deactivated | `book` |
 | `AMRAP_IN_PAST` | A customer tried to book a start that is not in the future | `book` |
 | `AMRAP_SLOT_MISMATCH` | The start is not on the template's weekday and start time (in `settings.timezone`) | `book` |
 | `AMRAP_BLOCKED` | The start falls inside a blocked period | `book` |
 | `AMRAP_CAPACITY_FULL` | The slot occurrence already has `capacity` live appointments | `book` |
 | `AMRAP_ALREADY_BOOKED` | The customer already has a live (`booked`/`charged`) appointment at that start | `book` |
+| `AMRAP_INVITE_INVALID` | The invite token is unknown, empty, replaced by a newer invite, already redeemed (redeeming clears it) or expired | `accept_invite` |
+| `AMRAP_INVITE_USED` | The token belongs to a customer record that is already linked | `accept_invite` |
+| `AMRAP_ALREADY_LINKED` | The customer record already has an account (`create_invite`), or the caller is already linked to a customer (`accept_invite`) | `create_invite`, `accept_invite` |
 | `AMRAP_NOT_CANCELLABLE` | The appointment is not in a state the caller may cancel (customer: not `booked` or already started; anyone: already cancelled) | `cancel` |
 
 ## book
@@ -130,6 +133,44 @@ public.adjust(p_customer_id uuid, p_amount int, p_note text default null) return
   0), `AMRAP_NOT_FOUND` (no such customer).
 - **Side effects:** inserts one `credit_transactions` row: `type = 'adjustment'`,
   `amount = p_amount`, `created_by = auth.uid()`, `note = p_note`. Returns its id.
+
+## create_invite
+
+```sql
+public.create_invite(p_customer_id uuid) returns text
+```
+
+- **Who may call:** the trainer only.
+- **Rules:** the customer must exist and must not be linked (`auth_user_id is null`). Locks the
+  customer row. Calling it again for a pending invite issues a new token and the old one stops
+  working.
+- **Errors:** `AMRAP_FORBIDDEN` (not the trainer), `AMRAP_NOT_FOUND` (no such customer),
+  `AMRAP_ALREADY_LINKED` (the customer already has an account).
+- **Side effects:** sets `invite_token = encode(extensions.gen_random_bytes(24), 'hex')` (48 hex
+  characters) and `invite_expires_at = now() + interval '7 days'`. Returns the token, which the
+  app turns into the invite link.
+- **Diagram:** [architecture/auth-invite-flow.md](architecture/auth-invite-flow.md).
+
+## accept_invite
+
+```sql
+public.accept_invite(p_token text) returns uuid
+```
+
+- **Who may call:** any signed-in (`authenticated`) user, typically one who just signed up
+  through the invite link and has no customer record yet.
+- **Rules, in order:** a signed-in user is required (`AMRAP_FORBIDDEN`, e.g. service role
+  without a user). The customer row is looked up by `invite_token = p_token` and locked
+  `for update`, so two concurrent redemptions cannot both win. No row, or
+  `invite_expires_at <= now()` → `AMRAP_INVITE_INVALID`. The row is already linked →
+  `AMRAP_INVITE_USED`. The caller is already linked to a customer → `AMRAP_ALREADY_LINKED`.
+- **Single use:** a successful accept clears the token, so a second use of the same token finds
+  no row and is rejected with `AMRAP_INVITE_INVALID`. `AMRAP_INVITE_USED` only occurs if a
+  linked record still carries a token (for example after a direct trainer edit).
+- **Side effects:** sets `auth_user_id = auth.uid()`, `invite_token = null`,
+  `invite_expires_at = null`. Returns the customer id. From then on `current_customer_id()` and
+  `is_trainer()` resolve for that user.
+- **Diagram:** [architecture/auth-invite-flow.md](architecture/auth-invite-flow.md).
 
 ## charge_due_appointments
 

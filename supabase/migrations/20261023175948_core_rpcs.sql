@@ -299,6 +299,77 @@ begin
 end;
 $$;
 
+-- Invites ----------------------------------------------------------------------------------
+
+-- Trainer-only: issues a single-use invite token valid for 7 days for a customer record that
+-- has no app account yet (ADR 0006). Re-issuing replaces the previous token. The token is the
+-- proof of identity (email is not confirmed), so it is 24 random bytes.
+create function public.create_invite(p_customer_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_customer public.customers%rowtype;
+  v_token text := encode(extensions.gen_random_bytes(24), 'hex');
+begin
+  if not public.is_trainer() then
+    raise exception 'AMRAP_FORBIDDEN: only the trainer can create invites' using errcode = 'P0001';
+  end if;
+
+  select * into v_customer from public.customers c where c.id = p_customer_id for update;
+  if not found then
+    raise exception 'AMRAP_NOT_FOUND: customer % does not exist', p_customer_id using errcode = 'P0001';
+  end if;
+  if v_customer.auth_user_id is not null then
+    raise exception 'AMRAP_ALREADY_LINKED: customer % already has an account', p_customer_id
+      using errcode = 'P0001';
+  end if;
+
+  update public.customers
+    set invite_token = v_token, invite_expires_at = now() + interval '7 days'
+    where id = p_customer_id;
+
+  return v_token;
+end;
+$$;
+
+-- Any signed-in user: redeems an invite token, linking the caller's auth user to the invited
+-- customer record. The record is locked by token so two concurrent redemptions cannot both
+-- succeed.
+create function public.accept_invite(p_token text)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_customer public.customers%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'AMRAP_FORBIDDEN: accepting an invite needs a signed-in user' using errcode = 'P0001';
+  end if;
+
+  select * into v_customer from public.customers c where c.invite_token = p_token for update;
+  if not found or v_customer.invite_expires_at is null or v_customer.invite_expires_at <= now() then
+    raise exception 'AMRAP_INVITE_INVALID: the invite token is unknown or expired' using errcode = 'P0001';
+  end if;
+  if v_customer.auth_user_id is not null then
+    raise exception 'AMRAP_INVITE_USED: the invite has already been accepted' using errcode = 'P0001';
+  end if;
+  if public.current_customer_id() is not null then
+    raise exception 'AMRAP_ALREADY_LINKED: this user is already linked to a customer' using errcode = 'P0001';
+  end if;
+
+  update public.customers
+    set auth_user_id = auth.uid(), invite_token = null, invite_expires_at = null
+    where id = v_customer.id;
+
+  return v_customer.id;
+end;
+$$;
+
 -- Grants -----------------------------------------------------------------------------------
 
 revoke execute on function public.top_up(uuid, int, text) from public, anon;
@@ -309,6 +380,10 @@ revoke execute on function public.book(uuid, timestamptz, uuid, timestamptz) fro
 grant execute on function public.book(uuid, timestamptz, uuid, timestamptz) to authenticated, service_role;
 revoke execute on function public.cancel(uuid) from public, anon;
 grant execute on function public.cancel(uuid) to authenticated, service_role;
+revoke execute on function public.create_invite(uuid) from public, anon;
+revoke execute on function public.accept_invite(text) from public, anon;
+grant execute on function public.create_invite(uuid) to authenticated, service_role;
+grant execute on function public.accept_invite(text) to authenticated, service_role;
 -- Cron / service role only.
 revoke execute on function public.charge_due_appointments() from public, anon, authenticated;
 grant execute on function public.charge_due_appointments() to service_role;

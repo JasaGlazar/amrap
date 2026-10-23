@@ -349,6 +349,7 @@ export type Database = {
       }
     }
     Functions: {
+      accept_invite: { Args: { p_token: string }; Returns: string }
       adjust: {
         Args: { p_amount: number; p_customer_id: string; p_note?: string }
         Returns: string
@@ -364,6 +365,7 @@ export type Database = {
       }
       cancel: { Args: { p_appointment_id: string }; Returns: undefined }
       charge_due_appointments: { Args: never; Returns: number }
+      create_invite: { Args: { p_customer_id: string }; Returns: string }
       current_customer_id: { Args: never; Returns: string }
       is_trainer: { Args: never; Returns: boolean }
       top_up: {
