@@ -166,8 +166,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   **Kopiraj** (clipboard; `customerDetail.copied`, or `customerDetail.copyFailed` when the
   browser refuses, e.g. without HTTPS) and the 7-day hint. A pending invite's link is shown on
   load, and the button becomes **Ustvari novo povabilo** (a new token replaces the old one). A
-  linked record shows the re-link hint pointing to the runbook ("Re-link a customer", ADR 0007)
-  instead.
+  linked record shows the re-link hint instead (`customerDetail.relinkHint`): if the customer
+  loses access, the app administrator removes the old account, then the trainer creates a new
+  invite on this page. The procedure is runbook "Re-link a customer" (ADR 0007).
 - **Stalni termini:** the customer's recurring rules (`{weekday} ob {time}`, stopped ones
   greyed with `ustavljen`). **Ustavi** calls `deactivate_rule` (future booked instances are
   cancelled; the message shows how many); **Ponovno vključi** calls `activate_rule` (shows how
