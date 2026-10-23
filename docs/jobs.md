@@ -165,11 +165,12 @@ writer commits ([notifications.md](notifications.md)); it is not scheduled itsel
 | Status | When | Claims anything |
 |---|---|---|
 | 405 | not `POST` | no |
-| 503 | `PUSH_SECRET` or a VAPID secret is not set (logged) | no |
+| 503 | `PUSH_SECRET` is not set (logged), checked before the secret header | no |
 | 401 | the secret header is missing or wrong | no |
+| 503 | a VAPID secret is not set (logged), checked after the secret header | no |
 | 400 | the body is not JSON with an `ids` array of strings | no |
 | 500 | `claim_notifications` failed (logged) | no |
-| 200 | `{"claimed", "sent", "failed", "removed"}`: claimed notifications, pushes delivered, pushes failed (kept), subscriptions deleted | yes |
+| 200 | `{"claimed", "sent", "failed", "removed"}`: claimed notifications that still had at least one device (`claim_notifications` joins the subscriptions, so a claimed row whose recipient has none is not counted), pushes delivered, pushes failed (subscription kept), subscriptions deleted | yes |
 
 - **Work:** `claim_notifications(ids)` with the function's service key (`keys.ts`: the
   non-empty string `default` entry of `SUPABASE_SECRET_KEYS` when that is a JSON object, else

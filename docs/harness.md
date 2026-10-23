@@ -20,7 +20,8 @@ These constraints bind every task and are what the reviewer checks against (alon
   blocking hooks (all below).
 - Auth: email/password with email confirmations disabled. Customers join only via trainer
   invite token (`create_invite` / `accept_invite`). Magic links and OTP are not used.
-- Tests: pgTAP via `supabase test db` (`supabase/tests/*.sql`); frontend logic tests with Vitest.
+- Tests: pgTAP via `supabase test db` (`supabase/tests/*.sql`); frontend logic tests with Vitest;
+  edge function tests with Deno (`scripts/test-functions.sh`).
 - Never `supabase db push` to the remote from a feature branch (see `docs/runbook.md`).
 
 ## Docs 1:1 rule
@@ -144,7 +145,6 @@ otherwise the `denoland/deno:2.1.4` Docker image (Deno is not required on the ho
 next to the code (`*_test.ts`) and inject fakes for the database and the push service, so they
 need no network beyond fetching their imports. Each function's `deno.json` pins its imports and
 sets `"lock": false`, so no lockfile is generated.
-
 
 Database tests are pgTAP files in `supabase/tests/`, run by `supabase test db` against the
 local stack after `supabase db reset` (which applies the migrations, then the seeds listed in

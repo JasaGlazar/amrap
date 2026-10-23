@@ -3,7 +3,7 @@
 | Doc | What it covers |
 |---|---|
 | [../CONTEXT.md](../CONTEXT.md) | Domain language and business rules |
-| [harness.md](harness.md) | Repo conventions and gates (docs 1:1, ADRs, diagrams, skills, reviewer, pgTAP testing) |
+| [harness.md](harness.md) | Repo conventions and gates (docs 1:1, ADRs, diagrams, skills, reviewer, pgTAP and Deno testing) |
 | [runbook.md](runbook.md) | Operations: unpause, bootstrap trainer, invite and re-link a customer, deploy migrations and the edge function, turn on push, Cloudflare Pages |
 | [adr/](adr/README.md) | Architecture decision records |
 | [schema.md](schema.md) | Tables (including the `notifications` log), columns, constraints, indexes, RLS, grants, views `customer_balances` and `slot_occupancy`, helpers, migrations list |

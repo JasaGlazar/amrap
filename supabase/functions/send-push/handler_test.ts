@@ -4,8 +4,18 @@ import type { BuiltPush, ClaimedRow } from './types.ts';
 
 const SECRET = 'test-secret';
 
-const logged: unknown[][] = [];
-console.error = (...args: unknown[]) => logged.push(args);
+function test(name: string, fn: (logged: unknown[][]) => Promise<void>) {
+  Deno.test(name, async () => {
+    const logged: unknown[][] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => logged.push(args);
+    try {
+      await fn(logged);
+    } finally {
+      console.error = original;
+    }
+  });
+}
 
 function claimed(id: string, endpoint: string): ClaimedRow {
   return {
@@ -51,13 +61,13 @@ function post(body: unknown, secret: string | null = SECRET, method = 'POST'): R
   });
 }
 
-Deno.test('only POST is accepted', async () => {
+test('only POST is accepted', async () => {
   const { deps, calls } = fakeDeps([]);
   assertEquals((await handle(post(null, SECRET, 'GET'), deps)).status, 405);
   assertEquals(calls.claimed.length, 0);
 });
 
-Deno.test('a missing or wrong secret is rejected before anything is claimed', async () => {
+test('a missing or wrong secret is rejected before anything is claimed', async () => {
   const { deps, calls } = fakeDeps([claimed('n1', 'https://push.test/1')]);
   assertEquals((await handle(post({ ids: ['n1'] }, null), deps)).status, 401);
   assertEquals((await handle(post({ ids: ['n1'] }, 'wrong'), deps)).status, 401);
@@ -65,7 +75,7 @@ Deno.test('a missing or wrong secret is rejected before anything is claimed', as
   assertEquals(calls.claimed.length, 0);
 });
 
-Deno.test('without PUSH_SECRET or VAPID secrets nothing is claimed', async () => {
+test('without PUSH_SECRET or VAPID secrets nothing is claimed', async () => {
   const noSecret = fakeDeps([claimed('n1', 'https://push.test/1')]);
   noSecret.deps.pushSecret = undefined;
   assertEquals((await handle(post({ ids: ['n1'] }), noSecret.deps)).status, 503);
@@ -77,7 +87,7 @@ Deno.test('without PUSH_SECRET or VAPID secrets nothing is claimed', async () =>
   assertEquals(noVapid.calls.claimed.length, 0);
 });
 
-Deno.test('a body without an ids array of strings is rejected', async () => {
+test('a body without an ids array of strings is rejected', async () => {
   const { deps, calls } = fakeDeps([]);
   for (const body of [{}, { ids: 'n1' }, { ids: [1] }, null]) {
     assertEquals((await handle(post(body), deps)).status, 400);
@@ -91,7 +101,7 @@ Deno.test('a body without an ids array of strings is rejected', async () => {
   assertEquals(calls.claimed.length, 0);
 });
 
-Deno.test('every claimed subscription gets its push', async () => {
+test('every claimed subscription gets its push', async () => {
   const rows = [
     claimed('n1', 'https://push.test/1'),
     claimed('n1', 'https://push.test/2'),
@@ -105,7 +115,7 @@ Deno.test('every claimed subscription gets its push', async () => {
   assertEquals(calls.removed, []);
 });
 
-Deno.test('subscriptions the push service reports gone (404, 410) are deleted, others kept', async () => {
+test('subscriptions the push service reports gone (404, 410) are deleted, others kept', async (logged) => {
   const rows = [
     claimed('n1', 'https://push.test/gone-404'),
     claimed('n1', 'https://push.test/gone-410'),
@@ -126,7 +136,7 @@ Deno.test('subscriptions the push service reports gone (404, 410) are deleted, o
   assertEquals(logged.filter(([message]) => message === 'send-push: push failed').length, 2);
 });
 
-Deno.test('a non-https endpoint is never called and counts as failed', async () => {
+test('a non-https endpoint is never called and counts as failed', async () => {
   const rows = [
     claimed('n1', 'http://push.test/plain'),
     claimed('n1', 'ftp://push.test/odd'),
@@ -139,20 +149,20 @@ Deno.test('a non-https endpoint is never called and counts as failed', async () 
   assertEquals(calls.removed, []);
 });
 
-Deno.test('ids that are already claimed send nothing', async () => {
+test('ids that are already claimed send nothing', async () => {
   const { deps, calls } = fakeDeps([]);
   const response = await handle(post({ ids: ['n1'] }), deps);
   assertEquals(await response.json(), { claimed: 0, sent: 0, failed: 0, removed: 0 });
   assertEquals(calls.sent, []);
 });
 
-Deno.test('an empty id list claims nothing', async () => {
+test('an empty id list claims nothing', async () => {
   const { deps, calls } = fakeDeps([]);
   assertEquals((await handle(post({ ids: [] }), deps)).status, 200);
   assertEquals(calls.claimed, []);
 });
 
-Deno.test('a failing claim answers 500 and sends nothing', async () => {
+test('a failing claim answers 500 and sends nothing', async () => {
   const { deps, calls } = fakeDeps([]);
   deps.claim = () => Promise.reject(new Error('db down'));
   assertEquals((await handle(post({ ids: ['n1'] }), deps)).status, 500);

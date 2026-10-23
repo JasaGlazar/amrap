@@ -160,7 +160,8 @@ supabase secrets list --project-ref etzkbwqgjuipihypokjp   # names only
 3. **Deploy the function:** `supabase functions deploy send-push --no-verify-jwt --project-ref
    etzkbwqgjuipihypokjp` (`--no-verify-jwt` repeats what `config.toml` says). Check:
    `curl -s -X POST https://etzkbwqgjuipihypokjp.supabase.co/functions/v1/send-push -d '{}'`
-   answers `{"error":"unauthorized"}` (401 from the function itself).
+   answers `{"error":"unauthorized"}` (401 from the function itself). Any other 401 body comes
+   from the gateway: see the `apikey` note after step 6.
 4. **Insert the Vault rows** in the dashboard SQL editor:
 
 ```sql
@@ -171,11 +172,13 @@ select vault.create_secret('<push secret>', 'amrap_push_secret');
 5. **Set the app's public key:** Cloudflare Pages, Settings, Variables:
    `VITE_VAPID_PUBLIC_KEY=<public key>` for Production and Preview, then redeploy (see
    [Cloudflare Pages build settings](#cloudflare-pages-build-settings)).
-6. **Check:** enable notifications on a phone, then trigger one (the trainer tops up a test
-   customer by 1 and adjusts it back by -1). In the SQL editor:
+6. **Check:** on a phone signed in as a test customer, enable notifications; then the trainer
+   tops that customer up by 1 and adjusts it back by -1 (each sends the customer a
+   notification). In the SQL editor:
    `select id, status_code, content, error_msg from net._http_response order by id desc limit 5;`
-   should show `200` with `{"claimed":1,"sent":1,…}`; the function logs are under Edge
-   Functions, `send-push`, Logs.
+   should show `200` with `{"claimed":1,"sent":<n>,…}` per notification, where `n` is the
+   number of devices that customer enabled; the function logs are under Edge Functions,
+   `send-push`, Logs.
 
 If step 6 shows `401` with a body that is not `{"error":"unauthorized"}`, the hosted gateway
 wants an `apikey` header even with JWT verification off (not verified locally, ADR 0009).
