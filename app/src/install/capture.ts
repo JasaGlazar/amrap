@@ -30,6 +30,7 @@ export function createInstallStore(storage: StorageAccess): InstallStore {
     dismissed: isInstallDismissed(storage),
   };
   const listeners = new Set<() => void>();
+  let prompting = false;
 
   function update(change: Partial<InstallState>) {
     state = { ...state, ...change };
@@ -50,16 +51,19 @@ export function createInstallStore(storage: StorageAccess): InstallStore {
     },
     async install() {
       const event = state.prompt;
-      if (event === null) return 'unavailable';
-      update({ prompt: null });
+      if (event === null || prompting) return 'unavailable';
+      prompting = true;
       try {
         await event.prompt();
         const { outcome } = await event.userChoice;
-        if (outcome === 'accepted') update({ installed: true });
+        update(outcome === 'accepted' ? { prompt: null, installed: true } : { prompt: null });
         return outcome;
       } catch (error) {
         console.warn('install prompt failed', error);
+        update({ prompt: null });
         return 'unavailable';
+      } finally {
+        prompting = false;
       }
     },
   };

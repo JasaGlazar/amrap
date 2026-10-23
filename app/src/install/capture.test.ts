@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fakePromptEvent, memoryStorage } from '../test/fakeInstall';
+import { deferredChoice, fakePromptEvent, memoryStorage } from '../test/fakeInstall';
 import { createInstallStore, listenForInstallPrompt } from './capture';
 
 afterEach(() => vi.restoreAllMocks());
@@ -59,6 +59,36 @@ describe('createInstallStore', () => {
 
     expect(event.prompt).toHaveBeenCalledOnce();
     expect(store.getState()).toMatchObject({ prompt: null, installed: true });
+  });
+
+  it('keeps the prompt while the browser dialog is open and drops it after the answer', async () => {
+    const store = createInstallStore(() => memoryStorage());
+    const { userChoice, answer } = deferredChoice();
+    const event = fakePromptEvent('dismissed', userChoice);
+    store.capture(event);
+
+    const pending = store.install();
+
+    expect(event.prompt).toHaveBeenCalledOnce();
+    await Promise.resolve();
+    expect(store.getState().prompt).toBe(event);
+    answer('dismissed');
+    await expect(pending).resolves.toBe('dismissed');
+    expect(store.getState().prompt).toBeNull();
+  });
+
+  it('does not show the prompt a second time while the dialog is open', async () => {
+    const store = createInstallStore(() => memoryStorage());
+    const { userChoice, answer } = deferredChoice();
+    const event = fakePromptEvent('accepted', userChoice);
+    store.capture(event);
+
+    const first = store.install();
+    await expect(store.install()).resolves.toBe('unavailable');
+    answer('accepted');
+
+    await expect(first).resolves.toBe('accepted');
+    expect(event.prompt).toHaveBeenCalledOnce();
   });
 
   it('drops a used prompt that the user declined', async () => {

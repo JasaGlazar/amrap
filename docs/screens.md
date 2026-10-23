@@ -233,8 +233,9 @@ push needs the home-screen app) and then, by mode:
 - **Ne zdaj** hides the card on this device for good (`localStorage` key
   `amrap.install.dismissed`). Storage that cannot be read counts as not dismissed and a failed
   write is logged (`console.warn`); either way the card hides until the next load.
-- The browser's prompt can be shown once. Accepted, the card hides; declined, the prompt is
-  dropped and the card falls back to the Android menu steps (Android) or disappears (desktop)
+- The browser's prompt can be shown once. While its dialog is open the card stays as it is (a
+  second tap does nothing). Accepted, the card hides; declined, the prompt is dropped and the
+  card falls back to the Android menu steps (Android) or disappears (desktop)
   until the browser offers a new prompt.
 - On iOS the [notifications toggle](#notifications-toggle) refers to the card while it is shown
   instead of repeating the steps.

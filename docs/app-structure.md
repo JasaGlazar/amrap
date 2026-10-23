@@ -32,8 +32,10 @@ What the install card shows is in [screens.md](screens.md#install-card). The cod
 
 - `capture.ts`: `createInstallStore(storage)` holds the captured prompt event, whether the app
   was installed during this visit and whether the card was dismissed, with `subscribe` /
-  `getState` for `useSyncExternalStore`; `install()` shows the prompt once and drops the event
-  (it cannot be reused). `listenForInstallPrompt(target, store)` handles `beforeinstallprompt`
+  `getState` for `useSyncExternalStore`; `install()` calls `prompt()` synchronously inside the
+  tap (Chrome needs the user gesture), keeps the event while the dialog is open (a second call
+  meanwhile returns `unavailable`) and drops it once the browser answers, since it cannot be
+  reused. `listenForInstallPrompt(target, store)` handles `beforeinstallprompt`
   (`preventDefault()`, keep the event) and `appinstalled`. `main.tsx` registers it before
   `start()`, because Chrome can fire the event before React has rendered anything. The event
   type is declared locally (Chromium only, not in `lib.dom`).

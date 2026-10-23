@@ -19,12 +19,22 @@ export function memoryStorage(): Storage {
 
 export type FakePromptEvent = InstallPromptEvent & { prompt: Mock<() => Promise<void>> };
 
-export function fakePromptEvent(outcome: 'accepted' | 'dismissed'): FakePromptEvent {
+type Choice = { outcome: 'accepted' | 'dismissed'; platform: string };
+
+export function fakePromptEvent(
+  outcome: 'accepted' | 'dismissed',
+  userChoice: Promise<Choice> = Promise.resolve({ outcome, platform: 'web' }),
+): FakePromptEvent {
   const event = new Event('beforeinstallprompt', { cancelable: true });
-  return Object.assign(event, {
-    prompt: vi.fn(async () => {}),
-    userChoice: Promise.resolve({ outcome, platform: 'web' }),
+  return Object.assign(event, { prompt: vi.fn(async () => {}), userChoice });
+}
+
+export function deferredChoice() {
+  let answer!: (outcome: 'accepted' | 'dismissed') => void;
+  const userChoice = new Promise<Choice>((resolve) => {
+    answer = (outcome) => resolve({ outcome, platform: 'web' });
   });
+  return { userChoice, answer };
 }
 
 export const desktopTab: DeviceEnvironment = { ios: false, android: false, standalone: false };
