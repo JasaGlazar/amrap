@@ -69,6 +69,40 @@ The encrypted payload is JSON with no display text, so all copy stays in the app
 
 A reminder that expires at the cutoff is never delivered after it, when it would be useless.
 
+## Service worker
+
+`app/src/sw.ts`, built by vite-plugin-pwa (`strategies: 'injectManifest'`) into `dist/sw.js`
+and registered by the plugin's `registerSW.js`:
+
+- **push:** `parsePush(event.data.text())` (`app/src/push/render.ts`) parses `{kind, data,
+  url}` and renders title and body from `sl.push.*` with the times in `data.timezone` (the
+  device's zone if missing). A reminder shows the start and the cutoff (time only when the
+  cutoff is the same day, else day and time); booking notifications the customer's name and
+  start, with a separate title for a late cancel; credit notifications the signed amount and the
+  new balance, plus the note when there is one. An unknown kind, missing fields or a payload
+  that is not JSON shows `push.genericTitle` / `push.genericBody`. The tag is
+  `<kind>:<appointment or transaction id>`, so a repeated notification replaces the earlier one.
+- **notificationclick:** closes the notification, then focuses an open window of the app and
+  navigates it to `url`, or opens a new window there. Only a same-origin path (`/…`) is used;
+  anything else opens `/`.
+
+## Subscribing in the app
+
+`app/src/push/` holds the browser side; the toggle that uses it is described in
+[screens.md](screens.md#notifications-toggle):
+
+- `support.ts`: `pushSupport(environment)` → `supported`, `needs-install` (iOS outside the
+  home-screen app, where Safari has no web push), `unsupported` or `no-key` (the build lacks
+  `VITE_VAPID_PUBLIC_KEY`).
+- `browser.ts`: `browserPlatform`, the only code that touches `navigator.serviceWorker`,
+  `PushManager` and `Notification`. It uses the existing service worker registration
+  (`getRegistration()`), so on the Vite dev server, which registers no service worker, push is
+  not available; use a production build (`npm run build && npm run preview`).
+- `subscribe.ts`: `enablePush` (permission, `pushManager.subscribe({userVisibleOnly: true,
+  applicationServerKey})`, `save_push_subscription`) and `disablePush` (delete this device's row,
+  unsubscribe). Signing out calls `disablePush` first, best effort, so a shared device stops
+  getting the previous user's notifications.
+
 ## Event notifications
 
 Three triggers ([schema.md](schema.md#triggers)) call `enqueue_notification()`; no RPC body
@@ -148,7 +182,10 @@ is in [runbook.md](runbook.md#turn-on-push-notifications).
 2. `supabase stop && supabase start` so the edge runtime loads the file; `send-push` is then
    served at `http://127.0.0.1:54321/functions/v1/send-push` (a POST without the secret answers
    401).
-3. Trigger a notification (for example the reminder job, see [jobs.md](jobs.md#schedules)) and
+3. Put the same public key in `app/.env.local` as `VITE_VAPID_PUBLIC_KEY`, then `npm run build
+   && npm run preview` in `app/` (the service worker exists only in a build) and enable
+   notifications on Home or Settings.
+4. Trigger a notification (for example the reminder job, see [jobs.md](jobs.md#schedules)) and
    read `net._http_response` and `docker logs supabase_edge_runtime_amrap`.
 
 ## Testing

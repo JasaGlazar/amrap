@@ -35,6 +35,7 @@ type Tables = {
   appointments: Row[];
   credit_transactions: Row[];
   blocked_periods: Row[];
+  push_subscriptions: Row[];
 };
 
 export const db: {
@@ -71,6 +72,7 @@ function emptyTables(): Tables {
     appointments: [],
     credit_transactions: [],
     blocked_periods: [],
+    push_subscriptions: [],
   };
 }
 
@@ -376,6 +378,21 @@ function fakeSetRule(args: Row, active: boolean): Result {
   return { data: cancelled.length, error: null };
 }
 
+function fakeSavePushSubscription(args: Row): Result {
+  const subscriptions = db.tables.push_subscriptions.filter(
+    (row) => row.endpoint !== args.p_endpoint,
+  );
+  subscriptions.push({
+    id: `push-${nextId++}`,
+    user_id: db.session?.user.id ?? null,
+    endpoint: args.p_endpoint,
+    p256dh: args.p_p256dh,
+    auth: args.p_auth,
+  });
+  db.tables.push_subscriptions = subscriptions;
+  return { data: null, error: null };
+}
+
 const rpcs: Record<string, (args: Row) => Result> = {
   book: fakeBook,
   cancel: fakeCancel,
@@ -384,6 +401,7 @@ const rpcs: Record<string, (args: Row) => Result> = {
   create_invite: fakeCreateInvite,
   activate_rule: (args) => fakeSetRule(args, true),
   deactivate_rule: (args) => fakeSetRule(args, false),
+  save_push_subscription: fakeSavePushSubscription,
 };
 
 export const fakeSupabase = {

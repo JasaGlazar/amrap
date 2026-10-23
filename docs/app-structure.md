@@ -14,8 +14,10 @@ screens are in [screens.md](screens.md), sign-in and role gating in [auth.md](au
 | `src/auth/` | `AuthProvider`, `useAuth()`, the route guards ([auth.md](auth.md)). |
 | `src/pages/` | One component per screen or state page. The shells (`CustomerPages.tsx`, `TrainerPages.tsx`) use `AppShell`: a top bar with the app name and a sign-out link, the page, and a fixed bottom navigation bar. Customer screens are in `pages/customer/`, trainer screens in `pages/trainer/`; the pieces several screens use (`WeekNav`, `WeekSlots`, `CancelDialog`, `LedgerList`, `NoticeLine`) are in `pages/shared/` ([screens.md](screens.md#customer-screens)). |
 | `src/i18n/` | `sl.ts` (all copy), `errors.ts` (`fromError`), `fill.ts` (`fill` for `{name}` placeholders, `formatTimeUntil`), `index.ts` (exports `t` and the helpers). |
+| `src/push/` | Web push in the browser: `render.ts` (notification copy, used by the service worker), `support.ts`, `browser.ts`, `subscribe.ts` ([notifications.md](notifications.md#subscribing-in-the-app)). |
+| `src/sw.ts` | The service worker: precache, self-update, push and notification click ([notifications.md](notifications.md#service-worker)). Type-checked by `tsconfig.sw.json` with the `WebWorker` lib and left out of `tsconfig.app.json` and `tsconfig.test.json`. |
 | `src/lib/` | `supabase.ts` (the one client), `database.types.ts` (generated), `keepAlive.ts`, `time.ts` ([time.md](time.md)), `useLoad.ts`. |
-| `src/test/` | `fakeSupabase.ts` and the Vitest setup (`setup.ts`: jest-dom matchers, cleanup after each test). |
+| `src/test/` | `fakeSupabase.ts`, `fakePush.ts` (a fake `PushPlatform`) and the Vitest setup (`setup.ts`: jest-dom matchers, cleanup after each test). |
 | `src/styles.css` | Plain CSS for the whole app. |
 | `public/` | Icons and `_redirects` (SPA fallback). `scripts/generate-icons.mjs` (`npm run icons`) regenerates the icons. |
 
@@ -66,7 +68,7 @@ vi.mock('./lib/supabase', async () => ({
   `settingsError`, and `readErrors` keyed by table for any other read), and `db.tables` with rows
   for `customers` and `customer_balances` (added to the signed-in row, for the trainer's
   lists), `recurring_rules`, `slot_templates`, `slot_occupancy`, `appointments`,
-  `credit_transactions` and `blocked_periods`. The query fake supports `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `or`
+  `credit_transactions`, `blocked_periods` and `push_subscriptions`. The query fake supports `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `or`
   (comma-separated `column.operator.value`), `order` and `limit`, and applies them the way
   PostgREST would (timestamps compared as instants), so a test fails when the app selects the
   wrong rows; an unexpected table throws. `insert` (with `.select().single()`), `update` and
@@ -77,7 +79,8 @@ vi.mock('./lib/supabase', async () => ({
   `cancelled_by_trainer` with a `refund` row when the trainer cancels a charged one, and
   uncounts it), `top_up` and `adjust` (add a ledger row), `create_invite` (sets and returns a
   token) and `activate_rule` / `deactivate_rule` (flip `active`; deactivating cancels the rule's
-  future booked appointments). Any other RPC throws unless a test mocks it. Tests mock a rejection with `mockResolvedValueOnce({ data: null,
+  future booked appointments) and `save_push_subscription` (upserts the signed-in user's row by
+  endpoint). Any other RPC throws unless a test mocks it. Tests mock a rejection with `mockResolvedValueOnce({ data: null,
   error: { message: 'AMRAP_…: detail' } })`.
 - `resetFake({ session?, customer? })` in `beforeEach` clears the state (tables empty,
   default settings) and the mocks and optionally starts signed in. `onAuthStateChange` delivers `INITIAL_SESSION` on a microtask,
@@ -88,6 +91,10 @@ vi.mock('./lib/supabase', async () => ({
   `signInWithPassword` mocks and any other RPC are set per test.
 - `src/data/data.test.ts` and `trainer.test.ts` call the data layer with the fake directly
   (`fakeSupabase as unknown as Client`).
+
+Push tests pass `fakePlatform(...)` from `fakePush.ts` to `PushToggle` (its `platform` prop) or
+to `enablePush` / `disablePush`, so they need no browser push APIs; `push/logout.test.tsx` mocks
+`push/browser` for the `/logout` loader.
 
 `routes.test.tsx` renders the real route tree in a `createMemoryRouter` and asserts on what the
 user sees. Build-only plugins (the PWA service worker) are left out when `VITEST` is set.

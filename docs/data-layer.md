@@ -41,6 +41,7 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 | `upcomingBlocked(client, now)` | `blocked_periods` | `ends_at > now`, by start |
 | `chargedSince(client, customerId, since)` | `appointments` | that customer's `charged` appointments with `starts_at >= since`, newest first |
 | `futureBookedCount(client, templateId, now)` | `appointments` | the number of `booked` appointments of that template with `starts_at > now` |
+| `hasPushSubscription(client, endpoint)` | `push_subscriptions` | whether the caller has a row with that endpoint (RLS: own rows) |
 
 `inviteStatus(customer, now)` derives a customer's invite status: `linked` (an auth user is
 linked), `pending` (an invite token that has not expired) or `none`.
@@ -78,6 +79,7 @@ already history.
 | `adjust(client, customerId, amount, note)` | `adjust` | same as `topUp` |
 | `createInvite(client, customerId)` | `create_invite` | `p_customer_id`; `data` is the token |
 | `activateRule(client, ruleId)` / `deactivateRule(client, ruleId)` | `activate_rule` / `deactivate_rule` | `p_rule_id`; `data` is the number inserted / cancelled |
+| `savePushSubscription(client, { endpoint, p256dh, auth })` | `save_push_subscription` | `p_endpoint`, `p_p256dh`, `p_auth` |
 
 Table writes go through RLS (the trainer's `for all` policies):
 
@@ -90,6 +92,7 @@ Table writes go through RLS (the trainer's `for all` policies):
 | `saveBlocked(client, id \| null, { startsAt, endsAt, reason })` | insert or update a `blocked_periods` row |
 | `deleteBlocked(client, id)` | delete a `blocked_periods` row |
 | `setLateCancelHours(client, hours)` | update `settings.late_cancel_hours` |
+| `deletePushSubscription(client, endpoint)` | delete the caller's `push_subscriptions` row with that endpoint (RLS: own rows) |
 
 After an action the page reloads what it shows; nothing is updated optimistically.
 

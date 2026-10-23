@@ -16,6 +16,7 @@ import { supabase } from '../../lib/supabase';
 import { formatDay, formatTime, localDateOf, weekdayName } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
 import { NoticeLine, type Notice } from '../shared/NoticeLine';
+import { PushToggle } from '../shared/PushToggle';
 import { BlockedForm } from './BlockedForm';
 import { TemplateForm } from './TemplateForm';
 
@@ -274,6 +275,8 @@ export function TrainerSettings() {
           onSave={(period) => void storeBlocked(null, period)}
         />
       </section>
+
+      <PushToggle audience="trainer" />
     </>
   );
 }

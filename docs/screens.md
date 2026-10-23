@@ -11,18 +11,18 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 |---|---|---|---|---|
 | `/login` | anyone; a signed-in user is sent to `/` | Email and password sign-in. A failed sign-in shows `authErrors` copy. | `login`, `authErrors` | Stage 1 |
 | `/invite/:token` | anyone | Sign-up from an invite link: email, password, confirm password. Creates the auth user (or signs in when that account already exists but is unlinked), calls `accept_invite(token)`, reloads the customer record and goes to `/`. A rejected invite shows its `errors.AMRAP_*` copy. | `invite`, `errors`, `authErrors` | Stage 1 |
-| `/logout` | anyone | Signs out and redirects to `/login` (a route loader). If signing out fails it stays and shows the error with a continue link. | `logoutFailed`, `common.continue`, `genericError` | Stage 1 |
+| `/logout` | anyone | Removes this device's push subscription (best effort), signs out and redirects to `/login` (a route loader). If signing out fails it stays and shows the error with a continue link. | `logoutFailed`, `common.continue`, `genericError` | Stage 1, push Stage 3 |
 | `/` | signed in | Redirects to `/t` for the trainer or `/c` for a customer. | none | Stage 1 |
 | (any route below `/`) | signed in, customer lookup failed | Error page with a retry button and a sign-out link to `/logout`. | `lookupFailed`, `common.signOut` | Stage 1 |
 | (any route below `/`) | signed in, no `customers` row | "Account not linked" page with a sign-out link to `/logout`. Shown instead of the route, URL unchanged. | `notLinked`, `common.signOut` | Stage 1 |
-| `/c` | customer | Customer shell: top bar with the app name and a sign-out link to `/logout`, bottom navigation (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel ([Customer screens](#customer-screens)). | `nav`, `customer`, `slot`, `time`, `cancelDialog` | Stage 2 |
+| `/c` | customer | Customer shell: top bar with the app name and a sign-out link to `/logout`, bottom navigation (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle` | Stage 2, push Stage 3 |
 | `/c/koledar` | customer | Week calendar: book open slots, cancel own bookings. | `customer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
 | `/t` | trainer | Trainer shell: the same top bar with sign-out, bottom navigation (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `trainer`, `calendar`, `slot` | Stage 2 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/t/stranke` | trainer | Customer list with balance and invite status; create a customer. | `trainer`, `customers` | Stage 2 |
 | `/t/stranke/:id` | trainer | One customer: credits, invite link, recurring rules, upcoming appointments, details, ledger. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType` | Stage 2 |
-| `/t/nastavitve` | trainer | Slot templates, cutoff hours, blocked periods. | `settings`, `trainer` | Stage 2 |
+| `/t/nastavitve` | trainer | Slot templates, cutoff hours, blocked periods, notifications toggle. | `settings`, `trainer`, `pushToggle` | Stage 2, push Stage 3 |
 | anything else | anyone | Redirects to `/`. | none | Stage 1 |
 
 ## Customer screens
@@ -43,6 +43,8 @@ data.
 - **Upcoming list:** every upcoming appointment, soonest first, each with **Odpovej**, which opens
   the cancel dialog; a successful cancel shows `cancelDialog.done` (a status line). Empty:
   `customer.noUpcoming`.
+- **Obvestila:** the notifications toggle with the customer hint (`pushToggle.customerHint`),
+  see [Notifications toggle](#notifications-toggle).
 
 ### Calendar (`/c/koledar`)
 
@@ -209,6 +211,29 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   reason; a time that does not exist that day or an end not after the start is rejected
   (`trainer.invalidTime`, `trainer.invalidRange`). A new block does not cancel appointments
   already booked in it; `book()` and materialization reject or skip later ones.
+- **Obvestila:** the notifications toggle with the trainer hint (`pushToggle.trainerHint`).
+
+## Notifications toggle
+
+`pages/shared/PushToggle.tsx`, a card titled `pushToggle.title` on the customer Home and the
+trainer Settings. It applies to this browser or installed app only. How push works end to end
+is in [notifications.md](notifications.md).
+
+| State | When | Shows |
+|---|---|---|
+| install hint | iOS and not opened from the home screen | `pushToggle.needsInstall` (Share, Add to Home Screen, open from there) |
+| unsupported | no service worker, Push API or Notification API | `pushToggle.unsupported` |
+| unavailable | the build has no `VITE_VAPID_PUBLIC_KEY` | `pushToggle.noKey` |
+| blocked | the browser's notification permission is `denied` | `pushToggle.blocked` |
+| off | supported, and no browser subscription, or one the server no longer has | `pushToggle.off` and **Vklopi obvestila** |
+| on | a browser subscription that is saved for the signed-in user | `pushToggle.on` and **Izklopi obvestila** |
+
+**Vklopi obvestila** asks for permission (only if not granted yet), subscribes the browser with
+the VAPID key and saves it with `save_push_subscription`; a refusal shows `pushToggle.denied`
+(then the state becomes blocked), a failed browser subscription `pushToggle.failed`, a server
+error its `fromError` copy. **Izklopi obvestila** deletes this device's row and unsubscribes
+the browser. Success shows `pushToggle.enabled` / `pushToggle.disabled` (a status line). The
+state is loaded once and again after each action; the button is disabled while one runs.
 
 ## Access rules
 
@@ -237,7 +262,10 @@ How the guards and the auth state work is in [auth.md](auth.md).
 - **Environment.** `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are required. Without
   them `start.tsx` shows a start-up error page (`startupError`) naming the missing variable
   instead of a blank page ([runbook.md](runbook.md#cloudflare-pages-build-settings)).
-- **PWA.** `registerType: 'autoUpdate'`, `display: standalone`, manifest language `sl`, icons
+- **PWA.** A custom service worker (`src/sw.ts`, vite-plugin-pwa `injectManifest`) precaches
+  the build, updates itself (`skipWaiting` + `clientsClaim`, the `autoUpdate` behaviour) and
+  shows push notifications ([notifications.md](notifications.md#service-worker)).
+  `display: standalone`, manifest language `sl`, icons
   192 and 512 px. Cloudflare Pages falls back to `index.html` for unknown paths natively;
   `app/public/_redirects` is a belt-and-braces measure
   ([runbook.md](runbook.md#cloudflare-pages-build-settings)).

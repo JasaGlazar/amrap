@@ -58,6 +58,10 @@ npm test              # vitest
 npm run build         # type-check and production build into app/dist
 ```
 
+Push notifications need `VITE_VAPID_PUBLIC_KEY` in `app/.env.local` and a production build
+(`npm run build && npm run preview`): the dev server registers no service worker
+([docs/notifications.md](docs/notifications.md#local-setup)).
+
 After `supabase start`, restart the stack once (`supabase stop && supabase start`) when
 `supabase/config.toml` changed so Auth picks up the `site_url` of the dev server.
 
