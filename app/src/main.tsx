@@ -1,13 +1,6 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { createBrowserRouter, RouterProvider } from 'react-router';
-import { routes } from './routes';
+import { start } from './start';
 import './styles.css';
 
-const router = createBrowserRouter(routes);
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <RouterProvider router={router} />
-  </StrictMode>,
-);
+// RouterProvider comes from 'react-router' (not 'react-router/dom') in start.tsx so the tests and
+// the app render the same component; the /dom variant only adds flushSync for transitions.
+void start(document.getElementById('root')!);

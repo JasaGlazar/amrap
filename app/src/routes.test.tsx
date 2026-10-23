@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { t } from './i18n';
 import { routes } from './routes';
 import {
@@ -117,6 +117,37 @@ describe('signed-in user without a customers row', () => {
   });
 });
 
+describe('failed customers lookup', () => {
+  beforeEach(() => {
+    signedInAs(customer);
+    db.customersError = { message: 'FetchError: network down' };
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('shows the error page, not the not-linked page', async () => {
+    const router = renderAt('/c');
+    await screen.findByRole('heading', { name: t.lookupFailed.title });
+    expect(screen.queryByRole('heading', { name: t.notLinked.title })).not.toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/c');
+  });
+
+  it('retries the lookup and enters the app once it succeeds', async () => {
+    renderAt('/c');
+    await userEvent.click(await screen.findByRole('button', { name: t.lookupFailed.retry }));
+    db.customersError = null;
+    await userEvent.click(await screen.findByRole('button', { name: t.lookupFailed.retry }));
+    expect(await screen.findByRole('heading', { name: t.nav.home })).toBeVisible();
+  });
+
+  it('can sign out', async () => {
+    const router = renderAt('/c');
+    await userEvent.click(await screen.findByRole('button', { name: t.common.signOut }));
+    await screen.findByRole('heading', { name: t.login.title });
+    expect(router.state.location.pathname).toBe('/login');
+  });
+});
+
 describe('shells', () => {
   it('shows the trainer navigation', async () => {
     signedInAs(trainer);
@@ -149,7 +180,7 @@ describe('shells', () => {
     signedInAs(customer);
     db.balance = 6;
     renderAt('/c');
-    expect(await screen.findByText('6')).toBeInTheDocument();
+    expect(await screen.findByText(String(db.balance))).toBeInTheDocument();
     expect(screen.getByText(t.customer.noUpcoming)).toBeInTheDocument();
   });
 
@@ -157,7 +188,7 @@ describe('shells', () => {
     signedInAs(customer);
     db.balance = -2;
     renderAt('/c');
-    expect(await screen.findByText('-2')).toHaveClass('negative');
+    expect(await screen.findByText(String(db.balance))).toHaveClass('negative');
   });
 });
 
@@ -231,6 +262,19 @@ describe('logout', () => {
     await screen.findByRole('heading', { name: t.login.title });
     expect(fakeSupabase.auth.signOut).toHaveBeenCalledOnce();
     expect(router.state.location.pathname).toBe('/login');
+  });
+});
+
+describe('logout failure', () => {
+  it('stays on the page, shows the error and logs it', async () => {
+    signedInAs(customer);
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    fakeSupabase.auth.signOut.mockResolvedValue({ error: authError('unexpected_failure', 'boom') });
+    const router = renderAt('/logout');
+    expect(await screen.findByRole('alert')).toHaveTextContent(t.genericError);
+    expect(router.state.location.pathname).toBe('/logout');
+    expect(logged).toHaveBeenCalled();
+    logged.mockRestore();
   });
 });
 
@@ -337,5 +381,21 @@ describe('invite flow', () => {
     await screen.findByRole('heading', { name: t.nav.home });
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('accept_invite', { p_token: 'tok-2' });
     expect(router.state.location.pathname).toBe('/c');
+  });
+
+  it('shows the sign-in error when the existing account cannot be signed in for another reason', async () => {
+    fakeSupabase.auth.signUp.mockResolvedValue({
+      data: { session: null },
+      error: authError('user_already_exists', 'User already registered'),
+    });
+    fakeSupabase.auth.signInWithPassword.mockResolvedValue({
+      data: {},
+      error: authError('over_request_rate_limit', 'Too many requests'),
+    });
+    renderAt('/invite/tok');
+    await fillAndSubmit('secret1', 'secret1');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      t.authErrors.over_request_rate_limit,
+    );
   });
 });

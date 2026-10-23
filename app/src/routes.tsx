@@ -1,6 +1,7 @@
 import { Navigate, Outlet, redirect, type RouteObject } from 'react-router';
 import { AuthProvider } from './auth/AuthProvider';
 import { RequireAuth, RequireRole, RoleRedirect } from './auth/guards';
+import { fromError } from './i18n';
 import { supabase } from './lib/supabase';
 import {
   CustomerCalendar,
@@ -10,6 +11,7 @@ import {
 } from './pages/CustomerPages';
 import { InvitePage } from './pages/InvitePage';
 import { LoginPage } from './pages/LoginPage';
+import { LogoutFailedPage } from './pages/LogoutFailedPage';
 import {
   TrainerCalendar,
   TrainerCustomers,
@@ -26,8 +28,13 @@ function Root() {
   );
 }
 
+// Redirects to /login once signed out; if signing out fails the page stays and says so.
 async function logout() {
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    console.error('sign out failed', error);
+    return { message: fromError(error) };
+  }
   return redirect('/login');
 }
 
@@ -37,7 +44,7 @@ export const routes: RouteObject[] = [
     children: [
       { path: '/login', element: <LoginPage /> },
       { path: '/invite/:token', element: <InvitePage /> },
-      { path: '/logout', loader: logout },
+      { path: '/logout', loader: logout, element: <LogoutFailedPage /> },
       {
         element: <RequireAuth />,
         children: [

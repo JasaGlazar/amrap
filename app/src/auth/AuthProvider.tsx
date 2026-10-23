@@ -4,7 +4,7 @@ import { keepAlive } from '../lib/keepAlive';
 import { supabase } from '../lib/supabase';
 import { AuthContext, type AuthState, type CustomerRow } from './AuthContext';
 
-type Loaded = { userId: string; customer: CustomerRow | null };
+type Loaded = { userId: string; customer: CustomerRow | null; failed: boolean };
 
 // Session comes from Supabase Auth; the customers row (and with it the role) from the database.
 // RLS lets a customer read only their own row and the trainer read all, so the row is selected
@@ -33,14 +33,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadCustomer = useCallback(async (id: string) => {
     const load = ++latestLoad.current;
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('auth_user_id', id)
-      .maybeSingle();
-    if (error) console.warn('customer lookup failed', error.message);
+    let result: Loaded;
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('auth_user_id', id)
+        .maybeSingle();
+      if (error) console.warn('customer lookup failed', error.message);
+      // A failed lookup is not "no customer row": it must not look like an unlinked account.
+      result = { userId: id, customer: data ?? null, failed: error !== null };
+    } catch (error) {
+      console.warn('customer lookup failed', error);
+      result = { userId: id, customer: null, failed: true };
+    }
     // A newer load (for example the refresh after accept_invite) wins over a slower older one.
-    if (load === latestLoad.current) setLoaded({ userId: id, customer: data ?? null });
+    if (load === latestLoad.current) setLoaded(result);
   }, []);
 
   useEffect(() => {
@@ -71,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading: session === undefined || !customerKnown,
       session: session ?? null,
       customer,
+      lookupFailed: loaded !== null && loaded.userId === userId && loaded.failed,
       role: customer?.role ?? null,
       refresh,
       signOut,

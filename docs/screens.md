@@ -12,8 +12,9 @@ stubs and are built out in Stage 2 (see `PLAN.md`, "Screens").
 |---|---|---|---|---|
 | `/login` | anyone; a signed-in user is sent to `/` | Email and password sign-in. A failed sign-in shows `authErrors` copy. | `login`, `authErrors` | Stage 1 |
 | `/invite/:token` | anyone | Sign-up from an invite link: email, password, confirm password. Creates the auth user (or signs in when that account already exists but is unlinked), calls `accept_invite(token)`, reloads the customer record and goes to `/`. A rejected invite shows its `errors.AMRAP_*` copy. | `invite`, `errors`, `authErrors` | Stage 1 |
-| `/logout` | anyone | Signs out and redirects to `/login` (a route loader, no UI). | none | Stage 1 |
+| `/logout` | anyone | Signs out and redirects to `/login` (a route loader). If signing out fails it stays and shows the error with a continue link. | `logoutFailed`, `common.continue`, `genericError` | Stage 1 |
 | `/` | signed in | Redirects to `/t` for the trainer or `/c` for a customer. | none | Stage 1 |
+| (any route below `/`) | signed in, customer lookup failed | Error page with retry and sign-out buttons. | `lookupFailed`, `common.signOut` | Stage 1 |
 | (any route below `/`) | signed in, no `customers` row | "Account not linked" page with a sign-out button. Shown instead of the route, URL unchanged. | `notLinked`, `common.signOut` | Stage 1 |
 | `/c` | customer | Customer shell with bottom navigation (Home, Calendar, History). Home shows the balance from `customer_balances` (red when negative) and "no upcoming appointments". | `nav`, `customer` | Home balance Stage 1; upcoming list placeholder |
 | `/c/calendar` | customer | Book open slots, cancel with free/late warning. | `customer.calendarTitle`, `common.comingSoon` | placeholder |
@@ -31,7 +32,10 @@ stubs and are built out in Stage 2 (see `PLAN.md`, "Screens").
   flashes the login page. No session redirects to `/login`; a session without a `customers` row
   shows the not-linked page.
 - `RequireRole('customer' | 'trainer')` wraps `/c` and `/t`. A user of the other role is
-  redirected to `/`, which sends them to their own area.
+  redirected straight to their own home (`/t` or `/c`).
+- If the customers lookup fails (network, server error, paused project) `RequireAuth` shows an
+  error page with a retry button and a sign-out button instead of the not-linked page, so an
+  outage is not mistaken for an unlinked account.
 - The role comes from the signed-in user's `customers` row (`role`), selected by
   `auth_user_id`; it is never read from auth metadata (ADR 0006). The database enforces the
   same split with RLS and RPC role checks, so the guards are navigation, not security.
@@ -43,8 +47,9 @@ stubs and are built out in Stage 2 (see `PLAN.md`, "Screens").
   never blocks the app. Token refreshes do not repeat it.
 - **Error copy.** `fromError(error)` turns a PostgREST error (`AMRAP_<TOKEN>: detail`) or a
   Supabase Auth error code into Slovenian copy; anything else gets `genericError`.
-- **Environment.** `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are required; the app
-  throws at start-up without them ([runbook.md](runbook.md#cloudflare-pages-build-settings)).
+- **Environment.** `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are required. Without
+  them `start.tsx` shows a start-up error page (`startupError`) naming the missing variable
+  instead of a blank page ([runbook.md](runbook.md#cloudflare-pages-build-settings)).
 - **PWA.** `registerType: 'autoUpdate'`, `display: standalone`, manifest language `sl`, icons
   192 and 512 px. Cloudflare Pages serves `index.html` for every path through
   `app/public/_redirects`.

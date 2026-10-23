@@ -33,7 +33,12 @@ export function InvitePage() {
         // An earlier attempt may have created the account without linking it (a dropped
         // request, or an invite that was replaced). Continue as that user if the password fits.
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) return setError(fromError(signUpError));
+        if (signInError) {
+          // A wrong password means the account is someone else's (or has another password).
+          return setError(
+            fromError(signInError.code === 'invalid_credentials' ? signUpError : signInError),
+          );
+        }
       } else if (data.session === null) {
         return setError(t.invite.noSession);
       }

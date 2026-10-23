@@ -43,6 +43,18 @@ export const sl = {
     title: 'Račun ni povezan',
     body: 'Vaš račun še ni povezan s stranko. Za povezavo se obrnite na trenerja.',
   },
+  lookupFailed: {
+    title: 'Podatkov ni mogoče naložiti',
+    body: 'Povezava s strežnikom ni uspela. Preverite internet in poskusite znova.',
+    retry: 'Poskusi znova',
+  },
+  startupError: {
+    title: 'Aplikacije ni mogoče zagnati',
+    body: 'Nastavitve strežnika manjkajo ali niso veljavne. Obrnite se na skrbnika.',
+  },
+  logoutFailed: {
+    title: 'Odjava ni uspela',
+  },
   customer: {
     balanceLabel: 'Stanje kreditov',
     balanceLoadFailed: 'Stanja ni mogoče naložiti.',

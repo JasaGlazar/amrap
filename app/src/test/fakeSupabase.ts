@@ -21,7 +21,8 @@ export const db: {
   customer: CustomerRow | null;
   balance: number;
   settingsError: { message: string } | null;
-} = { session: null, customer: null, balance: 0, settingsError: null };
+  customersError: { message: string } | null;
+} = { session: null, customer: null, balance: 0, settingsError: null, customersError: null };
 
 const listeners = new Set<AuthListener>();
 
@@ -52,6 +53,7 @@ export function emitAuth(event: string, session: Session | null) {
 
 function runQuery(table: string, filters: Record<string, unknown>): Result {
   if (table === 'customers') {
+    if (db.customersError) return { data: null, error: db.customersError };
     const row = db.customer;
     return { data: row && row.auth_user_id === filters.auth_user_id ? row : null, error: null };
   }
@@ -105,6 +107,7 @@ export function resetFake(initial: { session?: Session; customer?: CustomerRow |
   db.customer = initial.customer ?? null;
   db.balance = 0;
   db.settingsError = null;
+  db.customersError = null;
   listeners.clear();
 
   fakeSupabase.auth.onAuthStateChange.mockReset().mockImplementation((listener: AuthListener) => {
