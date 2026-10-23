@@ -35,8 +35,32 @@ diagram in the same commit:
 | pg_cron jobs, edge functions | `docs/jobs.md` | `docs/architecture/charging-sequence.md` or system context |
 | Screens | `docs/screens.md` | - |
 
-A lightweight CI check (`scripts/check-docs.sh`, CI added in Task 5) verifies that every migration file and every
-RPC name appears in the schema and RPC reference docs.
+A lightweight check (`scripts/check-docs.sh`, run by the `docs` CI job) verifies that every migration file and every
+function name appears in the schema and RPC reference docs (see [CI](#ci)).
+
+## CI
+
+`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`, as three
+independent jobs:
+
+| Job | What it runs |
+|---|---|
+| `db` | `supabase/setup-cli@v1`, then `supabase start -x studio,imgproxy,logflare,vector,edge-runtime` (applies the migrations and the seeds in `config.toml` `[db.seed]`), `supabase test db`, and a check that `app/src/lib/database.types.ts` equals the output of `supabase gen types typescript --local`. |
+| `app` | In `app/` with the Node version from `app/.node-version`: `npm ci`, `npm run lint`, `npm run typecheck`, `npm test -- --run`, `npm run build`. |
+| `docs` | `bash scripts/check-docs.sh`. |
+
+`scripts/check-docs.sh` also runs locally from any directory and lists everything it finds
+missing before exiting non-zero. It enforces two things, reading `supabase/migrations/*.sql`
+only (not tests or seeds):
+
+- every migration file name appears in `docs/schema.md`;
+- every function declared by `create [or replace] function public.<name>` appears in
+  `docs/rpcs.md`, either as a `## <name>` heading or in backticks (`` `name` `` or
+  `` `public.name(` ``). The role helpers `current_customer_id` and `is_trainer` live in its
+  "Helpers" section.
+
+A stale generated-types failure is fixed by running
+`supabase gen types typescript --local > app/src/lib/database.types.ts` and committing the result.
 
 ## ADR rule
 

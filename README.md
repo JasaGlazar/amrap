@@ -15,8 +15,8 @@ The design is in [PLAN.md](PLAN.md); the domain vocabulary is in [CONTEXT.md](CO
 | `app/` | Vite + React + TypeScript PWA |
 | `docs/` | harness conventions, runbook, ADRs, architecture diagrams, component docs |
 | `.claude/agents/`, `.claude/skills/` | project reviewer agent and skills |
-| `scripts/` | repo scripts (docs check, added in Task 5) |
-| `.github/workflows/` | CI (added in Task 5) |
+| `scripts/` | repo scripts (`check-docs.sh`: migrations and functions must be documented) |
+| `.github/workflows/` | CI (`ci.yml`: pgTAP, app and docs checks; see [docs/harness.md](docs/harness.md#ci)) |
 
 Start with [docs/README.md](docs/README.md).
 
