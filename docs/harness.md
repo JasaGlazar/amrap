@@ -4,6 +4,25 @@ The harness is a small set of repo conventions and review gates that keep AI-ass
 consistent. It is not tooling for its own sake; if a rule stops paying for itself, change it
 with an ADR.
 
+## Binding constraints
+
+These constraints bind every task and are what the reviewer checks against (alongside `PLAN.md`).
+
+- Supabase Free Plan and Cloudflare Pages free tier only. No paid add-ons, no custom SMTP.
+- Ledger-first: no mutable balance column; balance = `SUM(credit_transactions.amount)`.
+- All credit and capacity mutations go through `SECURITY DEFINER` RPCs with explicit role checks.
+- Partial unique index on `credit_transactions(appointment_id) WHERE type IN ('session','late_cancel')`.
+- Appointment status enum: `booked | charged | cancelled | cancelled_late | cancelled_by_trainer`.
+- Transaction type enum: `topup | session | late_cancel | refund | adjustment`.
+- Defaults: cutoff 5 h, slot 60 min, capacity 5, gym timezone `Europe/Ljubljana`.
+- Slovenian UI; every user-visible string lives in `app/src/i18n/sl.ts`. No hardcoded UI strings.
+- Docs 1:1 (below), no generated artifacts except the DB types, tests derive counts, no
+  blocking hooks (all below).
+- Auth: email/password with email confirmations disabled. Customers join only via trainer
+  invite token (`create_invite` / `accept_invite`). Magic links and OTP are not used.
+- Tests: pgTAP via `supabase test db` (`supabase/tests/*.sql`); frontend logic tests with Vitest.
+- Never `supabase db push` to the remote from a feature branch (see `docs/runbook.md`).
+
 ## Docs 1:1 rule
 
 Every diff that touches schema, RPCs, jobs or screens must also touch the matching doc and
@@ -16,7 +35,7 @@ diagram in the same commit:
 | pg_cron jobs, edge functions | `docs/jobs.md` | `docs/architecture/charging-sequence.md` or system context |
 | Screens | `docs/screens.md` | - |
 
-A lightweight CI check (`scripts/check-docs.sh`) verifies that every migration file and every
+A lightweight CI check (`scripts/check-docs.sh`, CI added in Task 5) verifies that every migration file and every
 RPC name appears in the schema and RPC reference docs.
 
 ## ADR rule
@@ -51,7 +70,7 @@ gate instead. This is a lesson from a previous harness.
 
 Do not commit regenerated artifacts (reports, snapshots with hardcoded counts); they
 concentrate merge conflicts and hide silent auto-merge defects. The only generated file
-committed is `app/src/lib/database.types.ts` (Supabase types).
+committed is `app/src/lib/database.types.ts` (Supabase types, generated in Task 2).
 
 ## Tests derive counts
 

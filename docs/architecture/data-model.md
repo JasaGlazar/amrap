@@ -2,7 +2,10 @@
 
 Entity-relationship diagram of every table. The model is ledger-first: there is no balance
 column; a customer's balance is `SUM(credit_transactions.amount)`, exposed by the view
-`customer_balances` (ADR 0003). All tables are under RLS and all credit and capacity changes go
+`customer_balances` (ADR 0003). Invite status is not stored; it is derived: linked when
+`auth_user_id` is not null, pending when `invite_token` is not null and `invite_expires_at > now()`,
+otherwise none. `push_subscriptions.user_id` references `auth.users`, so it reaches a customer
+only indirectly through `customers.auth_user_id`. All tables are under RLS and all credit and capacity changes go
 through RPCs. Column lists show the main fields; the migration is the exact definition and
 `docs/schema.md` is the reference.
 
@@ -15,9 +18,8 @@ erDiagram
         text email
         text role "trainer or customer"
         uuid auth_user_id "nullable, unique"
-        text invite_status
-        text invite_token "nullable, single use"
-        timestamptz invite_expires_at "nullable, 7 days"
+        text invite_token "nullable, single use, cleared on accept"
+        timestamptz invite_expires_at "nullable, token expiry 7 days"
     }
     slot_templates {
         uuid id PK
@@ -75,10 +77,9 @@ erDiagram
     customers ||--o{ recurring_rules : "has"
     slot_templates ||--o{ recurring_rules : "is repeated by"
     customers ||--o{ appointments : "books"
-    slot_templates ||--o{ appointments : "hosts"
-    recurring_rules ||--o{ appointments : "materializes"
+    slot_templates |o--o{ appointments : "hosts"
+    recurring_rules |o--o{ appointments : "materializes"
     customers ||--o{ credit_transactions : "owns ledger"
-    appointments ||--o{ credit_transactions : "charged by"
+    appointments |o--o{ credit_transactions : "charged by"
     customers ||--o{ credit_transactions : "created_by"
-    customers ||--o{ push_subscriptions : "subscribes via auth_user_id"
 ```

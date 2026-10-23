@@ -10,12 +10,15 @@ sequenceDiagram
     participant C as Customer app
     participant B as book()
     participant S as slot_templates
+    participant BP as blocked_periods
     participant A as appointments
 
     C->>B: book(slot, starts_at)
     B->>B: current_customer_id() or reject
     B->>S: lock slot template row
     S-->>B: capacity, duration_minutes
+    B->>BP: check blocked_periods overlapping the slot
+    BP-->>B: none or blocked (blocked means error - slot is blocked)
     B->>A: count status in (booked, charged) for that slot
     A-->>B: occupied
     alt occupied < capacity

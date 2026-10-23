@@ -25,7 +25,7 @@ sequenceDiagram
     Auth-->>App: session (no email confirmation)
     App->>DB: accept_invite(token)
     alt token valid and unused
-        DB->>DB: set customers.auth_user_id, mark invite used
+        DB->>DB: set customers.auth_user_id, clear invite_token
         DB-->>App: customer linked
         App->>DB: read role via is_trainer()
         App-->>C: role-gated home

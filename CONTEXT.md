@@ -21,7 +21,7 @@ Slovenian, but identifiers and docs use the English terms below.
 - **materialization** — the nightly, idempotent job that turns active recurring rules into concrete `appointments` about four weeks ahead (`source = 'recurring'`).
 - **ad-hoc appointment** — a trainer-created appointment with no slot template (`slot_template_id` is null, `source = 'trainer'`).
 - **blocked period** — a trainer-defined time range (holiday, closure) in which booking is not allowed; table `blocked_periods`.
-- **debtor** — a customer whose balance is negative; shown in red and listed on the trainer dashboard, never blocked.
+- **debtor** — a customer whose `customer_balances` row has balance < 0; shown in red and listed on the trainer dashboard, never blocked.
 - **invite** — a single-use, expiring (7 days) token a trainer generates with `create_invite` and a customer redeems with `accept_invite` to link an account to their customer record.
 - **trainer** — the gym owner; the only user with `role = 'trainer'`, who manages the grid, credits, customers and all appointments (helper `is_trainer()`).
 - **customer** — a person who trains at the gym, with a row in `customers` (role `customer`); may or may not have an app account (`auth_user_id` may be null; helper `current_customer_id()`).
@@ -32,6 +32,7 @@ Slovenian, but identifiers and docs use the English terms below.
 - One charge per appointment, enforced by a partial unique index on `credit_transactions(appointment_id)` for types `session` and `late_cancel`.
 - Negative balances are allowed; they are shown, never blocked.
 - Nobody logs attendance. A booked appointment that is not cancelled before the cutoff is charged.
-- The trainer may cancel any appointment at any time without charge (`cancelled_by_trainer`); an existing charge is refunded.
+- The trainer may cancel any `booked` or `charged` appointment at any time without charge (`cancelled_by_trainer`); an existing charge is refunded.
+- A `cancelled_late` appointment cannot be cancelled again; the trainer waives a late-cancel charge with `adjust(+1, note)`.
 - The balance is never stored; the ledger is the only source of truth.
 - All credit and capacity mutations go through `SECURITY DEFINER` RPCs with explicit role checks.

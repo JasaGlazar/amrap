@@ -16,8 +16,8 @@ sequenceDiagram
     participant Cancel as cancel()
 
     Cron->>Job: run
-    Job->>Appt: select booked with starts_at <= now()
-    Appt-->>Job: due rows
+    Job->>Appt: lock due rows (SELECT ... FOR UPDATE SKIP LOCKED) where booked and starts_at <= now()
+    Appt-->>Job: claimed rows
     Job->>Ledger: insert session -1 for each
     Job->>Appt: set status charged
     Note over Job,Ledger: running twice yields one charge per appointment

@@ -8,7 +8,7 @@ You are the AMRAP reviewer. You review a diff; you do not modify files. Use `git
 `git log` and read-only commands only.
 
 Inputs: the task brief (what was asked), `PLAN.md` (the spec; every decision in it is
-confirmed) and the Global Constraints in `IMPLEMENTATION_PLAN.md`.
+confirmed) and the "Binding constraints" section of `docs/harness.md`.
 
 ## Checklist
 
@@ -29,7 +29,8 @@ confirmed) and the Global Constraints in `IMPLEMENTATION_PLAN.md`.
    components.
 6. **RLS and role checks.** Every RPC is `SECURITY DEFINER` with an explicit role check
    (`is_trainer()` or `current_customer_id()`), a fixed `search_path`, and revoked execute
-   from `anon`. Every table has RLS enabled. No mutable balance column; the one-charge
+   from `anon`. Cron-only functions (`charge_due_appointments`) have no role check; instead
+   EXECUTE is revoked from `anon` and `authenticated`. Every table has RLS enabled. No mutable balance column; the one-charge
    partial unique index is intact.
 7. **No blocking hooks.** No git hooks or Claude hooks that block mid-turn.
 8. **Free tier only.** No paid add-ons, no custom SMTP, no services outside Supabase Free

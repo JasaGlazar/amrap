@@ -31,3 +31,4 @@ racing each other, and let the trainer undo a charge.
 - Exactly one charge per appointment holds under any interleaving of cron and cancel.
 - The job must be testable by calling `charge_due_appointments()` directly against seeded
   fixture dates.
+- A `cancelled_late` appointment cannot be cancelled again; the trainer waives a late-cancel charge with `adjust(+1, note)`.
