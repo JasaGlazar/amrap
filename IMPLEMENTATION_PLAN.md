@@ -45,7 +45,7 @@ log in and see the trainer shell.
 charge → refund, net 0; customer cancel after start → rejected, no transaction; negative
 balance allowed; invite token reuse/expiry rejected; custom duration/capacity respected;
 Vitest for strings module and auth routing.
-**Status**: In Progress
+**Status**: Complete (PR open; remote `db push` and owner steps in docs/runbook.md pending)
 
 ## Stage 2: Credits & appointments core
 **Goal**: Recurring rules + nightly materialization (4 weeks ahead, idempotent), pg_cron
@@ -60,6 +60,9 @@ blocked period; screen-level Vitest for calendar/capacity rendering and cancel w
 `pg_advisory_xact_lock` key as `book()` (template id + start epoch) or it can overfill a slot;
 add a sign-out link to both shells; add an automated two-session test for `accept_invite` if a
 harness allows it.
+The customer calendar must show remaining capacity per slot while RLS hides other customers'
+appointments: add a `SECURITY DEFINER` counting RPC or view (e.g. `slot_occupancy`). Route the
+not-linked and lookup-failed sign-out buttons through `/logout` so failures surface.
 **Status**: Not Started
 
 ## Stage 3: Automation & notifications
