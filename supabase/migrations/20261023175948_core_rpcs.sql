@@ -259,6 +259,46 @@ begin
 end;
 $$;
 
+-- Charge job -------------------------------------------------------------------------------
+
+-- The 15-minute job (ADR 0002, docs/jobs.md): every booked appointment that has started
+-- becomes charged with one session -1 transaction (created_by null: no acting user). Rows a
+-- concurrent cancel() holds are skipped (for update skip locked) and picked up by the next run
+-- if still booked. Only booked rows are selected and each becomes charged in the same
+-- statement, so a second run charges nothing; the partial unique index on credit_transactions
+-- is the database-level guard. No role check: it is not granted to authenticated or anon and
+-- runs from pg_cron (as postgres) or with the service role.
+create function public.charge_due_appointments()
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_charged int;
+begin
+  with due as (
+    select a.id
+    from public.appointments a
+    where a.status = 'booked' and a.starts_at <= now()
+    for update skip locked
+  ),
+  charged as (
+    update public.appointments a
+      set status = 'charged'
+      from due
+      where a.id = due.id
+      returning a.id, a.customer_id
+  )
+  insert into public.credit_transactions (customer_id, amount, type, appointment_id, created_by)
+  select charged.customer_id, -1, 'session', charged.id, null
+  from charged;
+
+  get diagnostics v_charged = row_count;
+  return v_charged;
+end;
+$$;
+
 -- Grants -----------------------------------------------------------------------------------
 
 revoke execute on function public.top_up(uuid, int, text) from public, anon;
@@ -269,3 +309,6 @@ revoke execute on function public.book(uuid, timestamptz, uuid, timestamptz) fro
 grant execute on function public.book(uuid, timestamptz, uuid, timestamptz) to authenticated, service_role;
 revoke execute on function public.cancel(uuid) from public, anon;
 grant execute on function public.cancel(uuid) to authenticated, service_role;
+-- Cron / service role only.
+revoke execute on function public.charge_due_appointments() from public, anon, authenticated;
+grant execute on function public.charge_due_appointments() to service_role;

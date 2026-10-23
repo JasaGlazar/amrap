@@ -131,6 +131,24 @@ public.adjust(p_customer_id uuid, p_amount int, p_note text default null) return
 - **Side effects:** inserts one `credit_transactions` row: `type = 'adjustment'`,
   `amount = p_amount`, `created_by = auth.uid()`, `note = p_note`. Returns its id.
 
+## charge_due_appointments
+
+```sql
+public.charge_due_appointments() returns int
+```
+
+- **Who may call:** pg_cron (as `postgres`) and `service_role` only. There is no role check
+  inside; `execute` is revoked from `public`, `anon` and `authenticated`, so a signed-in user
+  (trainer included) gets SQLSTATE `42501`.
+- **Rules:** every appointment with `status = 'booked'` and `starts_at <= now()`, locked with
+  `for update skip locked` (rows held by a concurrent `cancel()` are skipped and picked up by
+  the next run if still booked).
+- **Errors:** none of its own.
+- **Side effects:** per appointment: `status = 'charged'` and one `session` transaction (−1,
+  `created_by = null`). Returns the number charged. Idempotent: a second run returns 0.
+  Described as a job in [jobs.md](jobs.md).
+- **Diagram:** [architecture/charging-sequence.md](architecture/charging-sequence.md).
+
 ## Helpers
 
 Role helpers used by RLS policies and by every RPC's role check. Both are `language sql
