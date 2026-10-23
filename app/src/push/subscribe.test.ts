@@ -102,6 +102,23 @@ describe('disablePush', () => {
     expect(unsubscribe).toHaveBeenCalledOnce();
   });
 
+  it('only unsubscribes the browser when the user is unknown', async () => {
+    const endpoint = 'https://push.test/a';
+    db.tables.push_subscriptions.push({
+      id: 'p1',
+      user_id: 'user-a',
+      endpoint,
+      ...keysOf(endpoint),
+    });
+    const { platform, unsubscribe } = fakePlatform({
+      permission: 'granted',
+      subscribedEndpoint: endpoint,
+    });
+    expect(await disablePush(client, platform, null)).toEqual({ ok: true, data: null });
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(fakeSupabase.from).not.toHaveBeenCalled();
+  });
+
   it('does nothing without a browser subscription', async () => {
     const { platform } = fakePlatform({});
     expect(await disablePush(client, platform, 'user-a')).toEqual({ ok: true, data: null });

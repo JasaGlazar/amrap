@@ -35,6 +35,16 @@ describe('signing out', () => {
     expect(fakeSupabase.auth.signOut).toHaveBeenCalledOnce();
   });
 
+  it('unsubscribes the browser even without a session, leaving the row to the 410 cleanup', async () => {
+    fakeSupabase.auth.getSession.mockResolvedValueOnce({ data: { session: null }, error: null });
+    device.current = fakePlatform({ permission: 'granted', subscribedEndpoint: endpoint });
+    render(<RouterProvider router={createMemoryRouter(routes, { initialEntries: ['/logout'] })} />);
+    expect(await screen.findByRole('heading', { name: t.login.title })).toBeInTheDocument();
+    expect(device.current.unsubscribe).toHaveBeenCalledOnce();
+    expect(db.tables.push_subscriptions).toHaveLength(1);
+    expect(fakeSupabase.auth.signOut).toHaveBeenCalledOnce();
+  });
+
   it('still signs out when removing the subscription fails', async () => {
     device.current = fakePlatform({ permission: 'granted', subscribedEndpoint: endpoint });
     device.current.platform.getSubscription.mockRejectedValueOnce(new Error('sw gone'));

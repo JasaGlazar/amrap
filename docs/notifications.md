@@ -111,7 +111,8 @@ and registered by the plugin's `registerSW.js`:
   applicationServerKey})`, `save_push_subscription`; when the browser refuses because an existing
   subscription was made with another VAPID key, `InvalidStateError`, it unsubscribes that one and
   retries once) and `disablePush` (delete this device's row for the
-  signed-in user, unsubscribe). Signing out calls `disablePush` first, best effort, so a shared device stops
+  signed-in user, unsubscribe; with no known user it only unsubscribes, and the 404/410 cleanup
+  removes the row on the next push). Signing out calls `disablePush` first, best effort, so a shared device stops
   getting the previous user's notifications.
 
 ## Event notifications
