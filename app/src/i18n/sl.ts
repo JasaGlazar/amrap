@@ -66,6 +66,11 @@ export const sl = {
     customersTitle: 'Stranke',
     settingsTitle: 'Nastavitve',
   },
+  time: {
+    inDaysHours: 'čez {days} d {hours} h',
+    inHoursMinutes: 'čez {hours} h {minutes} min',
+    inMinutes: 'čez {minutes} min',
+  },
   authErrors: {
     invalid_credentials: 'Napačen e-poštni naslov ali geslo.',
     user_already_exists: 'Račun s tem e-poštnim naslovom že obstaja.',

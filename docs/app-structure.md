@@ -12,8 +12,8 @@ screens are in [screens.md](screens.md), sign-in and role gating in [auth.md](au
 | `src/routes.tsx` | The route tree (React Router v7 data router). The tests render the same tree. |
 | `src/auth/` | `AuthProvider`, `useAuth()`, the route guards ([auth.md](auth.md)). |
 | `src/pages/` | One component per screen or state page; the shells (`CustomerPages.tsx`, `TrainerPages.tsx`) use `AppShell`, a phone-first layout with a fixed bottom navigation bar. |
-| `src/i18n/` | `sl.ts` (all copy), `errors.ts` (`fromError`), `index.ts` (exports `t`). |
-| `src/lib/` | `supabase.ts` (the one client), `database.types.ts` (generated), `keepAlive.ts`. |
+| `src/i18n/` | `sl.ts` (all copy), `errors.ts` (`fromError`), `fill.ts` (`fill` for `{name}` placeholders, `formatTimeUntil`), `index.ts` (exports `t` and the helpers). |
+| `src/lib/` | `supabase.ts` (the one client), `database.types.ts` (generated), `keepAlive.ts`, `time.ts` ([time.md](time.md)). |
 | `src/test/` | `fakeSupabase.ts` and the Vitest setup (`setup.ts`: jest-dom matchers, cleanup after each test). |
 | `src/styles.css` | Plain CSS for the whole app. |
 | `public/` | Icons and `_redirects` (SPA fallback). `scripts/generate-icons.mjs` (`npm run icons`) regenerates the icons. |

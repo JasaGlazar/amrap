@@ -76,6 +76,7 @@ the code:
 |---|---|
 | Sign-in, customer lookup, role gating, invite acceptance, keep-alive | `docs/auth.md` |
 | App folders, i18n rule, data layer contract, testing with the fake client | `docs/app-structure.md` |
+| Dates, weeks, DST, cutoff, formatting in the app | `docs/time.md` |
 | Tables, views, RLS, grants, seeds | `docs/schema.md` |
 | RPCs and helpers | `docs/rpcs.md` |
 | Scheduled jobs | `docs/jobs.md` |
