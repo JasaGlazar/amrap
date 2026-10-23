@@ -34,6 +34,7 @@ diagram in the same commit:
 | RPCs | `docs/rpcs.md` | the relevant sequence or state diagram |
 | pg_cron jobs, edge functions | `docs/jobs.md` | `docs/architecture/charging-sequence.md` or system context |
 | Screens | `docs/screens.md` | - |
+| Auth flow, app structure | `docs/auth.md`, `docs/app-structure.md` | `docs/architecture/auth-invite-flow.md` (invite flow) |
 
 A lightweight check (`scripts/check-docs.sh`, run by the `docs` CI job) verifies that every migration file and every
 function name appears in the schema and RPC reference docs (see [CI](#ci)).
@@ -64,6 +65,26 @@ generated with); bumping it means regenerating `database.types.ts` in the same P
 
 A stale generated-types failure is fixed by running
 `supabase gen types typescript --local > app/src/lib/database.types.ts` and committing the result.
+
+## Code comments
+
+No explanatory comments: a comment is at most one line giving a non-obvious *why* (a
+constraint, a race, a workaround). What a layer does is documented in its layer doc, not in
+the code:
+
+| Layer | Doc |
+|---|---|
+| Sign-in, customer lookup, role gating, invite acceptance, keep-alive | `docs/auth.md` |
+| App folders, i18n rule, data layer contract, testing with the fake client | `docs/app-structure.md` |
+| App reads and RPC wrappers (`app/src/data/`) | `docs/data-layer.md` |
+| Dates, weeks, DST, cutoff, formatting in the app | `docs/time.md` |
+| Tables, views, RLS, grants, seeds | `docs/schema.md` |
+| RPCs and helpers | `docs/rpcs.md` |
+| Scheduled jobs | `docs/jobs.md` |
+
+A migration starts with one line pointing at its reference docs; section divider lines
+(`-- Name ----`) are fine. A migration already on `main` is never edited, except for its
+comments: its SQL statements stay byte-identical.
 
 ## ADR rule
 
@@ -123,17 +144,19 @@ run, so test files do not create it.
 |---|---|
 | `001_schema.sql` | tables, enums, keys, indexes, check constraints, the one-charge index, default privileges, `customer_balances` |
 | `002_rls.sql` | what a customer, the trainer, an unlinked auth user, `anon` and `service_role` can read and write directly |
-| `010_book.sql` | `book`: own-only for customers, template/weekday/time/future rules, blocked periods, capacity at the boundary, duplicates, trainer and ad-hoc bookings |
+| `010_book.sql` | `book`: own-only for customers, template/weekday/time/future rules, blocked periods (start inside, overlap, adjacent end), capacity at the boundary, duplicates, trainer and ad-hoc bookings |
 | `011_cancel.sql` | `cancel`: the cutoff boundary ±1 min, started/charged/cancelled rejections, negative balance, trainer cancel and refund, a cancel freeing a full slot |
 | `012_credits.sql` | `top_up` and `adjust`: trainer only, amount rules, ledger rows and balances |
 | `013_charge_job.sql` | `charge_due_appointments`: due rows charged once, idempotent second run, grants, charge vs late cancel |
 | `014_invites.sql` | `create_invite` and `accept_invite`: token format and expiry, single use, expired/superseded/unknown tokens, already linked users and records |
+| `020_materialize.sql` | `materialize_recurring` and the `materialize_rule` helper: grants and role check, derived instance set over the window, skips (past, blocked overlap, cancelled instance, live booking, full slot, inactive rule/template), book()'s advisory lock, DST wall-clock, idempotent second run, trainer path, missing settings |
+| `021_rules_and_jobs.sql` | `activate_rule` / `deactivate_rule`: trainer only, unknown rule, future booked instances cancelled and the rest untouched, immediate materialization, no recreation after reactivating, the any-status rule index; `slot_occupancy`: columns, owner-run, grants, counts for customer and trainer, nothing for an unlinked user or anon; pg_cron: both jobs in `cron.job`, materialization without a JWT |
 
 Helpers in `supabase/seeds/test_helpers.sql` (schema `tests`, local only):
 
 - `tests.create_user(email text, password text default 'password') returns uuid` — a confirmed
   email/password auth user (rows in `auth.users` and `auth.identities`) that can also sign in
-  through the API.
+  through the API. Executable by the test superuser only.
 - `tests.authenticate_as(user_id uuid)` — until the end of the transaction, act as that user:
   role `authenticated` and `request.jwt.claims` with `sub` and `role`, so `auth.uid()` and
   RLS behave as for a real request.

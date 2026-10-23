@@ -34,10 +34,23 @@ values ('<trainer name>', '<trainer email>', 'trainer', '<auth user uid>');
    returns exactly the one row.
 4. Sign in to the app and confirm the trainer shell is shown.
 
-## Invite a customer (Stage 1, until the Customers screen exists)
+## Invite a customer
 
-The trainer UI for invites arrives in Stage 2. Until then the owner creates the record and
-issues the token in the Supabase SQL editor.
+The trainer does this in the app:
+
+1. **Stranke** (`/t/stranke`): fill in **Nova stranka** (name; phone and email optional) and
+   tap **Dodaj stranko**. The customer's page opens.
+2. Under **Povabilo** tap **Ustvari povabilo**. The full link
+   (`https://<pages-domain>/invite/<token>`) appears with **Kopiraj**; it is valid for 7 days.
+   **Ustvari novo povabilo** replaces it (the old link stops working).
+3. Send the link to the customer (text message). They open it, sign up with email and
+   password and land on their home screen; the list then shows them as linked.
+
+A linked customer has no invite button; see [Re-link a customer](#re-link-a-customer).
+
+### Fallback: SQL editor
+
+If the app is unavailable, the owner can do the same in the Supabase SQL editor.
 
 1. Insert the customer record and note its id:
 
@@ -84,14 +97,15 @@ When a linked customer loses access (forgotten password, lost device, wrong emai
 no password reset (ADR 0006). `create_invite` refuses linked records (`AMRAP_ALREADY_LINKED`),
 so the old auth user is removed first (ADR 0007).
 
-1. In the app (or SQL editor), find the customer and note their `auth_user_id`:
+1. Find the customer's `auth_user_id` in the SQL editor (the app does not show it):
    `select id, name, auth_user_id from public.customers where name ilike '%<name>%';`
 2. In the Supabase dashboard open Authentication, Users, find the user with that UID, and
    delete it. The foreign key `on delete set null` clears `customers.auth_user_id`; the
    customer's appointments and credits stay as they are. Their push subscriptions are deleted.
-3. Check the record is unlinked: the query from step 1 now shows `auth_user_id` null.
-4. Issue a new invite token and send the new link, as in
-   [Invite a customer](#invite-a-customer-stage-1-until-the-customers-screen-exists).
+3. Check the record is unlinked: the query from step 1 now shows `auth_user_id` null, and in
+   the app the customer's status is no longer "Povezan račun".
+4. Issue a new invite on the customer's page and send the new link, as in
+   [Invite a customer](#invite-a-customer).
 5. The customer opens the link and signs up again with a new password (same or new email);
    `accept_invite` links the new auth user. They re-enable notifications on their device.
 

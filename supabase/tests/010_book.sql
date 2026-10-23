@@ -1,13 +1,13 @@
 -- book(): customers book their own future slot occurrences; the trainer books anyone, any
 -- time, from a template or ad hoc. Capacity, blocked periods and the one-live-booking rule
--- hold for both.
+-- hold for both. Blocked periods are checked by interval overlap of [starts_at, ends_at).
 --
 -- All times are derived from now() (frozen for the transaction) in settings.timezone, and the
 -- slot template is created from them, so weekday/start_time always match. Shifts are done on
 -- local time so a DST change between the dates cannot move the wall-clock time.
 begin;
 
-select plan(35);
+select plan(37);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
@@ -51,7 +51,9 @@ insert into times
          ('wrong_day', base.local + interval '1 day'),
          ('wrong_time', base.local + interval '30 minutes'),
          ('adhoc', base.local + interval '2 days' + interval '3 hours'),
-         ('slot_later', base.local + interval '14 days')
+         ('slot_later', base.local + interval '14 days'),
+         ('slot_overlap', base.local + interval '21 days'),
+         ('slot_adjacent', base.local + interval '28 days')
        ) v(key, local);
 
 -- A slot template matching 'slot' with a custom duration and capacity, and an inactive twin.
@@ -77,6 +79,17 @@ insert into public.blocked_periods (starts_at, ends_at, reason)
 create temp table slot as
   select id, capacity, duration_minutes from public.slot_templates
   where id = (select id from fx where key = 'slot');
+
+-- A block that starts 30 minutes after the 'slot_overlap' occurrence starts (the start itself
+-- is free, the appointment would run into it), and one that starts exactly when the
+-- 'slot_adjacent' occurrence ends (blocked ranges are [starts_at, ends_at), so no overlap).
+insert into public.blocked_periods (starts_at, ends_at, reason)
+  select ts + interval '30 minutes', ts + interval '3 hours', 'Book test overlap'
+  from times where key = 'slot_overlap';
+insert into public.blocked_periods (starts_at, ends_at, reason)
+  select t.ts + s.duration_minutes * interval '1 minute', t.ts + interval '3 hours',
+         'Book test adjacent'
+  from times t, slot s where t.key = 'slot_adjacent';
 
 -- Ids returned by book(), for later assertions.
 create temp table booked (key text primary key, id uuid not null) on commit drop;
@@ -168,6 +181,16 @@ select throws_matching(
   $$select public.book((select id from fx where key = 'cust_a'), (select ts from times where key = 'slot_next_week'),
                        (select id from fx where key = 'slot'))$$,
   '^AMRAP_BLOCKED:', 'a start inside a blocked period is rejected');
+select throws_matching(
+  $$select public.book((select id from fx where key = 'cust_a'), (select ts from times where key = 'slot_overlap'),
+                       (select id from fx where key = 'slot'))$$,
+  '^AMRAP_BLOCKED:', 'an appointment that starts before a blocked period but ends inside it is rejected');
+select lives_ok(
+  $$insert into booked
+    select 'a_adjacent', public.book((select id from fx where key = 'cust_a'),
+                                     (select ts from times where key = 'slot_adjacent'),
+                                     (select id from fx where key = 'slot'))$$,
+  'an appointment that ends exactly when a blocked period starts is allowed');
 
 select tests.clear_authentication();
 

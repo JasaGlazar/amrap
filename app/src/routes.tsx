@@ -3,22 +3,19 @@ import { AuthProvider } from './auth/AuthProvider';
 import { RequireAuth, RequireRole, RoleRedirect } from './auth/guards';
 import { fromError } from './i18n';
 import { supabase } from './lib/supabase';
-import {
-  CustomerCalendar,
-  CustomerHistory,
-  CustomerHome,
-  CustomerShell,
-} from './pages/CustomerPages';
+import { CustomerShell } from './pages/CustomerPages';
+import { CustomerCalendar } from './pages/customer/Calendar';
+import { CustomerHistory } from './pages/customer/History';
+import { CustomerHome } from './pages/customer/Home';
 import { InvitePage } from './pages/InvitePage';
 import { LoginPage } from './pages/LoginPage';
 import { LogoutFailedPage } from './pages/LogoutFailedPage';
-import {
-  TrainerCalendar,
-  TrainerCustomers,
-  TrainerSettings,
-  TrainerShell,
-  TrainerToday,
-} from './pages/TrainerPages';
+import { TrainerShell } from './pages/TrainerPages';
+import { TrainerSettings } from './pages/trainer/Settings';
+import { TrainerCustomerDetail } from './pages/trainer/CustomerDetail';
+import { TrainerCustomers } from './pages/trainer/Customers';
+import { TrainerCalendar } from './pages/trainer/Calendar';
+import { TrainerToday } from './pages/trainer/Today';
 
 function Root() {
   return (
@@ -28,7 +25,6 @@ function Root() {
   );
 }
 
-// Redirects to /login once signed out; if signing out fails the page stays and says so.
 async function logout() {
   const { error } = await supabase.auth.signOut();
   if (error) {
@@ -57,8 +53,8 @@ export const routes: RouteObject[] = [
                 element: <CustomerShell />,
                 children: [
                   { index: true, element: <CustomerHome /> },
-                  { path: 'calendar', element: <CustomerCalendar /> },
-                  { path: 'history', element: <CustomerHistory /> },
+                  { path: 'koledar', element: <CustomerCalendar /> },
+                  { path: 'zgodovina', element: <CustomerHistory /> },
                 ],
               },
             ],
@@ -71,9 +67,10 @@ export const routes: RouteObject[] = [
                 element: <TrainerShell />,
                 children: [
                   { index: true, element: <TrainerToday /> },
-                  { path: 'calendar', element: <TrainerCalendar /> },
-                  { path: 'customers', element: <TrainerCustomers /> },
-                  { path: 'settings', element: <TrainerSettings /> },
+                  { path: 'koledar', element: <TrainerCalendar /> },
+                  { path: 'stranke', element: <TrainerCustomers /> },
+                  { path: 'stranke/:id', element: <TrainerCustomerDetail /> },
+                  { path: 'nastavitve', element: <TrainerSettings /> },
                 ],
               },
             ],

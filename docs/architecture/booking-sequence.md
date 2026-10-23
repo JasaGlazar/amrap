@@ -3,7 +3,8 @@
 How a customer books an open slot. `book(p_customer_id, p_starts_at, p_slot_template_id)` is a
 `SECURITY DEFINER` RPC that runs in one transaction: it checks the caller books for themselves,
 validates the template (active, start in the future, on the template's weekday and start time
-in `settings.timezone`), rejects starts inside a blocked period, takes a transaction-scoped
+in `settings.timezone`), rejects an appointment whose `[starts_at, ends_at)` overlaps a blocked
+period (so one that starts before a closure but runs into it is rejected too), takes a transaction-scoped
 advisory lock on the slot occurrence so concurrent bookings are serialized, counts the
 appointments occupying it (`booked` plus `charged`) against the template's capacity, and
 inserts only if there is room (ADR 0004). The trainer goes through the same RPC without the
@@ -23,7 +24,7 @@ sequenceDiagram
     B->>S: read template
     S-->>B: active, weekday, start_time, duration_minutes, capacity
     B->>B: active, future, weekday and start_time match, else AMRAP_SLOT_INACTIVE / AMRAP_IN_PAST / AMRAP_SLOT_MISMATCH
-    B->>BP: starts_at inside a blocked period?
+    B->>BP: [starts_at, ends_at) overlaps a blocked period?
     BP-->>B: none, or AMRAP_BLOCKED
     B->>B: pg_advisory_xact_lock(template + starts_at)
     B->>A: count status in (booked, charged) for that template and starts_at

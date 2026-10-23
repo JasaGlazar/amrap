@@ -1,11 +1,15 @@
-import { NavLink, Outlet } from 'react-router';
+import { Link, NavLink, Outlet } from 'react-router';
+import { t } from '../i18n';
 
 export type NavItem = { to: string; label: string; end?: boolean };
 
-// Phone-first layout: page content above, a fixed bottom navigation bar.
 export function AppShell({ items, label }: { items: NavItem[]; label: string }) {
   return (
     <div className="shell">
+      <header className="topbar">
+        <span className="brand">{t.app.name}</span>
+        <Link to="/logout">{t.common.signOut}</Link>
+      </header>
       <main className="page">
         <Outlet />
       </main>

@@ -6,20 +6,21 @@ export type CustomerRow = Tables<'customers'>;
 export type Role = CustomerRow['role'];
 
 export type AuthState = {
-  /** True until the stored session and the matching customers row are known. */
   loading: boolean;
   session: Session | null;
-  /** The signed-in user's customers row; null for a user who is not linked to a customer. */
   customer: CustomerRow | null;
-  /** The customers lookup failed (network, server, paused project); customer is unknown. */
   lookupFailed: boolean;
   role: Role | null;
-  /** Reloads the customers row, e.g. after accept_invite linked the account. */
   refresh: () => Promise<void>;
-  signOut: () => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthState | null>(null);
+
+export function useCustomer(): CustomerRow {
+  const { customer } = useAuth();
+  if (customer === null) throw new Error('useCustomer must be used below RequireAuth');
+  return customer;
+}
 
 export function useAuth(): AuthState {
   const value = useContext(AuthContext);

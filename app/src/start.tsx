@@ -1,14 +1,13 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+// Not 'react-router/dom', so the tests and the app render the same RouterProvider.
 import { createBrowserRouter, RouterProvider } from 'react-router';
 import { StartupErrorPage } from './pages/StartupErrorPage';
 
-// The router module pulls in the Supabase client, which throws at import time when the
-// environment is not configured. Importing it here lets that failure render a message instead of
-// leaving a blank page.
 export async function start(container: HTMLElement): Promise<void> {
   const root = createRoot(container);
   try {
+    // Dynamic: the Supabase client throws at import time without its env vars.
     const { routes } = await import('./routes');
     root.render(
       <StrictMode>

@@ -1,11 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import { t } from '../i18n';
 
-// Shown when the customers lookup failed, so a network error or a paused project is not
-// mistaken for an account that is not linked.
 export function LookupFailedPage() {
-  const { refresh, signOut } = useAuth();
+  const { refresh } = useAuth();
   const [retrying, setRetrying] = useState(false);
 
   async function retry() {
@@ -22,9 +21,9 @@ export function LookupFailedPage() {
         <button type="button" className="button" disabled={retrying} onClick={() => void retry()}>
           {t.lookupFailed.retry}
         </button>
-        <button type="button" className="button secondary" onClick={() => void signOut()}>
+        <Link to="/logout" className="button secondary">
           {t.common.signOut}
-        </button>
+        </Link>
       </div>
     </main>
   );

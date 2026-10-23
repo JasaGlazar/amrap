@@ -1,10 +1,4 @@
--- Initial schema: customers, weekly slot grid, appointments, the credit ledger, push
--- subscriptions and settings, all under RLS. See docs/schema.md for the reference and
--- docs/architecture/data-model.md for the ERD.
---
--- Ledger-first (ADR 0003): there is no balance column; the balance is the sum of
--- credit_transactions.amount, exposed by the view customer_balances. Customers only read
--- directly; their writes go through SECURITY DEFINER RPCs (next migration).
+-- Initial schema. Reference: docs/schema.md; ERD: docs/architecture/data-model.md.
 
 -- Enums ------------------------------------------------------------------------------------
 
@@ -22,8 +16,6 @@ create type public.transaction_type as enum (
 
 -- Tables -----------------------------------------------------------------------------------
 
--- Invite status is derived, not stored: linked when auth_user_id is set, pending when
--- invite_token is set and invite_expires_at is in the future, otherwise none.
 create table public.customers (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -36,7 +28,6 @@ create table public.customers (
   created_at timestamptz not null default now()
 );
 
--- weekday: 0 = Monday ... 6 = Sunday (Postgres isodow - 1), in settings.timezone.
 create table public.slot_templates (
   id uuid primary key default gen_random_uuid(),
   weekday smallint not null check (weekday between 0 and 6),
@@ -70,17 +61,14 @@ create table public.appointments (
   check (ends_at > starts_at)
 );
 
--- One live (booked or charged) appointment per customer per start time.
 create unique index appointments_one_live_booking_idx
   on public.appointments (customer_id, starts_at)
   where status in ('booked', 'charged');
--- Slot occupancy (capacity count in book()) and the charge job's scan.
 create index appointments_slot_template_id_starts_at_idx
   on public.appointments (slot_template_id, starts_at);
 create index appointments_status_starts_at_idx
   on public.appointments (status, starts_at);
 
--- Append-only ledger. created_by is the acting auth user (null for the charge job).
 create table public.credit_transactions (
   id uuid primary key default gen_random_uuid(),
   customer_id uuid not null references public.customers (id),
@@ -102,11 +90,10 @@ create table public.credit_transactions (
   )
 );
 
--- One charge per appointment (ADR 0003). refund is deliberately excluded.
+-- refund is excluded so a charged appointment can still be refunded (ADR 0003).
 create unique index credit_transactions_one_charge_per_appointment_idx
   on public.credit_transactions (appointment_id)
   where type in ('session', 'late_cancel');
--- Balance aggregation per customer.
 create index credit_transactions_customer_id_idx
   on public.credit_transactions (customer_id);
 
@@ -119,7 +106,6 @@ create table public.blocked_periods (
   check (ends_at > starts_at)
 );
 
--- Single-row settings table.
 create table public.settings (
   id int primary key default 1 check (id = 1),
   late_cancel_hours int not null default 5 check (late_cancel_hours >= 0),
@@ -128,7 +114,6 @@ create table public.settings (
 
 insert into public.settings (id) values (1);
 
--- Web Push subscriptions per auth user (one per device/browser endpoint).
 create table public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
@@ -142,8 +127,6 @@ create index push_subscriptions_user_id_idx on public.push_subscriptions (user_i
 
 -- Balance view -----------------------------------------------------------------------------
 
--- security_invoker: the caller's RLS on customers and credit_transactions applies, so a
--- customer sees only their own balance and the trainer sees all.
 create view public.customer_balances
   with (security_invoker = true)
 as
@@ -154,8 +137,7 @@ as
 
 -- Role helpers -----------------------------------------------------------------------------
 
--- SECURITY DEFINER so RLS policies can call them without recursing into customers' own RLS.
--- Role comes from the customers row, never from user-editable auth metadata (ADR 0006).
+-- security definer so RLS policies can call these without recursing into customers' RLS.
 
 create function public.current_customer_id()
 returns uuid
@@ -196,7 +178,6 @@ alter table public.blocked_periods enable row level security;
 alter table public.settings enable row level security;
 alter table public.push_subscriptions enable row level security;
 
--- The trainer has full access to every table.
 create policy "trainer full access" on public.customers
   for all to authenticated
   using ((select public.is_trainer())) with check ((select public.is_trainer()));
@@ -222,7 +203,6 @@ create policy "trainer full access" on public.push_subscriptions
   for all to authenticated
   using ((select public.is_trainer())) with check ((select public.is_trainer()));
 
--- Customers read their own rows. An auth user without a customers row matches nothing.
 create policy "customer reads own row" on public.customers
   for select to authenticated
   using (auth_user_id = (select auth.uid()));
@@ -236,7 +216,6 @@ create policy "customer reads own transactions" on public.credit_transactions
   for select to authenticated
   using (customer_id = (select public.current_customer_id()));
 
--- Shared reference data, readable by any linked customer.
 create policy "customer reads active slot templates" on public.slot_templates
   for select to authenticated
   using (active and (select public.current_customer_id()) is not null);
@@ -247,8 +226,6 @@ create policy "customer reads settings" on public.settings
   for select to authenticated
   using ((select public.current_customer_id()) is not null);
 
--- Push subscriptions belong to the auth user; full CRUD on own rows, for linked customers
--- only (an auth user without a customer record gets nothing, ADR 0006).
 create policy "user manages own push subscriptions" on public.push_subscriptions
   for all to authenticated
   using (user_id = (select auth.uid()) and (select public.current_customer_id()) is not null)
@@ -256,11 +233,7 @@ create policy "user manages own push subscriptions" on public.push_subscriptions
 
 -- Grants -----------------------------------------------------------------------------------
 
--- anon gets nothing. authenticated gets plain DML and RLS decides row access (TRUNCATE,
--- REFERENCES, TRIGGER and MAINTAIN are not row-level, so they are not granted). Supabase's
--- default privileges would grant the same on future objects, so revoke those defaults for
--- objects created by postgres (migrations). New functions are executable by nobody but their
--- owner and service_role until a migration grants execute explicitly.
+-- Supabase's default privileges would grant later objects to anon and authenticated too.
 revoke all on all tables in schema public from anon, authenticated;
 grant select, insert, update, delete on all tables in schema public to authenticated;
 revoke insert, update, delete on public.customer_balances from authenticated;

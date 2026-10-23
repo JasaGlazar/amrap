@@ -13,6 +13,7 @@ import {
   makeCustomer,
   makeSession,
   resetFake,
+  selects,
 } from './test/fakeSupabase';
 
 vi.mock('./lib/supabase', async () => ({
@@ -35,7 +36,7 @@ function signedInAs(row: typeof trainer) {
 beforeEach(() => resetFake());
 
 describe('unauthenticated visitor', () => {
-  it.each(['/', '/c', '/t', '/t/settings'])('is sent from %s to /login', async (path) => {
+  it.each(['/', '/c', '/t', '/t/nastavitve'])('is sent from %s to /login', async (path) => {
     const router = renderAt(path);
     await screen.findByRole('heading', { name: t.login.title });
     expect(router.state.location.pathname).toBe('/login');
@@ -65,14 +66,14 @@ describe('role gating', () => {
 
   it('sends a customer away from /t to /c', async () => {
     signedInAs(customer);
-    const router = renderAt('/t/customers');
+    const router = renderAt('/t/stranke');
     await screen.findByRole('heading', { name: t.nav.home });
     expect(router.state.location.pathname).toBe('/c');
   });
 
   it('sends a trainer away from /c to /t', async () => {
     signedInAs(trainer);
-    const router = renderAt('/c/history');
+    const router = renderAt('/c/zgodovina');
     await screen.findByRole('heading', { name: t.trainer.todayTitle });
     expect(router.state.location.pathname).toBe('/t');
   });
@@ -111,7 +112,7 @@ describe('signed-in user without a customers row', () => {
 
   it('can sign out from the not-linked page', async () => {
     const router = renderAt('/');
-    await userEvent.click(await screen.findByRole('button', { name: t.common.signOut }));
+    await userEvent.click(await screen.findByRole('link', { name: t.common.signOut }));
     await screen.findByRole('heading', { name: t.login.title });
     expect(router.state.location.pathname).toBe('/login');
   });
@@ -142,7 +143,7 @@ describe('failed customers lookup', () => {
 
   it('can sign out', async () => {
     const router = renderAt('/c');
-    await userEvent.click(await screen.findByRole('button', { name: t.common.signOut }));
+    await userEvent.click(await screen.findByRole('link', { name: t.common.signOut }));
     await screen.findByRole('heading', { name: t.login.title });
     expect(router.state.location.pathname).toBe('/login');
   });
@@ -169,11 +170,21 @@ describe('shells', () => {
     expect(labels).toEqual([t.nav.home, t.nav.calendar, t.nav.history]);
   });
 
-  it('navigates between customer placeholder pages', async () => {
+  it('navigates between customer pages', async () => {
     signedInAs(customer);
-    renderAt('/c');
+    const router = renderAt('/c');
     await userEvent.click(await screen.findByRole('link', { name: t.nav.history }));
     expect(await screen.findByRole('heading', { name: t.customer.historyTitle })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/c/zgodovina');
+  });
+
+  it('signs out from the customer shell through /logout', async () => {
+    signedInAs(customer);
+    const router = renderAt('/c');
+    await userEvent.click(await screen.findByRole('link', { name: t.common.signOut }));
+    await screen.findByRole('heading', { name: t.login.title });
+    expect(fakeSupabase.auth.signOut).toHaveBeenCalledOnce();
+    expect(router.state.location.pathname).toBe('/login');
   });
 
   it('shows the balance from customer_balances and no upcoming appointments', async () => {
@@ -194,7 +205,7 @@ describe('shells', () => {
 
 describe('keep-alive', () => {
   const settingsReads = () =>
-    fakeSupabase.from.mock.calls.filter(([table]) => table === 'settings').length;
+    selects.filter(({ table, columns }) => table === 'settings' && columns === 'id').length;
 
   it('reads settings once after sign-in, not again on token refresh', async () => {
     signedInAs(customer);
@@ -216,7 +227,7 @@ describe('keep-alive', () => {
     db.settingsError = { message: 'paused' };
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     renderAt('/c');
-    await screen.findByRole('heading', { name: t.nav.home });
+    await screen.findByRole('navigation', { name: t.nav.customerLabel });
     await waitFor(() => expect(warn).toHaveBeenCalled());
     warn.mockRestore();
   });
@@ -297,7 +308,7 @@ describe('invite flow', () => {
   it('signs up, accepts the invite with the URL token and lands on the customer home', async () => {
     signUpCreatesSession();
     fakeSupabase.rpc.mockImplementation(async () => {
-      db.customer = customer; // what accept_invite does: link the auth user
+      db.customer = customer;
       return { data: customer.id, error: null };
     });
     const router = renderAt('/invite/tok-123');

@@ -18,11 +18,15 @@ Slovenian, but identifiers and docs use the English terms below.
 - **slot** — a concrete dated occurrence of a slot template; derived from the template and the date, with capacity counted over its `booked` and `charged` appointments.
 - **appointment** — one customer's reservation of a slot or an ad-hoc time; table `appointments`, with status `booked`, `charged`, `cancelled`, `cancelled_late` or `cancelled_by_trainer`.
 - **recurring rule** — the trainer's standing assignment of a customer to a slot template; table `recurring_rules`.
-- **materialization** — the nightly, idempotent job that turns active recurring rules into concrete `appointments` about four weeks ahead (`source = 'recurring'`).
+- **materialization** — turning active recurring rules into concrete `booked` appointments (`source = 'recurring'`) for every occurrence from today through four weeks ahead; done nightly by `materialize_recurring` (pg_cron) and on demand by the trainer. Idempotent: one instance per rule and start, ever, so a cancelled instance is not recreated. Past starts, blocked periods, full slots and starts where the customer is already booked are skipped.
+- **instance** — an appointment created by materialization; it carries its rule's `rule_id`.
+- **rule activation** — the trainer switching a recurring rule on (`activate_rule`, which materializes it at once) or off (`deactivate_rule`, which cancels its future `booked` instances as `cancelled_by_trainer`, without charge). Reactivating does not bring back instances that were cancelled.
+- **occupancy** — the number of live (`booked` + `charged`) appointments in a slot; customers read it from the view `slot_occupancy` (counts only) to see remaining capacity.
 - **ad-hoc appointment** — a trainer-created appointment with no slot template (`slot_template_id` is null, `source = 'trainer'`).
 - **blocked period** — a trainer-defined time range (holiday, closure) in which booking is not allowed; table `blocked_periods`.
 - **debtor** — a customer whose `customer_balances` row has balance < 0; shown in red and listed on the trainer dashboard, never blocked.
 - **invite** — a single-use, expiring (7 days) token a trainer generates with `create_invite` and a customer redeems with `accept_invite` to link an account to their customer record.
+- **invite status** — derived per customer record, never stored: **linked** (an auth user is linked), **pending** (an unexpired invite token exists) or **none**; shown on the trainer's customer list.
 - **trainer** — the gym owner; the only user with `role = 'trainer'`, who manages the grid, credits, customers and all appointments (helper `is_trainer()`).
 - **customer** — a person who trains at the gym, with a row in `customers` (role `customer`); may or may not have an app account (`auth_user_id` may be null; helper `current_customer_id()`).
 - **keep-alive** — the lightweight authenticated read the frontend performs on every load so the Supabase free-tier project is not paused for inactivity.

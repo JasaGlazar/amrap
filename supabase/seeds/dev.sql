@@ -1,10 +1,4 @@
--- Local development data. Loaded by `supabase db reset` after test_helpers.sql (it uses
--- tests.create_user). Never pushed to the remote project.
---
--- Sign-ins (password "password"):
---   trainer@amrap.local  trainer
---   ana@amrap.local      customer, linked, 8 credits
--- Marko is invited but not linked (token "dev-invite-token", valid 7 days from the reset).
+-- Local development data; contents in docs/schema.md "Test helpers and seeds".
 
 do $$
 declare
@@ -22,7 +16,6 @@ begin
   insert into public.customers (name, phone, invite_token, invite_expires_at)
   values ('Marko Kranjc', '+386 40 222 222', 'dev-invite-token', now() + interval '7 days');
 
-  -- Monday 07:00 (default 60 min, capacity 5) and Wednesday 18:00 (90 min, capacity 4).
   insert into public.slot_templates (weekday, start_time) values (0, '07:00');
   insert into public.slot_templates (weekday, start_time, duration_minutes, capacity)
   values (2, '18:00', 90, 4);
