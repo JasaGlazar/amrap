@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fill, t } from '../../i18n';
+import { fill, plural, t } from '../../i18n';
 import { weekdayName } from '../../lib/time';
 import { routes } from '../../routes';
 import { db, makeCustomer, makeSession, resetFake } from '../../test/fakeSupabase';
@@ -94,7 +94,7 @@ describe('slot templates', () => {
       weekday: weekdayName(existing.weekday),
       time: existing.start_time.slice(0, 5),
       minutes: existing.duration_minutes,
-      capacity: existing.capacity,
+      places: plural(t.settings.places, existing.capacity),
     });
     const row = within(list).getByText(line).closest('li') as HTMLElement;
     expect(within(row).queryByRole('button', { name: t.settings.delete })).not.toBeInTheDocument();

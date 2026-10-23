@@ -85,7 +85,7 @@ cutoff; no duplicate reminders.
 checklist skill. Branch `stage-4-pilot`.
 **Success Criteria**: Trainer runs one full week on AMRAP without the paper sheet.
 **Tests**: manual E2E on both roles on real phones.
-**Status**: In Progress (plan approved; Task 15 done, Tasks 16-19 not started)
+**Status**: In Progress (plan approved; Tasks 15-16 done, Tasks 17-19 not started)
 
 ## Workflow (from 2026-10-23 evening)
 
@@ -280,6 +280,14 @@ the two Stage 3 migrations (Workflow); exact steps in `docs/runbook.md`.
   (`pushToggle.needsInstallSeeCard`), device detection moved to `lib/device.ts`, `install.*`
   copy, `fakeInstall.ts`. Docs: `screens.md` (Install card), `app-structure.md` (Install
   onboarding), `notifications.md`, `auth.md`, README and harness layer tables. Vitest 253.
+
+- PGRST303 fix (16cdc35): `retryIssuedAtFuture` in `lib/supabase.ts`, documented in `auth.md`.
+- Task 16 done: `plural()` / `Plural` in `i18n/fill.ts` (`Intl.PluralRules('sl')`),
+  `settings.places` for the template line, eleven copy fixes (list in `docs/copy-review.md`
+  "Changes made in this pass"), new `docs/copy-review.md` (conventions, changes, questions for
+  the trainer, all 259 strings by screen), `CONTEXT.md` term "install", i18n conventions in
+  `app-structure.md`. Date and time formats checked, no change (the hour style is a trainer
+  question). Trainer sign-off of the copy is an owner action.
 
 ### Stage 4 Task 15 browser check (2026-10-24, local stack, production build)
 

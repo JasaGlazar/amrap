@@ -11,7 +11,7 @@ import {
   type BlockedPeriod,
   type TemplateFields,
 } from '../../data/slots';
-import { fill, fromError, t } from '../../i18n';
+import { fill, fromError, plural, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { formatDay, formatTime, localDateOf, weekdayName } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
@@ -172,7 +172,7 @@ export function TrainerSettings() {
                     weekday: weekdayName(template.weekday),
                     time: template.start_time.slice(0, 5),
                     minutes: template.duration_minutes,
-                    capacity: template.capacity,
+                    places: plural(t.settings.places, template.capacity),
                   })}
                 </span>
                 {!template.active && <span className="tag">{t.settings.inactive}</span>}

@@ -77,7 +77,7 @@ data.
 
 - Shows the appointment (`slot.when`), the cutoff (`Brezplačna odpoved do {day} ob {time}`,
   `starts_at − settings.late_cancel_hours`) and either `cancelDialog.free` (now before the
-  cutoff) or `cancelDialog.late` (`zaračunan 1 kredit`, from the cutoff on), like `cancel()`.
+  cutoff) or `cancelDialog.late` (`zaračunan bo 1 kredit`, from the cutoff on), like `cancel()`.
 - It takes focus when it opens; Escape and **Nazaj** close it.
 - **Odpovej termin** first re-checks free vs late against the current time. If the answer
   changed since the dialog opened (it stayed open past the cutoff), it only switches the copy
@@ -138,7 +138,7 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   `trainer.missingCustomer`. Submit calls `book` without a template (`p_ends_at`); ad-hoc
   appointments have no capacity.
 - **Cancel:** the cancel dialog in trainer mode: the customer's name, no cutoff, and
-  `cancelDialog.noCharge` for a booked appointment or `cancelDialog.refund` ("s povračilom",
+  `cancelDialog.noCharge` for a booked appointment or `cancelDialog.refund` ("z vračilom",
   +1 credit) for a charged one, matching what `cancel()` does for the trainer.
 
 ### Customers (`/t/stranke`)
@@ -188,8 +188,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 
 - **Data:** `getSettings`, `allTemplates` (active and inactive), `upcomingBlocked` (periods
   that have not ended). Every write goes through RLS and shows `settings.saved` or the error.
-- **Termini v tednu:** each template as `{weekday} ob {time} · {minutes} min · {capacity}
-  mest`, inactive ones greyed with `neaktiven`, each with **Uredi** (the form inline). The form
+- **Termini v tednu:** each template as `{weekday} ob {time} · {minutes} min · {places}`, the
+  capacity in its Slovenian plural form (`settings.places`: 1 mesto, 2 mesti, 3 mesta, 5 mest),
+  inactive ones greyed with `neaktiven`, each with **Uredi** (the form inline). The form
   (also **Nov termin** below the list): weekday, start time, duration in minutes, capacity and
   an active checkbox. Validation: start time required, duration and capacity positive whole
   numbers (`settings.durationInvalid`, `settings.capacityInvalid`). There is no delete: a

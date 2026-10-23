@@ -55,9 +55,22 @@ English. `fromError(error)` turns an error into copy:
 2. else a Supabase Auth `error.code` → `sl.authErrors[code]`;
 3. else `sl.genericError`.
 
+Copy conventions (the trainer's review of all copy is [copy-review.md](copy-review.md)):
+
+- Messages address the user formally ("vi": "Vpišite", "Obrnite se"); buttons, menu items and
+  select placeholders use the short form ("Rezerviraj", "Izberi stranko").
+- One Slovenian word per domain term, as listed in copy-review.md "Conventions".
+- A noun after a count takes its Slovenian plural form: the string is a `Plural`
+  (`{ one, two, few, other }`, each a template with `{count}`) and the component calls
+  `plural(forms, count)` from `i18n/fill.ts`, which picks the form with
+  `Intl.PluralRules('sl')` (1 mesto, 2 mesti, 3 mesta, 5 mest). Copy that avoids the noun
+  ("Novih terminov: {count}") needs no plural.
+- Button and screen names quoted inside a sentence use `»«`.
+
 `sl.test.ts` checks that every token in the [rpcs.md](rpcs.md#error-tokens) error table has
 an entry in `sl.errors`, that every `sl.errors` key appears in backticks somewhere in
-`rpcs.md`, that no string is empty, and that no `.ts`, `.tsx` or `.css` file in `src/` outside
+`rpcs.md`, that no string is empty, that every `Plural` has all four forms and each contains
+`{count}`, and that no `.ts`, `.tsx` or `.css` file in `src/` outside
 `src/i18n/` (tests and `lib/database.types.ts` excepted) contains `č`, `š` or `ž` (a proxy for
 hardcoded Slovenian).
 
