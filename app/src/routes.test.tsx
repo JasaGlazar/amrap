@@ -13,6 +13,7 @@ import {
   makeCustomer,
   makeSession,
   resetFake,
+  selects,
 } from './test/fakeSupabase';
 
 vi.mock('./lib/supabase', async () => ({
@@ -204,7 +205,7 @@ describe('shells', () => {
 
 describe('keep-alive', () => {
   const settingsReads = () =>
-    fakeSupabase.from.mock.calls.filter(([table]) => table === 'settings').length;
+    selects.filter(({ table, columns }) => table === 'settings' && columns === 'id').length;
 
   it('reads settings once after sign-in, not again on token refresh', async () => {
     signedInAs(customer);
@@ -226,7 +227,7 @@ describe('keep-alive', () => {
     db.settingsError = { message: 'paused' };
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     renderAt('/c');
-    await screen.findByRole('heading', { name: t.nav.home });
+    await screen.findByRole('navigation', { name: t.nav.customerLabel });
     await waitFor(() => expect(warn).toHaveBeenCalled());
     warn.mockRestore();
   });

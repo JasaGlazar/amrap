@@ -62,6 +62,8 @@ function emptyTables(): Tables {
   };
 }
 
+export const selects: { table: string; columns: string | undefined }[] = [];
+
 const listeners = new Set<AuthListener>();
 
 export function makeSession(userId: string): Session {
@@ -160,7 +162,10 @@ function makeQuery(table: string): Query {
   }
 
   const query: Query = {
-    select: () => query,
+    select: (columns) => {
+      selects.push({ table, columns });
+      return query;
+    },
     eq: where('eq'),
     neq: where('neq'),
     gt: where('gt'),
@@ -255,6 +260,7 @@ export function resetFake(initial: { session?: Session; customer?: CustomerRow |
   db.balance = 0;
   db.settings = defaultSettings();
   db.tables = emptyTables();
+  selects.length = 0;
   db.settingsError = null;
   db.customersError = null;
   listeners.clear();

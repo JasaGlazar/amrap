@@ -3,12 +3,10 @@ import { AuthProvider } from './auth/AuthProvider';
 import { RequireAuth, RequireRole, RoleRedirect } from './auth/guards';
 import { fromError } from './i18n';
 import { supabase } from './lib/supabase';
-import {
-  CustomerCalendar,
-  CustomerHistory,
-  CustomerHome,
-  CustomerShell,
-} from './pages/CustomerPages';
+import { CustomerShell } from './pages/CustomerPages';
+import { CustomerCalendar } from './pages/customer/Calendar';
+import { CustomerHistory } from './pages/customer/History';
+import { CustomerHome } from './pages/customer/Home';
 import { InvitePage } from './pages/InvitePage';
 import { LoginPage } from './pages/LoginPage';
 import { LogoutFailedPage } from './pages/LogoutFailedPage';

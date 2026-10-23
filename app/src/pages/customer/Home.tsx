@@ -1,0 +1,96 @@
+import { useCallback, useState } from 'react';
+import { useCustomer } from '../../auth/AuthContext';
+import { upcomingAppointments, type Appointment } from '../../data/appointments';
+import { balanceOf } from '../../data/credits';
+import { getSettings } from '../../data/settings';
+import { fill, formatTimeUntil, t } from '../../i18n';
+import { supabase } from '../../lib/supabase';
+import { formatLongDay, formatTime, timeUntil } from '../../lib/time';
+import { useLoad } from '../../lib/useLoad';
+import { CancelDialog } from './CancelDialog';
+
+export function CustomerHome() {
+  const customer = useCustomer();
+  const load = useCallback(async () => {
+    const now = new Date();
+    const [settings, balance, upcoming] = await Promise.all([
+      getSettings(supabase),
+      balanceOf(supabase, customer.id),
+      upcomingAppointments(supabase, customer.id, now),
+    ]);
+    return { now, settings, balance, upcoming };
+  }, [customer.id]);
+  const [state, reload] = useLoad(load);
+  const [cancelling, setCancelling] = useState<Appointment | null>(null);
+
+  if (state.status === 'loading') return <p className="status">{t.common.loading}</p>;
+  if (state.status === 'error') {
+    return (
+      <p role="alert" className="error">
+        {t.customer.loadFailed}
+      </p>
+    );
+  }
+
+  const { now, settings, balance, upcoming } = state.data;
+  const { timeZone } = settings;
+  const next = upcoming[0];
+  const when = (appointment: Appointment) =>
+    fill(t.slot.when, {
+      day: formatLongDay(appointment.startsAt, timeZone),
+      time: formatTime(appointment.startsAt, timeZone),
+    });
+
+  return (
+    <>
+      <h1>{t.nav.home}</h1>
+      <section className="card">
+        <p className="label">{t.customer.balanceLabel}</p>
+        <p className="balance-row">
+          <span className={balance < 0 ? 'balance negative' : 'balance'}>{balance}</span>
+          {balance < 0 && <span className="tag late">{t.customer.debt}</span>}
+        </p>
+      </section>
+      {next !== undefined && (
+        <section className="card" aria-label={t.customer.nextLabel}>
+          <p className="label">{t.customer.nextLabel}</p>
+          <p className="next-when">{when(next)}</p>
+          <p>{formatTimeUntil(timeUntil(next.startsAt, now))}</p>
+        </section>
+      )}
+      <h2>{t.customer.upcomingTitle}</h2>
+      {upcoming.length === 0 ? (
+        <p>{t.customer.noUpcoming}</p>
+      ) : (
+        <ul className="list">
+          {upcoming.map((appointment) => (
+            <li key={appointment.id} aria-label={when(appointment)} className="row">
+              <span>{when(appointment)}</span>
+              <button
+                type="button"
+                className="button secondary small"
+                onClick={() => setCancelling(appointment)}
+              >
+                {t.slot.cancel}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {cancelling !== null && (
+        <CancelDialog
+          appointment={cancelling}
+          settings={settings}
+          onClose={() => {
+            setCancelling(null);
+            reload();
+          }}
+          onCancelled={() => {
+            setCancelling(null);
+            reload();
+          }}
+        />
+      )}
+    </>
+  );
+}

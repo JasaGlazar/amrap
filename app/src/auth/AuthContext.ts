@@ -16,6 +16,12 @@ export type AuthState = {
 
 export const AuthContext = createContext<AuthState | null>(null);
 
+export function useCustomer(): CustomerRow {
+  const { customer } = useAuth();
+  if (customer === null) throw new Error('useCustomer must be used below RequireAuth');
+  return customer;
+}
+
 export function useAuth(): AuthState {
   const value = useContext(AuthContext);
   if (value === null) throw new Error('useAuth must be used inside <AuthProvider>');

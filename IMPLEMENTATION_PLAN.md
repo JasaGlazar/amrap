@@ -104,7 +104,10 @@ checklist skill. Branch `stage-4-pilot`.
   fixes); fixes done: ADR 0008, deterministic DST tests, docs index/jobs/schema notes. The
   implementer's concerns were all ruled acceptable and are recorded in ADR 0008.
 - Task 9 done: comment sweep (migrations, seeds, scripts, `app/src`), new `docs/auth.md` and
-  `docs/app-structure.md`, harness rule and reviewer item. Next: Task 7, then Task 8.
+  `docs/app-structure.md`, harness rule and reviewer item.
+- Task 7 done: customer Home, Calendar (`/c/koledar`), History (`/c/zgodovina`), cancel
+  dialog, `src/data/`, `lib/time.ts`, sign-out via `/logout` everywhere; docs `data-layer.md`,
+  `time.md`, `screens.md`. Manually checked in a browser as ana. Next: Task 8.
 
 ---
 
