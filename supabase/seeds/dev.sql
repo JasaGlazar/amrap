@@ -24,3 +24,7 @@ begin
   values (v_ana, 8, 'topup', v_trainer_user, 'Dev seed top-up');
 end;
 $$;
+
+-- Local push config placeholders; the hosted values are set by hand (docs/runbook.md).
+select vault.create_secret('http://host.docker.internal:54321/functions/v1', 'amrap_functions_url');
+select vault.create_secret('local-push-secret', 'amrap_push_secret');

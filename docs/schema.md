@@ -16,6 +16,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `20261023173423_initial_schema.sql` | Enums, all tables, indexes, constraints, `customer_balances` view, `current_customer_id()` / `is_trainer()` helpers, RLS policies and grants. |
 | `20261023175948_core_rpcs.sql` | The RPCs in [rpcs.md](rpcs.md) and their execute grants. |
 | `20261023192556_recurring_and_jobs.sql` | `book()` replaced to check blocked periods by interval overlap; `appointments_rule_id_starts_at_idx`; `materialize_rule()`, `materialize_recurring()`, `activate_rule()`, `deactivate_rule()` and their grants; `slot_occupancy` view; the `pg_cron` extension and both job schedules ([jobs.md](jobs.md)). |
+| `20261023214654_notifications_and_reminders.sql` | The `pg_net` extension (schema `extensions`); `notification_kind` enum; `notifications` table; `push_config()`, `dispatch_notifications()`, `claim_notifications()`, `send_cutoff_reminders()` and their grants; the `send_cutoff_reminders` schedule ([jobs.md](jobs.md), [notifications.md](notifications.md)). |
 
 ## Enums
 
@@ -25,6 +26,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `appointment_status` | `booked`, `charged`, `cancelled`, `cancelled_late`, `cancelled_by_trainer` |
 | `appointment_source` | `recurring`, `self_booked`, `trainer` |
 | `transaction_type` | `topup`, `session`, `late_cancel`, `refund`, `adjustment` |
+| `notification_kind` | `cutoff_reminder`, `booking_created`, `booking_cancelled`, `credit_topup`, `credit_adjustment` |
 
 ## Tables
 
@@ -179,6 +181,28 @@ a customer only through `customers.auth_user_id`.
 
 Index `push_subscriptions_user_id_idx` on `(user_id)`.
 
+### notifications
+
+The notification log: one row per push the database decided to send ([notifications.md](notifications.md),
+ADR 0009). Written only by `security definer` functions; nobody reads or writes it through the
+API.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | PK |
+| `customer_id` | uuid | not null, references `customers(id)` on delete cascade; the recipient |
+| `kind` | `notification_kind` | not null |
+| `appointment_id` | uuid | references `appointments(id)` on delete cascade; set for appointment kinds |
+| `transaction_id` | uuid | references `credit_transactions(id)` on delete cascade; set for credit kinds |
+| `data` | jsonb | not null, default `{}`; what the service worker renders (per kind in notifications.md) |
+| `created_at` | timestamptz | not null, default `now()` |
+| `dispatched_at` | timestamptz | set once by `claim_notifications()`; null until the edge function claims the row |
+
+Unique `notifications_kind_appointment_id_key` on `(kind, appointment_id)`: one notification of
+a kind per appointment, ever (nulls are distinct, so rows without an appointment never
+collide). Index `notifications_created_at_idx` on `(created_at)` for the 30-day pruning in
+`send_cutoff_reminders()`.
+
 Foreign keys not listed with an `on delete` action use the default (no action): customers,
 slot templates, rules and appointments with dependent rows cannot be deleted, which keeps the
 ledger intact. Deactivate instead (`active = false`).
@@ -237,6 +261,7 @@ Policies apply to `authenticated`. `is_trainer()` and `current_customer_id()` ar
 | `blocked_periods` | all | select all |
 | `settings` | all | select |
 | `push_subscriptions` | all | all on own rows (`user_id = auth.uid()`), linked customers only |
+| `notifications` | none | none |
 | `customer_balances` (view) | all rows via invoker RLS | own row via invoker RLS |
 | `slot_occupancy` (view) | all counts (owner view, gated on a linked caller) | all counts, no identities |
 
@@ -252,6 +277,9 @@ sign-up without an invite) can neither read nor write any row.
   revoked from `public` and `anon`.
 - `authenticated`: `select, insert, update, delete` on every table (RLS decides rows),
   `select` only on `customer_balances` and `slot_occupancy`. No `truncate`, `references`, `trigger` or `maintain`.
+- `notifications`: RLS enabled with no policy, and every privilege revoked from `anon` and
+  `authenticated`, so the trainer cannot read it either (SQLSTATE `42501`). Only the owner's
+  `security definer` functions and `service_role` touch it.
 - `service_role`: Supabase defaults (bypasses RLS); used by server-side jobs.
 - Default privileges for objects that `postgres` (migrations) creates revoke everything on
   tables, sequences and functions in `public` from `anon`, and
@@ -273,5 +301,9 @@ sign-up without an invite) can neither read nor write any row.
 (`trainer@amrap.local` / `password`), a linked customer (`ana@amrap.local` / `password`, one
 8-credit top-up), an invited customer (token `dev-invite-token`, valid 7 days from the reset)
 and two slot templates (Monday 07:00 with the defaults, Wednesday 18:00 for 90 minutes with
-capacity 4). `test_helpers.sql` loads first because `dev.sql` uses `tests.create_user`. Seeds
+capacity 4). It also creates the two Vault secrets push needs locally (ADR 0009):
+`amrap_functions_url` = `http://host.docker.internal:54321/functions/v1` (the host's API port as
+seen from the db container) and `amrap_push_secret` = `local-push-secret`, a placeholder the local
+edge function's `PUSH_SECRET` must equal. The hosted values are set by hand
+([runbook.md](runbook.md)). `test_helpers.sql` loads first because `dev.sql` uses `tests.create_user`. Seeds
 run only on `supabase db reset`; they are never pushed to the remote project.

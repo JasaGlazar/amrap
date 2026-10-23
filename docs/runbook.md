@@ -122,6 +122,11 @@ Migrations reach the remote project only after the PR is merged. Never from a fe
 2. `supabase link --project-ref etzkbwqgjuipihypokjp` (once per machine)
 3. `supabase db push`
 4. Verify in the dashboard that the migration is listed and the app still works.
+5. After the push migration (`20261023214654_notifications_and_reminders.sql`), check in the
+   SQL editor that pg_net is enabled in `extensions` and the reminder job is scheduled:
+   `select extnamespace::regnamespace from pg_extension where extname = 'pg_net';` and
+   `select jobname, schedule from cron.job;`. Until the push Vault rows are set the job runs
+   and does nothing ([notifications.md](notifications.md#configuration)).
 
 ## Cloudflare Pages build settings
 

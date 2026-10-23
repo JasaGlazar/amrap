@@ -217,6 +217,68 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          appointment_id: string | null
+          created_at: string
+          customer_id: string
+          data: Json
+          dispatched_at: string | null
+          id: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          transaction_id: string | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          created_at?: string
+          customer_id: string
+          data?: Json
+          dispatched_at?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          transaction_id?: string | null
+        }
+        Update: {
+          appointment_id?: string | null
+          created_at?: string
+          customer_id?: string
+          data?: Json
+          dispatched_at?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["notification_kind"]
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "notifications_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "credit_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -382,15 +444,35 @@ export type Database = {
       }
       cancel: { Args: { p_appointment_id: string }; Returns: undefined }
       charge_due_appointments: { Args: never; Returns: number }
+      claim_notifications: {
+        Args: { p_ids: string[] }
+        Returns: {
+          auth: string
+          data: Json
+          endpoint: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          notification_id: string
+          p256dh: string
+        }[]
+      }
       create_invite: { Args: { p_customer_id: string }; Returns: string }
       current_customer_id: { Args: never; Returns: string }
       deactivate_rule: { Args: { p_rule_id: string }; Returns: number }
+      dispatch_notifications: { Args: { p_ids: string[] }; Returns: undefined }
       is_trainer: { Args: never; Returns: boolean }
       materialize_recurring: { Args: { p_weeks?: number }; Returns: number }
       materialize_rule: {
         Args: { p_rule_id: string; p_weeks: number }
         Returns: number
       }
+      push_config: {
+        Args: never
+        Returns: {
+          functions_url: string
+          push_secret: string
+        }[]
+      }
+      send_cutoff_reminders: { Args: never; Returns: number }
       top_up: {
         Args: { p_amount: number; p_customer_id: string; p_note?: string }
         Returns: string
@@ -405,6 +487,12 @@ export type Database = {
         | "cancelled_late"
         | "cancelled_by_trainer"
       customer_role: "trainer" | "customer"
+      notification_kind:
+        | "cutoff_reminder"
+        | "booking_created"
+        | "booking_cancelled"
+        | "credit_topup"
+        | "credit_adjustment"
       transaction_type:
         | "topup"
         | "session"
@@ -550,6 +638,13 @@ export const Constants = {
         "cancelled_by_trainer",
       ],
       customer_role: ["trainer", "customer"],
+      notification_kind: [
+        "cutoff_reminder",
+        "booking_created",
+        "booking_cancelled",
+        "credit_topup",
+        "credit_adjustment",
+      ],
       transaction_type: [
         "topup",
         "session",

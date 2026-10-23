@@ -81,6 +81,7 @@ the code:
 | Tables, views, RLS, grants, seeds | `docs/schema.md` |
 | RPCs and helpers | `docs/rpcs.md` |
 | Scheduled jobs | `docs/jobs.md` |
+| Web push: notification log, dispatch, edge function, service worker | `docs/notifications.md` |
 
 A migration starts with one line pointing at its reference docs; section divider lines
 (`-- Name ----`) are fine. A migration already on `main` is never edited, except for its
@@ -151,6 +152,8 @@ run, so test files do not create it.
 | `014_invites.sql` | `create_invite` and `accept_invite`: token format and expiry, single use, expired/superseded/unknown tokens, already linked users and records |
 | `020_materialize.sql` | `materialize_recurring` and the `materialize_rule` helper: grants and role check, derived instance set over the window, skips (past, blocked overlap, cancelled instance, live booking, full slot, inactive rule/template), book()'s advisory lock, DST wall-clock, idempotent second run, trainer path, missing settings |
 | `021_rules_and_jobs.sql` | `activate_rule` / `deactivate_rule`: trainer only, unknown rule, future booked instances cancelled and the rest untouched, immediate materialization, no recreation after reactivating, the any-status rule index; `slot_occupancy`: columns, owner-run, grants, counts for customer and trainer, nothing for an unlinked user or anon; pg_cron: both jobs in `cron.job`, materialization without a JWT |
+| `030_notifications.sql` | pg_net in `extensions`, the `notifications` table (unique per kind and appointment, closed to the API), push function grants, `push_config`, the queued `send-push` request, no request without ids or config, a failing pg_net call caught, `claim_notifications` once per notification and subscription |
+| `031_reminders.sql` | `send_cutoff_reminders`: the 45/75-minute window boundaries, statuses, unlinked and unsubscribed customers, one row per appointment, the request and its ids, second and overlapping runs, a late subscriber, a 0-hour cutoff, pruning, no config, no settings, grants, the schedule |
 
 Helpers in `supabase/seeds/test_helpers.sql` (schema `tests`, local only):
 
