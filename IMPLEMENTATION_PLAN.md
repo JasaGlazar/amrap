@@ -152,6 +152,15 @@ checklist skill. Branch `stage-4-pilot`.
   device was deleted; summary `{"claimed":1,"sent":1,"failed":0,"removed":1}`. The Bash sandbox
   blocks listening sockets on the host, hence the container. A local VAPID pair is in the
   gitignored `supabase/functions/.env`.
+- Task 10 and 11 review fixes done (items 1-15 of the orchestrator's list): derived test counts,
+  job docs, `enqueue_notification` error guard (test-first), one trainer recipient, balance
+  from `customer_balances`, `save_push_subscription` granted to `authenticated` only, more
+  best-effort tests (real pg_net failure, actions take effect), https-only endpoints (check
+  constraint, RPC check, `send-push` skips others). The Task 11 migration was edited in place
+  (not on the hosted DB). Accepted deviation: `dispatch_notifications` returns silently for an
+  empty or null id list (the plan said `raise log`); nothing is lost and the job would log on
+  every quiet run. The Task 12 local end-to-end used an `http://` fake push service; with the
+  https rule a repeat needs an https fake endpoint.
 
 ---
 
