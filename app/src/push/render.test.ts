@@ -90,6 +90,17 @@ describe('renderNotification', () => {
 });
 
 describe('parsePush', () => {
+  it.each(['//[', '/\\[', '//a b'])(
+    'keeps the copy and opens the root for the unparseable %s',
+    (url) => {
+      const data = { transaction_id: 'tx-1', amount: 3, note: null, balance: 3 };
+      expect(parsePush(JSON.stringify({ kind: 'credit_topup', data, url }))).toEqual({
+        ...renderNotification('credit_topup', data),
+        url: '/',
+      });
+    },
+  );
+
   it('keeps the query and hash of an in-app path', () => {
     expect(
       parsePush(JSON.stringify({ kind: 'x', data: {}, url: '/c/zgodovina?x=1#top' })).url,

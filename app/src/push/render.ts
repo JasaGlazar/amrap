@@ -95,8 +95,12 @@ const BASE = 'https://app.invalid';
 
 function safePath(url: unknown): string {
   if (typeof url !== 'string' || !url.startsWith('/')) return '/';
-  const parsed = new URL(url, BASE);
-  return parsed.origin === BASE ? `${parsed.pathname}${parsed.search}${parsed.hash}` : '/';
+  try {
+    const parsed = new URL(url, BASE);
+    return parsed.origin === BASE ? `${parsed.pathname}${parsed.search}${parsed.hash}` : '/';
+  } catch {
+    return '/';
+  }
 }
 
 function deviceTimeZone(): string {
