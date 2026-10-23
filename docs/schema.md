@@ -127,6 +127,8 @@ Check `credit_transactions_amount_matches_type`:
 | `topup` | > 0 | optional |
 | `adjustment` | any non-zero | optional |
 
+Any other type fails the check (`else false`), so a future enum value must be added to it.
+
 Indexes:
 
 - `credit_transactions_one_charge_per_appointment_idx` — unique `(appointment_id) where type in
@@ -212,26 +214,30 @@ Policies apply to `authenticated`. `is_trainer()` and `current_customer_id()` ar
 | `credit_transactions` | all | select own |
 | `blocked_periods` | all | select all |
 | `settings` | all | select |
-| `push_subscriptions` | all | all on own rows (`user_id = auth.uid()`) |
+| `push_subscriptions` | all | all on own rows (`user_id = auth.uid()`), linked customers only |
 | `customer_balances` (view) | all rows via invoker RLS | own row via invoker RLS |
 
 Customers have no insert, update or delete policy on any table except `push_subscriptions`;
 such writes affect zero rows (update/delete) or fail with `42501` (insert). The shared reference
-tables (`slot_templates`, `blocked_periods`, `settings`) additionally require
-`current_customer_id() is not null`, so an auth user without a customer record (public sign-up
-without an invite) sees no rows at all.
+tables (`slot_templates`, `blocked_periods`, `settings`) and `push_subscriptions` additionally
+require `current_customer_id() is not null`, so an auth user without a customer record (public
+sign-up without an invite) can neither read nor write any row.
 
 ## Grants
 
 - `anon`: nothing. `revoke all on all tables in schema public from anon`; execute on the helpers
   revoked from `public` and `anon`.
 - `authenticated`: `select, insert, update, delete` on every table (RLS decides rows),
-  `select` only on `customer_balances`. No `truncate`, `references` or `trigger`.
+  `select` only on `customer_balances`. No `truncate`, `references`, `trigger` or `maintain`.
 - `service_role`: Supabase defaults (bypasses RLS); used by server-side jobs.
-- Default privileges for objects that `postgres` (migrations) creates in `public` revoke
-  everything from `anon` and `truncate`/`references`/`trigger` from `authenticated`, so later
-  migrations inherit the same baseline. Functions still get the global `PUBLIC` execute
-  default, so each new RPC must `revoke execute … from public, anon` explicitly.
+- Default privileges for objects that `postgres` (migrations) creates revoke everything on
+  tables, sequences and functions in `public` from `anon`, and
+  `truncate`/`references`/`trigger`/`maintain` on tables from `authenticated`, so later tables
+  get the same `select, insert, update, delete` baseline.
+- New functions are executable by nobody except their owner and `service_role`: the global
+  `PUBLIC` execute default is revoked for `postgres`, and so is the per-schema `authenticated`
+  default. Each new RPC must `grant execute on function … to authenticated` explicitly;
+  cron-only functions simply get no grant.
 
 ## Test helpers and seeds (local only)
 

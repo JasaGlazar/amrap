@@ -6,7 +6,7 @@
 -- RLS) before switching roles, and compared with what each role can see.
 begin;
 
-select plan(56);
+select plan(58);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
@@ -161,6 +161,9 @@ select throws_ok(
     select id, 'https://push.test/forged', 'k', 'a' from fx where key = 'user_b'$$,
   '42501', null, 'a customer cannot add a push subscription for another user');
 select is_empty(
+  $$update public.push_subscriptions set p256dh = 'x' where user_id <> auth.uid() returning id$$,
+  'a customer cannot update another user''s push subscription');
+select is_empty(
   $$delete from public.push_subscriptions where user_id <> auth.uid() returning id$$,
   'a customer cannot delete another user''s push subscription');
 
@@ -221,6 +224,10 @@ select is(
   0::bigint,
   'an auth user without a customer record sees no rows at all');
 select is(public.current_customer_id(), null, 'current_customer_id() is null without a customer record');
+select throws_ok(
+  $$insert into public.push_subscriptions (user_id, endpoint, p256dh, auth)
+    values (auth.uid(), 'https://push.test/user_nobody', 'k', 'a')$$,
+  '42501', null, 'an auth user without a customer record cannot add a push subscription');
 
 select tests.clear_authentication();
 

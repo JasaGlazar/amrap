@@ -97,6 +97,7 @@ create table public.credit_transactions (
       when 'refund' then amount = 1 and appointment_id is not null
       when 'topup' then amount > 0
       when 'adjustment' then amount <> 0
+      else false
     end
   )
 );
@@ -246,23 +247,28 @@ create policy "customer reads settings" on public.settings
   for select to authenticated
   using ((select public.current_customer_id()) is not null);
 
--- Push subscriptions belong to the auth user; full CRUD on own rows.
+-- Push subscriptions belong to the auth user; full CRUD on own rows, for linked customers
+-- only (an auth user without a customer record gets nothing, ADR 0006).
 create policy "user manages own push subscriptions" on public.push_subscriptions
   for all to authenticated
-  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+  using (user_id = (select auth.uid()) and (select public.current_customer_id()) is not null)
+  with check (user_id = (select auth.uid()) and (select public.current_customer_id()) is not null);
 
 -- Grants -----------------------------------------------------------------------------------
 
 -- anon gets nothing. authenticated gets plain DML and RLS decides row access (TRUNCATE,
--- REFERENCES and TRIGGER are not row-level, so they are not granted). Supabase's default
--- privileges would grant the same on future objects, so revoke those defaults for objects
--- created by postgres (migrations) in public.
+-- REFERENCES, TRIGGER and MAINTAIN are not row-level, so they are not granted). Supabase's
+-- default privileges would grant the same on future objects, so revoke those defaults for
+-- objects created by postgres (migrations). New functions are executable by nobody but their
+-- owner and service_role until a migration grants execute explicitly.
 revoke all on all tables in schema public from anon, authenticated;
 grant select, insert, update, delete on all tables in schema public to authenticated;
 revoke insert, update, delete on public.customer_balances from authenticated;
 
 alter default privileges for role postgres in schema public revoke all on tables from anon;
 alter default privileges for role postgres in schema public revoke all on sequences from anon;
-alter default privileges for role postgres in schema public revoke all on functions from anon;
 alter default privileges for role postgres in schema public
-  revoke truncate, references, trigger on tables from authenticated;
+  revoke all on functions from anon, authenticated;
+alter default privileges for role postgres revoke execute on functions from public;
+alter default privileges for role postgres in schema public
+  revoke truncate, references, trigger, maintain on tables from authenticated;

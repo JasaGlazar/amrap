@@ -2,7 +2,7 @@
 -- the one-charge-per-appointment index and the customer_balances view.
 begin;
 
-select plan(81);
+select plan(84);
 
 -- Tables, view and enums --------------------------------------------------------------------
 
@@ -106,13 +106,23 @@ select fk_ok('public', 'push_subscriptions', 'user_id', 'auth', 'users', 'id',
   'push_subscriptions.user_id references auth.users');
 
 -- Default privileges: tables created by later migrations (as postgres) grant anon nothing and
--- authenticated only row-level DML.
+-- authenticated only row-level DML; new functions are executable by neither.
 create table public.default_privileges_probe (id int);
+create function public.default_privileges_probe_fn() returns int language sql as 'select 1';
 select table_privs_are('public', 'default_privileges_probe', 'anon', array[]::text[],
   'a new public table grants nothing to anon');
 select table_privs_are('public', 'default_privileges_probe', 'authenticated',
   array['SELECT', 'INSERT', 'UPDATE', 'DELETE'],
   'a new public table grants authenticated only select/insert/update/delete');
+select ok(
+  not has_table_privilege('authenticated', 'public.default_privileges_probe', 'MAINTAIN')
+  and not has_table_privilege('anon', 'public.default_privileges_probe', 'MAINTAIN'),
+  'a new public table grants MAINTAIN to neither authenticated nor anon');
+select ok(not has_function_privilege('anon', 'public.default_privileges_probe_fn()', 'EXECUTE'),
+  'a new public function is not executable by anon');
+select ok(not has_function_privilege('authenticated', 'public.default_privileges_probe_fn()', 'EXECUTE'),
+  'a new public function is not executable by authenticated until granted');
+drop function public.default_privileges_probe_fn();
 drop table public.default_privileges_probe;
 
 -- Helpers and the balance view -------------------------------------------------------------
