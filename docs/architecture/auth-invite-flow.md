@@ -1,6 +1,8 @@
 # Auth and invite flow
 
-How a customer gets an account (ADR 0006). The trainer creates an invite for an unlinked
+How a customer gets an account (ADR 0006). The trainer UI for this step arrives in Stage 2;
+in Stage 1 the owner issues the token with the SQL recipe in
+[runbook.md](../runbook.md#invite-a-customer-stage-1-until-the-customers-screen-exists). The trainer creates an invite for an unlinked
 customer record with `create_invite(customer_id)`, which returns a single-use token (24 random
 bytes, hex) valid for 7 days; re-issuing replaces the previous token. The customer opens the
 link, signs up with email and password (no confirmation email), and the app calls

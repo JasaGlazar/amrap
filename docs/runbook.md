@@ -34,6 +34,49 @@ values ('<trainer name>', '<trainer email>', 'trainer', '<auth user uid>');
    returns exactly the one row.
 4. Sign in to the app and confirm the trainer shell is shown.
 
+## Invite a customer (Stage 1, until the Customers screen exists)
+
+The trainer UI for invites arrives in Stage 2. Until then the owner creates the record and
+issues the token in the Supabase SQL editor.
+
+1. Insert the customer record and note its id:
+
+```sql
+insert into public.customers (name, email, phone)
+values ('<name>', '<email>', '<phone or null>')
+returning id;
+```
+
+2. Issue a token (24 random bytes as hex, valid 7 days, replaces any earlier token). This is
+   the same update `create_invite` performs:
+
+```sql
+update public.customers
+set invite_token = encode(extensions.gen_random_bytes(24), 'hex'),
+    invite_expires_at = now() + interval '7 days'
+where id = '<id>' and auth_user_id is null
+returning invite_token;
+```
+
+   No row returned means the record is already linked (see "Re-link a customer").
+3. Send the customer `https://<pages-domain>/invite/<token>`.
+
+`create_invite` itself cannot be called from the SQL editor: the editor runs without a JWT,
+so `is_trainer()` is false and the function raises `AMRAP_FORBIDDEN`. The alternative is to
+call it as the signed-in trainer from the browser devtools console of the running app. The
+app does not expose its client globally, so `supabase.rpc('create_invite', { p_customer_id })`
+only works where the client is in scope (a local dev server); on the deployed app use a plain
+request with the trainer's session token:
+
+```js
+const { access_token } = JSON.parse(localStorage.getItem('sb-etzkbwqgjuipihypokjp-auth-token'));
+fetch('https://etzkbwqgjuipihypokjp.supabase.co/rest/v1/rpc/create_invite', {
+  method: 'POST',
+  headers: { apikey: '<anon key>', Authorization: `Bearer ${access_token}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ p_customer_id: '<id>' }),
+}).then((r) => r.json()).then(console.log);
+```
+
 ## Re-link a customer
 
 When a linked customer loses access (forgotten password, lost device, wrong email), there is
@@ -46,7 +89,8 @@ so the old auth user is removed first (ADR 0007).
    delete it. The foreign key `on delete set null` clears `customers.auth_user_id`; the
    customer's appointments and credits stay as they are. Their push subscriptions are deleted.
 3. Check the record is unlinked: the query from step 1 now shows `auth_user_id` null.
-4. In the app, create an invite for the customer (`create_invite`) and send the new link.
+4. Issue a new invite token and send the new link, as in
+   [Invite a customer](#invite-a-customer-stage-1-until-the-customers-screen-exists).
 5. The customer opens the link and signs up again with a new password (same or new email);
    `accept_invite` links the new auth user. They re-enable notifications on their device.
 
@@ -95,4 +139,17 @@ if it is flagged.
 The remote Supabase project does not read `supabase/config.toml`. After the first Pages
 deployment, open the dashboard, Authentication, URL Configuration, and set Site URL to the
 Pages production URL; add the Pages URL (and `https://*.<project>.pages.dev` if preview
-deployments should work) to Redirect URLs. Email confirmations stay disabled (ADR 0006).
+deployments should work) to Redirect URLs.
+
+Then turn email confirmations off on the hosted project (ADR 0006). `config.toml` only
+affects the local stack; a new hosted project has "Confirm email" ON by default.
+
+1. Open Authentication, Sign In / Providers, Email.
+2. Turn "Confirm email" off.
+3. Keep "Allow new users to sign up" on (invite sign-up uses `signUp`).
+
+If this is skipped, `signUp` succeeds but returns no session, so the invite page cannot call
+`accept_invite` and stops, and every sign-up sends a confirmation mail through Supabase's
+built-in SMTP, which is limited to 2 mails per hour on the Free Plan. The app shows a
+"contact the trainer" message for the resulting `email_not_confirmed` error, but the fix is
+the dashboard setting.

@@ -51,5 +51,6 @@ stubs and are built out in Stage 2 (see `PLAN.md`, "Screens").
   them `start.tsx` shows a start-up error page (`startupError`) naming the missing variable
   instead of a blank page ([runbook.md](runbook.md#cloudflare-pages-build-settings)).
 - **PWA.** `registerType: 'autoUpdate'`, `display: standalone`, manifest language `sl`, icons
-  192 and 512 px. Cloudflare Pages serves `index.html` for every path through
-  `app/public/_redirects`.
+  192 and 512 px. Cloudflare Pages falls back to `index.html` for unknown paths natively;
+  `app/public/_redirects` is a belt-and-braces measure
+  ([runbook.md](runbook.md#cloudflare-pages-build-settings)).

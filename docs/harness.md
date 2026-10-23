@@ -45,7 +45,7 @@ independent jobs:
 
 | Job | What it runs |
 |---|---|
-| `db` | `supabase/setup-cli@v1`, then `supabase start -x studio,imgproxy,logflare,vector,edge-runtime` (applies the migrations and the seeds in `config.toml` `[db.seed]`), `supabase test db`, and a check that `app/src/lib/database.types.ts` equals the output of `supabase gen types typescript --local`. |
+| `db` | `supabase/setup-cli@v1`, then `supabase start -x studio,imgproxy,logflare,vector,edge-runtime` (applies the migrations and the seeds in `config.toml` `[db.seed]`), `supabase test db`, `supabase db lint`, and a check that `app/src/lib/database.types.ts` equals the output of `supabase gen types typescript --local`. |
 | `app` | In `app/` with the Node version from `app/.node-version`: `npm ci`, `npm run lint`, `npm run typecheck`, `npm test -- --run`, `npm run build`. |
 | `docs` | `bash scripts/check-docs.sh`. |
 

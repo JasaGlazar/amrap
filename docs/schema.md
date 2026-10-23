@@ -238,7 +238,8 @@ sign-up without an invite) can neither read nor write any row.
 - New functions are executable by nobody except their owner and `service_role`: the global
   `PUBLIC` execute default is revoked for `postgres`, and so is the per-schema `authenticated`
   default. Each new RPC must `grant execute on function … to authenticated` explicitly;
-  cron-only functions simply get no grant.
+  cron-only functions get no grant to `authenticated` (`charge_due_appointments` is
+  explicitly granted to `service_role` only).
 
 ## Test helpers and seeds (local only)
 
