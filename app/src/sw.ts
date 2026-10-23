@@ -23,18 +23,20 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const path = (event.notification.data as { url?: string } | null)?.url ?? '/';
-  event.waitUntil(openApp(new URL(path, self.location.origin).href));
+  const target = new URL(path, self.location.origin);
+  const url = target.origin === self.location.origin ? target.href : `${self.location.origin}/`;
+  event.waitUntil(openApp(url));
 });
 
 async function openApp(url: string): Promise<void> {
-  const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  for (const client of windows) {
+  const [client] = await self.clients.matchAll({ type: 'window' });
+  if (client) {
     try {
-      const focused = await client.focus();
-      await focused.navigate(url);
+      await client.focus();
+      await client.navigate(url);
       return;
     } catch {
-      continue;
+      // A client that cannot be navigated falls through to a new window.
     }
   }
   await self.clients.openWindow(url);

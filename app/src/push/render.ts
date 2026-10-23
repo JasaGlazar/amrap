@@ -91,8 +91,12 @@ function dateOf(value: unknown): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+const BASE = 'https://app.invalid';
+
 function safePath(url: unknown): string {
-  return typeof url === 'string' && url.startsWith('/') && !url.startsWith('//') ? url : '/';
+  if (typeof url !== 'string' || !url.startsWith('/')) return '/';
+  const parsed = new URL(url, BASE);
+  return parsed.origin === BASE ? `${parsed.pathname}${parsed.search}${parsed.hash}` : '/';
 }
 
 function deviceTimeZone(): string {

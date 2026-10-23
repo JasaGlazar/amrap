@@ -4,7 +4,6 @@ import { formatLongDay, formatTime } from '../lib/time';
 import { parsePush, renderNotification } from './render';
 
 const tz = 'Europe/Ljubljana';
-// The Sunday of the 2026 DST change: 08:00 UTC is 09:00 in Ljubljana after the switch.
 const startsAt = '2026-10-25T08:00:00Z';
 const appointmentId = 'a1b2c3d4-0000-4000-8000-000000000001';
 
@@ -91,18 +90,28 @@ describe('renderNotification', () => {
 });
 
 describe('parsePush', () => {
+  it('keeps the query and hash of an in-app path', () => {
+    expect(
+      parsePush(JSON.stringify({ kind: 'x', data: {}, url: '/c/zgodovina?x=1#top' })).url,
+    ).toBe('/c/zgodovina?x=1#top');
+  });
+
   it('renders a payload and keeps its in-app path', () => {
     const data = { transaction_id: 'tx-1', amount: 3, note: null, balance: 3 };
     const parsed = parsePush(JSON.stringify({ kind: 'credit_topup', data, url: '/c/zgodovina' }));
     expect(parsed).toEqual({ ...renderNotification('credit_topup', data), url: '/c/zgodovina' });
   });
 
-  it.each(['https://evil.example/', '//evil.example/x', 42, undefined])(
-    'opens the app root instead of %s',
-    (url) => {
-      expect(parsePush(JSON.stringify({ kind: 'credit_topup', data: {}, url })).url).toBe('/');
-    },
-  );
+  it.each([
+    'https://evil.example/',
+    '//evil.example/x',
+    '/\\evil.example',
+    '/\t/evil.example',
+    42,
+    undefined,
+  ])('opens the app root instead of %s', (url) => {
+    expect(parsePush(JSON.stringify({ kind: 'credit_topup', data: {}, url })).url).toBe('/');
+  });
 
   it.each([undefined, '', 'not json', 'null', '[1]'])('shows generic copy for %s', (text) => {
     expect(parsePush(text)).toMatchObject({

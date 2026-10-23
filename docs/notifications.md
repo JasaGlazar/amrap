@@ -82,9 +82,11 @@ and registered by the plugin's `registerSW.js`:
   new balance, plus the note when there is one. An unknown kind, missing fields or a payload
   that is not JSON shows `push.genericTitle` / `push.genericBody`. The tag is
   `<kind>:<appointment or transaction id>`, so a repeated notification replaces the earlier one.
-- **notificationclick:** closes the notification, then focuses an open window of the app and
-  navigates it to `url`, or opens a new window there. Only a same-origin path (`/…`) is used;
-  anything else opens `/`.
+- **notificationclick:** closes the notification, then focuses a window of the app that the
+  service worker controls and navigates it to `url`; with no such window, or when navigating
+  fails, it opens a new window there. `parsePush` keeps a `url` only when it starts with `/` and
+  still resolves to the app's own origin once parsed (so `//host`, `/\host` or a tab after the
+  slash fall back to `/`), and the click handler checks the origin again before opening it.
 
 ## Subscribing in the app
 
