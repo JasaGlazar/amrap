@@ -42,9 +42,9 @@ is a question below.
 | `customers.inviteStatus.pending` | Povabljen | Povabilo čaka | The masculine form was wrong for women; describes the invite, not the person |
 | `customerDetail.topUpInvalid` | Za polnitev vpišite pozitivno celo število. | Za dodajanje kreditov vpišite pozitivno celo število. | "polnitev" is used nowhere else; the button says "Dodaj kredite" |
 | `customerDetail.relinkHint` | … sledite postopku »Re-link a customer« v priročniku (docs/runbook.md). | … naj skrbnik aplikacije odstrani njen stari račun; nato tukaj ustvarite novo povabilo. | English and a repository path in user-visible copy |
-| `settings.strandedWarning` | … (Koledar, Termini zunaj urnika). Za potrditev znova kliknite Shrani. | … (Koledar, »Termini zunaj urnika«). Za potrditev znova tapnite »Shrani«. | Quoted names; "tapnite" on a phone |
+| `settings.strandedWarning` | … (Koledar, Termini zunaj urnika). Za potrditev znova kliknite Shrani. | … (»Koledar«, »Termini zunaj urnika«). Za potrditev znova tapnite »Shrani«. | Quoted names; "tapnite" on a phone |
 | `pushToggle.needsInstall` | … tapnite Deli, nato Dodaj na začetni zaslon, in aplikacijo odprite … | … tapnite »Deli« in nato »Dodaj na začetni zaslon«, potem pa aplikacijo odprite … | No comma before "in"; quoted names, as in the install card |
-| `errors.AMRAP_ALREADY_BOOKED` | Za ta termin ste že rezervirani. | Ta rezervacija že obstaja. | Calque ("rezervirani" are slots, not people), and the trainer sees it too when adding a customer |
+| `errors.AMRAP_ALREADY_BOOKED` | Za ta termin ste že rezervirani. | Rezervacija za ta termin že obstaja. | Calque ("rezervirani" are slots, not people), and the trainer sees it too when adding a customer |
 | `errors.AMRAP_CAPACITY_FULL` | Ta termin je že zaseden. | Ta termin je že poln. | Same word as the calendar's "Polno" |
 
 ## Open questions for the trainer
@@ -182,7 +182,7 @@ is a question below.
 | `cancelDialog.title` | Odpoved termina |  |
 | `cancelDialog.cutoff` | Brezplačna odpoved do {day} ob {time}. |  |
 | `cancelDialog.free` | Odpoved je brezplačna. |  |
-| `cancelDialog.late` | Pozna odpoved: zaračunan bo 1 kredit. | Spremenjeno (glej spodaj). V redu? |
+| `cancelDialog.late` | Pozna odpoved: zaračunan bo 1 kredit. | Spremenjeno (glej zgoraj). V redu? |
 | `cancelDialog.confirm` | Odpovej termin |  |
 | `cancelDialog.back` | Nazaj |  |
 | `cancelDialog.done` | Termin je odpovedan. |  |
@@ -324,7 +324,7 @@ is a question below.
 | `settings.cancelEdit` | Prekliči |  |
 | `settings.saved` | Shranjeno. |  |
 | `settings.startRequired` | Vpišite začetek. |  |
-| `settings.strandedWarning` | Prihodnje rezervacije tega termina: {count}. Ostanejo rezervirane in bodo zaračunane, dokler jih ne odpoveste (Koledar, »Termini zunaj urnika«). Za potrditev znova tapnite »Shrani«. |  |
+| `settings.strandedWarning` | Prihodnje rezervacije tega termina: {count}. Ostanejo rezervirane in bodo zaračunane, dokler jih ne odpoveste (»Koledar«, »Termini zunaj urnika«). Za potrditev znova tapnite »Shrani«. |  |
 | `settings.durationInvalid` | Trajanje mora biti pozitivno celo število minut. |  |
 | `settings.capacityInvalid` | Število mest mora biti pozitivno celo število. |  |
 | `settings.cutoffTitle` | Rok za brezplačno odpoved |  |
@@ -380,7 +380,7 @@ is a question below.
 
 | Ključ | Besedilo | Vprašanje |
 |---|---|---|
-| `errors.AMRAP_ALREADY_BOOKED` | Ta rezervacija že obstaja. | Spremenjeno (prej »Za ta termin ste že rezervirani.«; to vidi tudi trener). V redu? |
+| `errors.AMRAP_ALREADY_BOOKED` | Rezervacija za ta termin že obstaja. | Spremenjeno (prej »Za ta termin ste že rezervirani.«; to vidi tudi trener). V redu? |
 | `errors.AMRAP_ALREADY_LINKED` | Ta račun je že povezan s stranko. |  |
 | `errors.AMRAP_BLOCKED` | V tem času rezervacije niso mogoče. |  |
 | `errors.AMRAP_CAPACITY_FULL` | Ta termin je že poln. |  |

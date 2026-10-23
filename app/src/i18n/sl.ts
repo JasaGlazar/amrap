@@ -178,7 +178,7 @@ export const sl = {
     saved: 'Shranjeno.',
     startRequired: 'Vpišite začetek.',
     strandedWarning:
-      'Prihodnje rezervacije tega termina: {count}. Ostanejo rezervirane in bodo zaračunane, dokler jih ne odpoveste (Koledar, »Termini zunaj urnika«). Za potrditev znova tapnite »Shrani«.',
+      'Prihodnje rezervacije tega termina: {count}. Ostanejo rezervirane in bodo zaračunane, dokler jih ne odpoveste (»Koledar«, »Termini zunaj urnika«). Za potrditev znova tapnite »Shrani«.',
     durationInvalid: 'Trajanje mora biti pozitivno celo število minut.',
     capacityInvalid: 'Število mest mora biti pozitivno celo število.',
     cutoffTitle: 'Rok za brezplačno odpoved',
@@ -306,7 +306,7 @@ export const sl = {
   },
   genericError: 'Nekaj je šlo narobe. Poskusite znova.',
   errors: {
-    AMRAP_ALREADY_BOOKED: 'Ta rezervacija že obstaja.',
+    AMRAP_ALREADY_BOOKED: 'Rezervacija za ta termin že obstaja.',
     AMRAP_ALREADY_LINKED: 'Ta račun je že povezan s stranko.',
     AMRAP_BLOCKED: 'V tem času rezervacije niso mogoče.',
     AMRAP_CAPACITY_FULL: 'Ta termin je že poln.',
