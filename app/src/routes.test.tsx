@@ -170,7 +170,7 @@ describe('shells', () => {
     expect(labels).toEqual([t.nav.home, t.nav.calendar, t.nav.history]);
   });
 
-  it('navigates between customer placeholder pages', async () => {
+  it('navigates between customer pages', async () => {
     signedInAs(customer);
     const router = renderAt('/c');
     await userEvent.click(await screen.findByRole('link', { name: t.nav.history }));

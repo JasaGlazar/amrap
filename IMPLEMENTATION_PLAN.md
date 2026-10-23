@@ -58,11 +58,12 @@ customers, credits; customers book/cancel and see balance and history.
 blocked period; screen-level Vitest for calendar/capacity rendering and cancel warning copy.
 **Carry-over from Stage 1 review**: materialization must take the same
 `pg_advisory_xact_lock` key as `book()` (template id + start epoch) or it can overfill a slot;
-add a sign-out link to both shells; add an automated two-session test for `accept_invite` if a
+add a sign-out link to both shells (done, Task 7); add an automated two-session test for `accept_invite` if a
 harness allows it.
 The customer calendar must show remaining capacity per slot while RLS hides other customers'
 appointments: add a `SECURITY DEFINER` counting RPC or view (e.g. `slot_occupancy`). Route the
-not-linked and lookup-failed sign-out buttons through `/logout` so failures surface.
+not-linked and lookup-failed sign-out buttons through `/logout` so failures surface (done,
+Task 7).
 **Status**: In Progress
 
 ## Stage 3: Automation & notifications
