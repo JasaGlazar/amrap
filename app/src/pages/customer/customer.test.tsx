@@ -15,7 +15,14 @@ import {
   localDateOf,
 } from '../../lib/time';
 import { routes } from '../../routes';
-import { db, fakeSupabase, makeCustomer, makeSession, resetFake } from '../../test/fakeSupabase';
+import {
+  db,
+  fakeSupabase,
+  makeCustomer,
+  makeSession,
+  postgrestTime,
+  resetFake,
+} from '../../test/fakeSupabase';
 
 vi.mock('../../lib/supabase', async () => ({
   supabase: (await import('../../test/fakeSupabase')).fakeSupabase,
@@ -82,7 +89,7 @@ describe('calendar', () => {
   beforeEach(() => {
     db.tables.slot_templates = [free, empty, full, past, blocked];
     db.tables.slot_occupancy = [
-      { slot_template_id: free.id, starts_at: startOf(free).toISOString(), booked_count: 2 },
+      { slot_template_id: free.id, starts_at: postgrestTime(startOf(free)), booked_count: 2 },
       { slot_template_id: full.id, starts_at: startOf(full).toISOString(), booked_count: 2 },
     ];
     const blockStart = new Date(startOf(blocked).getTime() + 60 * 60_000);
@@ -153,6 +160,21 @@ describe('calendar', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(errorMessages.AMRAP_CAPACITY_FULL);
   });
 
+  it('disables an occurrence late on Sunday that runs into a block after the week ends', async () => {
+    const lateSunday = template('t-late', 6, '23:00:00', 5, 120);
+    db.tables.slot_templates = [lateSunday];
+    const blockStart = new Date(startOf(lateSunday).getTime() + 90 * 60_000);
+    db.tables.blocked_periods = [
+      {
+        starts_at: blockStart.toISOString(),
+        ends_at: new Date(blockStart.getTime() + 3_600_000).toISOString(),
+        reason: 'after the week',
+      },
+    ];
+    renderAt('/c/koledar');
+    expect(within(await slotRow(lateSunday)).getByRole('button')).toBeDisabled();
+  });
+
   it('moves to the next week and back', async () => {
     renderAt('/c/koledar');
     await slotRow(free);
@@ -179,8 +201,8 @@ describe('cancel dialog', () => {
         id: 'a1',
         customer_id: me.id,
         slot_template_id: null,
-        starts_at: startsAt.toISOString(),
-        ends_at: new Date(startsAt.getTime() + 3_600_000).toISOString(),
+        starts_at: postgrestTime(startsAt),
+        ends_at: postgrestTime(new Date(startsAt.getTime() + 3_600_000)),
         status: 'booked',
       },
     ];
@@ -210,11 +232,30 @@ describe('cancel dialog', () => {
     expect(dialog).not.toHaveTextContent(t.cancelDialog.free);
   });
 
-  it('cancels and removes the appointment from the upcoming list', async () => {
+  it('cancels, says so and removes the appointment from the upcoming list', async () => {
     const dialog = await openDialog();
     await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', { p_appointment_id: 'a1' });
+    expect(await screen.findByRole('status')).toHaveTextContent(t.cancelDialog.done);
     expect(await screen.findByText(t.customer.noUpcoming)).toBeInTheDocument();
+  });
+
+  it('switches to the late copy instead of cancelling when the cutoff passed while open', async () => {
+    vi.setSystemTime(new Date(cutoff.getTime() - 60_000));
+    const dialog = await openDialog();
+    expect(dialog).toHaveTextContent(t.cancelDialog.free);
+    vi.setSystemTime(new Date(cutoff.getTime() + 60_000));
+    await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
+    expect(dialog).toHaveTextContent(t.cancelDialog.late);
+    expect(fakeSupabase.rpc).not.toHaveBeenCalledWith('cancel', expect.anything());
+  });
+
+  it('takes focus when it opens and closes on Escape', async () => {
+    const dialog = await openDialog();
+    expect(dialog).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(fakeSupabase.rpc).not.toHaveBeenCalledWith('cancel', expect.anything());
   });
 
   it('shows the server error when the appointment changed meanwhile', async () => {
@@ -315,6 +356,7 @@ describe('history', () => {
     const expected = [...ledger].sort(
       (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at),
     );
+    expect(items).toHaveLength(expected.length);
     expected.forEach((row, index) => {
       expect(items[index]).toHaveTextContent(
         t.transactionType[row.type as keyof typeof t.transactionType],

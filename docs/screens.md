@@ -41,15 +41,18 @@ data.
   07:00`) and the time left (`čez 2 d 9 h`, computed when the page loaded). Hidden when there is
   none.
 - **Upcoming list:** every upcoming appointment, soonest first, each with **Odpovej**, which opens
-  the cancel dialog. Empty: `customer.noUpcoming`.
+  the cancel dialog; a successful cancel shows `cancelDialog.done` (a status line). Empty:
+  `customer.noUpcoming`.
 
 ### Calendar (`/c/koledar`)
 
 - **Week:** Monday to Sunday in the gym timezone, starting with the current week. `‹` and `›`
-  (named `calendar.previousWeek` / `nextWeek`) move by a week; `‹` is disabled on the current
-  week. The heading shows the range (`26. 10. – 1. 11.`).
+  (named `calendar.previousWeek` / `nextWeek`) move by a week and stay in place while a week
+  loads; `‹` is disabled on the current week. The heading shows the range (`26. 10. – 1. 11.`).
 - **Data:** `getSettings`, `activeTemplates`, and for the week's range `occupancyBetween`,
-  `blockedBetween`, `liveAppointmentsBetween`.
+  `liveAppointmentsBetween` and `blockedBetween`; the blocked-period range is extended by the
+  longest template duration, so an occurrence late on Sunday that runs into the next week is
+  checked against blocks there too.
 - **Occurrences:** one row per active template in that week, grouped by day (days without any
   are left out; a week without any shows `calendar.noSlots`). A start time in the spring-forward
   gap has no occurrence that week. Each row shows the start time, duration and
@@ -66,17 +69,20 @@ data.
   | my live booking | `Rezervirano` tag, plus **Odpovej** while it is `booked` and in the future |
 
 - **Booking:** `book(my id, startsAt, template id)`; success shows `calendar.booked` (a status
-  line), a rejection shows its `errors.AMRAP_*` copy (an alert). Book buttons are disabled
-  while a booking is in flight.
-- **Cancel:** **Odpovej** opens the cancel dialog; success shows `calendar.cancelled`.
+  line), a rejection shows its `errors.AMRAP_*` copy (an alert). Book buttons stay disabled
+  until the booking has finished and the week has reloaded, so a double tap cannot book twice.
+- **Cancel:** **Odpovej** opens the cancel dialog; success shows `cancelDialog.done`.
 
 ### Cancel dialog
 
 - Shows the appointment (`slot.when`), the cutoff (`Brezplačna odpoved do {day} ob {time}`,
-  `starts_at − settings.late_cancel_hours`) and, computed when the dialog opens, either
-  `cancelDialog.free` (now before the cutoff) or `cancelDialog.late` (`zaračunan 1 kredit`,
-  from the cutoff on), like `cancel()`.
-- **Odpovej termin** calls `cancel`; on success the dialog closes and the screen reloads. If
+  `starts_at − settings.late_cancel_hours`) and either `cancelDialog.free` (now before the
+  cutoff) or `cancelDialog.late` (`zaračunan 1 kredit`, from the cutoff on), like `cancel()`.
+- It takes focus when it opens; Escape and **Nazaj** close it.
+- **Odpovej termin** first re-checks free vs late against the current time. If the answer
+  changed since the dialog opened (it stayed open past the cutoff), it only switches the copy
+  and does not cancel; a second click confirms. Otherwise it calls `cancel`; on success the
+  dialog closes and the screen reloads. If
   the server rejects it (for example the appointment was charged or cancelled meanwhile), the
   dialog shows the `errors.AMRAP_*` copy and disables the confirm button; **Nazaj** closes it and
   reloads.

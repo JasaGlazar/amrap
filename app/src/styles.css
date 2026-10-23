@@ -287,6 +287,7 @@ input {
 
 .week-range {
   white-space: nowrap;
+  min-height: 1.5rem;
 }
 
 .week-nav .button {

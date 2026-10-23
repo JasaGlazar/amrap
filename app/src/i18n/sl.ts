@@ -81,7 +81,6 @@ export const sl = {
     blocked: 'Zaprto',
     mine: 'Rezervirano',
     booked: 'Termin je rezerviran.',
-    cancelled: 'Termin je odpovedan.',
   },
   cancelDialog: {
     title: 'Odpoved termina',
@@ -90,6 +89,7 @@ export const sl = {
     late: 'Odpoved je prepozna: zaračunan 1 kredit.',
     confirm: 'Odpovej termin',
     back: 'Nazaj',
+    done: 'Termin je odpovedan.',
   },
   history: {
     appointmentsTitle: 'Termini',

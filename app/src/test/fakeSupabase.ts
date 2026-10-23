@@ -66,6 +66,13 @@ export const selects: { table: string; columns: string | undefined }[] = [];
 
 const listeners = new Set<AuthListener>();
 
+export function postgrestTime(instant: Date): string {
+  return instant
+    .toISOString()
+    .replace(/\.000Z$/, '+00:00')
+    .replace(/Z$/, '+00:00');
+}
+
 export function makeSession(userId: string): Session {
   return { access_token: 'token', user: { id: userId } } as unknown as Session;
 }

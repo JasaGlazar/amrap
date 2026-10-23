@@ -45,10 +45,11 @@ export function CustomerCalendar() {
     const settings = await getSettings(supabase);
     const start = addDays(weekStart(localDateOf(now, settings.timeZone)), weekOffset * 7);
     const { from, to } = weekRange(start, settings.timeZone);
-    const [templates, occupancy, blocked, mine] = await Promise.all([
-      activeTemplates(supabase),
+    const templates = await activeTemplates(supabase);
+    const longest = Math.max(0, ...templates.map((template) => template.duration_minutes));
+    const [occupancy, blocked, mine] = await Promise.all([
       occupancyBetween(supabase, from, to),
-      blockedBetween(supabase, from, to),
+      blockedBetween(supabase, from, new Date(to.getTime() + longest * 60_000)),
       liveAppointmentsBetween(supabase, customer.id, from, to),
     ]);
     const slots: Slot[] = templates.flatMap((template) => {
@@ -94,11 +95,11 @@ export function CustomerCalendar() {
       startsAt: slot.startsAt,
       slotTemplateId: slot.templateId,
     });
-    setPending(null);
     setMessage(
       result.ok ? { error: false, text: t.calendar.booked } : { error: true, text: result.message },
     );
-    reload();
+    await reload();
+    setPending(null);
   }
 
   function goToWeek(offset: number) {
@@ -109,36 +110,35 @@ export function CustomerCalendar() {
   const header = (
     <>
       <h1>{t.customer.calendarTitle}</h1>
-      {state.status === 'ok' && (
-        <div className="week-nav">
-          <button
-            type="button"
-            className="button secondary small"
-            aria-label={t.calendar.previousWeek}
-            disabled={weekOffset === 0}
-            onClick={() => goToWeek(weekOffset - 1)}
-          >
-            {t.calendar.previousArrow}
-          </button>
-          <span className="week-range">
-            {fill(t.calendar.weekRange, {
+      <div className="week-nav">
+        <button
+          type="button"
+          className="button secondary small"
+          aria-label={t.calendar.previousWeek}
+          disabled={weekOffset === 0}
+          onClick={() => goToWeek(weekOffset - 1)}
+        >
+          {t.calendar.previousArrow}
+        </button>
+        <span className="week-range">
+          {state.status === 'ok' &&
+            fill(t.calendar.weekRange, {
               from: formatLocalDate(state.data.start, { day: 'numeric', month: 'numeric' }),
               to: formatLocalDate(addDays(state.data.start, 6), {
                 day: 'numeric',
                 month: 'numeric',
               }),
             })}
-          </span>
-          <button
-            type="button"
-            className="button secondary small"
-            aria-label={t.calendar.nextWeek}
-            onClick={() => goToWeek(weekOffset + 1)}
-          >
-            {t.calendar.nextArrow}
-          </button>
-        </div>
-      )}
+        </span>
+        <button
+          type="button"
+          className="button secondary small"
+          aria-label={t.calendar.nextWeek}
+          onClick={() => goToWeek(weekOffset + 1)}
+        >
+          {t.calendar.nextArrow}
+        </button>
+      </div>
       {message !== null && (
         <p role={message.error ? 'alert' : 'status'} className={message.error ? 'error' : 'ok'}>
           {message.text}
@@ -239,12 +239,12 @@ export function CustomerCalendar() {
           settings={settings}
           onClose={() => {
             setCancelling(null);
-            reload();
+            void reload();
           }}
           onCancelled={() => {
             setCancelling(null);
-            setMessage({ error: false, text: t.calendar.cancelled });
-            reload();
+            setMessage({ error: false, text: t.cancelDialog.done });
+            void reload();
           }}
         />
       )}

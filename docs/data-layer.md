@@ -50,7 +50,8 @@ After an action the page reloads what it shows; nothing is updated optimisticall
 
 A screen wraps its reads in one `useCallback` load function and passes it to `useLoad`
 (`lib/useLoad.ts`), which returns `loading`, `error` (logged with `console.warn`) or `ok` with
-the data, plus `reload()`. A reload keeps showing the current data until the new data
+the data, plus `reload()`, which returns a promise that settles once the reload has finished
+(the calendar keeps its book buttons disabled until then). A reload keeps showing the current data until the new data
 arrives; a new load function (for example another week in the calendar) shows `loading`
 first. Only the newest run's result is applied. `useCustomer()` (`auth/AuthContext.ts`) gives
 the signed-in customer's row below `RequireAuth`, so pages do not handle a missing row.

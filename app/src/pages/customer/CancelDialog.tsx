@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { cancel } from '../../data/appointments';
 import type { GymSettings } from '../../data/settings';
 import { fill, t } from '../../i18n';
@@ -14,15 +14,30 @@ type Props = {
 
 export function CancelDialog({ appointment, settings, onClose, onCancelled }: Props) {
   const titleId = useId();
-  const [openedAt] = useState(() => new Date());
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const { startsAt } = appointment;
   const { lateCancelHours, timeZone } = settings;
+  const [free, setFree] = useState(() => isFreeCancel(startsAt, lateCancelHours, new Date()));
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const cutoff = cutoffOf(startsAt, lateCancelHours);
-  const free = isFreeCancel(startsAt, lateCancelHours, openedAt);
+
+  useEffect(() => dialogRef.current?.focus(), []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
 
   async function confirm() {
+    const freeNow = isFreeCancel(startsAt, lateCancelHours, new Date());
+    if (freeNow !== free) {
+      setFree(freeNow);
+      return;
+    }
     setBusy(true);
     const result = await cancel(supabase, appointment.id);
     setBusy(false);
@@ -32,7 +47,14 @@ export function CancelDialog({ appointment, settings, onClose, onCancelled }: Pr
 
   return (
     <div className="overlay">
-      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="dialog">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="dialog"
+      >
         <h2 id={titleId}>{t.cancelDialog.title}</h2>
         <p>
           {fill(t.slot.when, {

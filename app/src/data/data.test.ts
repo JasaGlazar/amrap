@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { errorMessages } from '../i18n';
-import { db, fakeSupabase, makeCustomer, resetFake } from '../test/fakeSupabase';
+import { db, fakeSupabase, makeCustomer, postgrestTime, resetFake } from '../test/fakeSupabase';
 import {
   book,
   cancel,
@@ -26,8 +26,8 @@ function appointment(id: string, customer: string, hoursFromNow: number, status:
     id,
     customer_id: customer,
     slot_template_id: 'tpl-1',
-    starts_at: at(hoursFromNow),
-    ends_at: at(hoursFromNow + 1),
+    starts_at: postgrestTime(new Date(at(hoursFromNow))),
+    ends_at: postgrestTime(new Date(at(hoursFromNow + 1))),
     status,
   };
 }

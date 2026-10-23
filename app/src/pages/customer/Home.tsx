@@ -22,6 +22,7 @@ export function CustomerHome() {
   }, [customer.id]);
   const [state, reload] = useLoad(load);
   const [cancelling, setCancelling] = useState<Appointment | null>(null);
+  const [cancelled, setCancelled] = useState(false);
 
   if (state.status === 'loading') return <p className="status">{t.common.loading}</p>;
   if (state.status === 'error') {
@@ -59,6 +60,11 @@ export function CustomerHome() {
         </section>
       )}
       <h2>{t.customer.upcomingTitle}</h2>
+      {cancelled && (
+        <p role="status" className="ok">
+          {t.cancelDialog.done}
+        </p>
+      )}
       {upcoming.length === 0 ? (
         <p>{t.customer.noUpcoming}</p>
       ) : (
@@ -83,11 +89,12 @@ export function CustomerHome() {
           settings={settings}
           onClose={() => {
             setCancelling(null);
-            reload();
+            void reload();
           }}
           onCancelled={() => {
             setCancelling(null);
-            reload();
+            setCancelled(true);
+            void reload();
           }}
         />
       )}
