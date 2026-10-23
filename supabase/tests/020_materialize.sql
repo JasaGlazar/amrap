@@ -173,7 +173,7 @@ select ok(has_function_privilege('authenticated', 'public.materialize_recurring(
 select ok(has_function_privilege('service_role', 'public.materialize_recurring(int)', 'EXECUTE'),
   'service_role can execute materialize_recurring');
 select ok(not has_function_privilege('anon', 'public.materialize_recurring(int)', 'EXECUTE'),
-  'anon cannot execute materialize_recurring');
+  'anon has no execute privilege on materialize_recurring');
 select ok(
   not has_function_privilege('authenticated', 'public.materialize_rule(uuid, int)', 'EXECUTE')
   and not has_function_privilege('anon', 'public.materialize_rule(uuid, int)', 'EXECUTE')
