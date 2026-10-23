@@ -154,8 +154,9 @@ are matched to appointments by customer id. Load failures show `customer.loadFai
   whole number, negative subtracts; else `customerDetail.adjustInvalid`). Waiving a late
   cancel is an adjustment of +1.
 - **Povabilo:** for an unlinked record, **Ustvari povabilo** calls `create_invite` and shows
-  the full link `${location.origin}/invite/<token>` in a read-only field with **Kopiraj**
-  (clipboard) and the 7-day hint. A pending invite's link is shown on load, and the button
+  the full link `${location.origin}/invite/<token>` in a read-only field (focus selects it) with
+  **Kopiraj** (clipboard; `customerDetail.copied`, or `customerDetail.copyFailed` when the
+  browser refuses, e.g. without HTTPS) and the 7-day hint. A pending invite's link is shown on load, and the button
   becomes **Ustvari novo povabilo** (a new token replaces the old one). A linked record shows
   the re-link hint pointing to the runbook ("Re-link a customer", ADR 0007) instead.
 - **Stalni termini:** the customer's recurring rules (`{weekday} ob {time}`, stopped ones
