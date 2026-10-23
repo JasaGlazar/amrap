@@ -264,8 +264,24 @@ export const sl = {
     failed: 'Obvestil ni bilo mogoče vklopiti. Poskusite znova.',
     needsInstall:
       'Na iPhonu obvestila delujejo le v nameščeni aplikaciji: v Safariju tapnite Deli, nato Dodaj na začetni zaslon, in aplikacijo odprite z začetnega zaslona.',
+    needsInstallSeeCard:
+      'Na iPhonu obvestila delujejo le v nameščeni aplikaciji. Navodila za namestitev so zgoraj.',
     unsupported: 'Ta brskalnik ne podpira obvestil.',
     noKey: 'Obvestila trenutno niso na voljo.',
+  },
+  install: {
+    title: 'Namestite aplikacijo',
+    why: 'Dodajte AMRAP na začetni zaslon: odprete ga z enim dotikom in prejemate obvestila.',
+    iosWhy: 'Na iPhonu obvestila delujejo le v aplikaciji, odprti z začetnega zaslona.',
+    install: 'Namesti aplikacijo',
+    notNow: 'Ne zdaj',
+    stepsLabel: 'Koraki za namestitev',
+    iosShare: 'V Safariju tapnite »Deli« (kvadrat s puščico navzgor).',
+    iosAdd: 'Izberite »Dodaj na začetni zaslon« in potrdite z »Dodaj«.',
+    iosOtherBrowsers: 'V drugih brskalnikih na iPhonu je »Deli« v meniju brskalnika.',
+    androidMenu: 'Odprite meni brskalnika (⋮).',
+    androidAdd: 'Izberite »Namesti aplikacijo« ali »Dodaj na začetni zaslon«.',
+    openFromHome: 'AMRAP odslej odpirajte z ikone na začetnem zaslonu.',
   },
   time: {
     inDaysHours: 'čez {days} d {hours} h',

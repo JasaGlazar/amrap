@@ -15,10 +15,10 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/` | signed in | Redirects to `/t` for the trainer or `/c` for a customer. | none | Stage 1 |
 | (any route below `/`) | signed in, customer lookup failed | Error page with a retry button and a sign-out link to `/logout`. | `lookupFailed`, `common.signOut` | Stage 1 |
 | (any route below `/`) | signed in, no `customers` row | "Account not linked" page with a sign-out link to `/logout`. Shown instead of the route, URL unchanged. | `notLinked`, `common.signOut` | Stage 1 |
-| `/c` | customer | Customer shell: top bar with the app name and a sign-out link to `/logout`, bottom navigation (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle` | Stage 2, push Stage 3 |
+| `/c` | customer | Customer shell: top bar with the app name and a sign-out link to `/logout`, the [install card](#install-card), bottom navigation (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `install`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle` | Stage 2, push Stage 3, install Stage 4 |
 | `/c/koledar` | customer | Week calendar: book open slots, cancel own bookings. | `customer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
-| `/t` | trainer | Trainer shell: the same top bar with sign-out, bottom navigation (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `trainer`, `calendar`, `slot` | Stage 2 |
+| `/t` | trainer | Trainer shell: the same top bar with sign-out, the [install card](#install-card), bottom navigation (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/t/stranke` | trainer | Customer list with balance and invite status; create a customer. | `trainer`, `customers` | Stage 2 |
 | `/t/stranke/:id` | trainer | One customer: credits, invite link, recurring rules, upcoming appointments, details, ledger. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType` | Stage 2 |
@@ -214,6 +214,32 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   already booked in it; `book()` and materialization reject or skip later ones.
 - **Obvestila:** the notifications toggle with the trainer hint (`pushToggle.trainerHint`).
 
+## Install card
+
+`pages/shared/InstallCard.tsx`, rendered by `AppShell` above every customer and trainer screen
+(a region named `install.title`), so it is also the first thing a new customer sees after
+accepting an invite. It says why to install (`install.why`, plus `install.iosWhy` on iOS, where
+push needs the home-screen app) and then, by mode:
+
+| Mode | When | Shows |
+|---|---|---|
+| hidden | the app runs standalone (opened from the home screen), or it was installed during this visit (`appinstalled`, or an accepted prompt) | nothing |
+| prompt | the browser fired `beforeinstallprompt` (Chromium: Android Chrome, desktop Chrome and Edge) | **Namesti aplikacijo**, which opens the browser's install dialog |
+| ios | iOS, not standalone | the Share steps (`install.iosShare`, `install.iosAdd`, `install.openFromHome`) and `install.iosOtherBrowsers` |
+| android-manual | Android without a prompt (another browser, or the prompt was declined) | the browser menu steps (`install.androidMenu`, `install.androidAdd`, `install.openFromHome`) |
+| none | any other browser without a prompt (desktop Safari, Firefox) | nothing |
+
+- **Ne zdaj** hides the card on this device for good (`localStorage` key
+  `amrap.install.dismissed`). Storage that cannot be read counts as not dismissed and a failed
+  write is logged (`console.warn`); either way the card hides until the next load.
+- The browser's prompt can be shown once. Accepted, the card hides; declined, the prompt is
+  dropped and the card falls back to the Android menu steps (Android) or disappears (desktop)
+  until the browser offers a new prompt.
+- On iOS the [notifications toggle](#notifications-toggle) refers to the card while it is shown
+  instead of repeating the steps.
+- Code layout (the prompt listener, the store, the mode) is in
+  [app-structure.md](app-structure.md#install-onboarding).
+
 ## Notifications toggle
 
 `pages/shared/PushToggle.tsx`, a card titled `pushToggle.title` on the customer Home and the
@@ -222,7 +248,7 @@ is in [notifications.md](notifications.md).
 
 | State | When | Shows |
 |---|---|---|
-| install hint | iOS and not opened from the home screen | `pushToggle.needsInstall` (Share, Add to Home Screen, open from there) |
+| install hint | iOS and not opened from the home screen | `pushToggle.needsInstallSeeCard` (the steps are in the install card above) while the [install card](#install-card) is shown, else `pushToggle.needsInstall` (Share, Add to Home Screen, open from there) |
 | unsupported | no service worker, Push API or Notification API | `pushToggle.unsupported` |
 | unavailable | the build has no `VITE_VAPID_PUBLIC_KEY` | `pushToggle.noKey` |
 | blocked | the browser's notification permission is `denied` | `pushToggle.blocked` |
@@ -267,6 +293,6 @@ How the guards and the auth state work is in [auth.md](auth.md).
   build, serves `index.html` for every navigation (deep links work offline), updates itself
   (`skipWaiting` + `clientsClaim`, the `autoUpdate` behaviour) and shows push notifications
   ([notifications.md](notifications.md#service-worker)). `display: standalone`, manifest
-  language `sl`, icons 192 and 512 px. Cloudflare Pages falls back to `index.html` for unknown
+  language `sl`, icons 192 and 512 px. The [install card](#install-card) guides installing it. Cloudflare Pages falls back to `index.html` for unknown
   paths natively; `app/public/_redirects` is a belt-and-braces measure
   ([runbook.md](runbook.md#cloudflare-pages-build-settings)).

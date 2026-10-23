@@ -1,11 +1,11 @@
+import type { DeviceEnvironment } from '../lib/device';
+
 export type PushSupport = 'supported' | 'needs-install' | 'unsupported' | 'no-key';
 
-export type PushEnvironment = {
+export type PushEnvironment = DeviceEnvironment & {
   serviceWorker: boolean;
   pushManager: boolean;
   notification: boolean;
-  ios: boolean;
-  standalone: boolean;
   vapidKey: string | undefined;
 };
 

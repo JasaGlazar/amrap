@@ -4,7 +4,9 @@ import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { t } from './i18n';
+import { InstallContext } from './install/platform';
 import { routes } from './routes';
+import { fakeInstallPlatform } from './test/fakeInstall';
 import {
   authError,
   db,
@@ -23,9 +25,13 @@ vi.mock('./lib/supabase', async () => ({
 const trainer = makeCustomer({ id: 'trainer-1', role: 'trainer', auth_user_id: 'user-t' });
 const customer = makeCustomer({ id: 'customer-1', role: 'customer', auth_user_id: 'user-c' });
 
-function renderAt(path: string) {
+function renderAt(path: string, install = fakeInstallPlatform().platform) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
-  render(<RouterProvider router={router} />);
+  render(
+    <InstallContext.Provider value={install}>
+      <RouterProvider router={router} />
+    </InstallContext.Provider>,
+  );
   return router;
 }
 
@@ -168,6 +174,26 @@ describe('shells', () => {
       .getAllByRole('link')
       .map((link) => link.textContent);
     expect(labels).toEqual([t.nav.home, t.nav.calendar, t.nav.history]);
+  });
+
+  it('shows the install card in the trainer shell too', async () => {
+    signedInAs(trainer);
+    renderAt('/t', fakeInstallPlatform({ device: { ios: true } }).platform);
+    const card = await screen.findByRole('region', { name: t.install.title });
+    expect(within(card).getByText(t.install.iosShare)).toBeInTheDocument();
+  });
+
+  it('keeps the install card on every customer page until it is dismissed', async () => {
+    signedInAs(customer);
+    renderAt('/c', fakeInstallPlatform({ device: { ios: true } }).platform);
+    await screen.findByRole('region', { name: t.install.title });
+    await userEvent.click(screen.getByRole('link', { name: t.nav.history }));
+    await screen.findByRole('heading', { name: t.customer.historyTitle });
+    expect(screen.getByRole('region', { name: t.install.title })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: t.install.notNow }));
+
+    expect(screen.queryByRole('region', { name: t.install.title })).not.toBeInTheDocument();
   });
 
   it('navigates between customer pages', async () => {
@@ -320,6 +346,23 @@ describe('invite flow', () => {
     });
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('accept_invite', { p_token: 'tok-123' });
     expect(router.state.location.pathname).toBe('/c');
+  });
+
+  it('offers to install the app on the first screen after accepting the invite', async () => {
+    signUpCreatesSession();
+    fakeSupabase.rpc.mockImplementation(async () => {
+      db.customer = customer;
+      return { data: customer.id, error: null };
+    });
+    const install = fakeInstallPlatform({ device: { android: true } });
+    install.firePrompt();
+    renderAt('/invite/tok-123', install.platform);
+    expect(screen.queryByRole('region', { name: t.install.title })).not.toBeInTheDocument();
+
+    await fillAndSubmit('secret1', 'secret1');
+
+    const card = await screen.findByRole('region', { name: t.install.title });
+    expect(within(card).getByRole('button', { name: t.install.install })).toBeInTheDocument();
   });
 
   it('shows the Slovenian message for a rejected invite and does not enter the app', async () => {

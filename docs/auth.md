@@ -80,7 +80,8 @@ sign-out control links to `/logout`: the top bar of both shells, `NotLinkedPage`
 4. `accept_invite(token)` links the auth user to the customer record. A rejection shows its
    `errors.AMRAP_*` copy and, since the user is now signed in, a continue link.
 5. `refresh()` (the provider cached "not linked" while the account was being created), then
-   navigate to `/`.
+   navigate to `/`, which lands on the customer Home with the
+   [install card](screens.md#install-card) on top on a device where the app is not installed.
 
 ## Keep-alive
 

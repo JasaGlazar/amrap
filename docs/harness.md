@@ -77,7 +77,7 @@ the code:
 | Layer | Doc |
 |---|---|
 | Sign-in, customer lookup, role gating, invite acceptance, keep-alive | `docs/auth.md` |
-| App folders, i18n rule, data layer contract, testing with the fake client | `docs/app-structure.md` |
+| App folders, install onboarding, i18n rule, data layer contract, testing with the fake client | `docs/app-structure.md` |
 | App reads and RPC wrappers (`app/src/data/`) | `docs/data-layer.md` |
 | Dates, weeks, DST, cutoff, formatting in the app | `docs/time.md` |
 | Tables, views, RLS, grants, seeds | `docs/schema.md` |

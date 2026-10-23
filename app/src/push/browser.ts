@@ -1,3 +1,4 @@
+import { deviceEnvironment } from '../lib/device';
 import type { PushEnvironment } from './support';
 
 export type DeviceSubscription = {
@@ -34,18 +35,11 @@ function activeRegistration(): Promise<ServiceWorkerRegistration> {
 
 export const browserPlatform: PushPlatform = {
   environment() {
-    const ios =
-      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const standalone =
-      window.matchMedia?.('(display-mode: standalone)').matches === true ||
-      (navigator as Navigator & { standalone?: boolean }).standalone === true;
     return {
+      ...deviceEnvironment(),
       serviceWorker: 'serviceWorker' in navigator,
       pushManager: 'PushManager' in window,
       notification: 'Notification' in window,
-      ios,
-      standalone,
       vapidKey: import.meta.env.VITE_VAPID_PUBLIC_KEY || undefined,
     };
   },

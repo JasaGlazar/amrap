@@ -13,7 +13,7 @@
 | [auth.md](auth.md) | App auth: session loading, customer-row lookup, role gating, lookup failed vs not linked, sign-out, invite acceptance, keep-alive, start-up error |
 | [data-layer.md](data-layer.md) | App data layer: reads and RPC wrappers in `app/src/data/`, what each selects |
 | [time.md](time.md) | Gym-timezone date math: local dates, weeks, template occurrences, DST, cutoff, formatting |
-| [app-structure.md](app-structure.md) | App folders, i18n rule, data layer contract, testing with the fake Supabase client |
+| [app-structure.md](app-structure.md) | App folders, install onboarding, i18n rule, data layer contract, testing with the fake Supabase client |
 | [screens.md](screens.md) | Routes, role gating and strings of the customer and trainer screens |
 
 ## Architecture diagrams
