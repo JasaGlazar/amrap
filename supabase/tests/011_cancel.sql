@@ -6,7 +6,7 @@
 -- with start times derived from now() (frozen for the transaction) and the configured cutoff.
 begin;
 
-select plan(37);
+select plan(38);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
@@ -55,7 +55,8 @@ insert into appt_spec
          ('b_late', 'cust_b', now() + interval '1 hour', 'booked'),
          ('b_future', 'cust_b', now() + interval '3 days', 'booked'),
          ('c_charged', 'cust_c', now() - interval '2 hours', 'charged'),
-         ('c_cancelled', 'cust_c', now() + interval '4 days', 'cancelled')
+         ('c_cancelled', 'cust_c', now() + interval '4 days', 'cancelled'),
+         ('settings_probe', 'cust_a', now() + interval '2 days', 'booked')
        ) v(key, customer, starts_at, status);
 
 with ins as (
@@ -261,6 +262,14 @@ select lives_ok(
   $$select public.book((select id from fx where key = 'cust_b'), (select ts from slot_time),
                        (select id from fx where key = 'slot'))$$,
   'the freed place can be booked');
+select tests.clear_authentication();
+
+-- Without the settings row the cutoff is unknown: fail closed ------------------------------
+
+delete from public.settings where id = 1;
+select tests.authenticate_as((select id from fx where key = 'user_a'));
+select throws_matching($$select public.cancel((select id from appts where key = 'settings_probe'))$$,
+  '^AMRAP_SETTINGS_MISSING:', 'a customer cancel fails closed when the settings row is missing');
 select tests.clear_authentication();
 
 select * from finish();

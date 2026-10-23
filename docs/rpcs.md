@@ -37,6 +37,7 @@ app relies on.
 | `AMRAP_INVITE_INVALID` | The invite token is unknown, empty, replaced by a newer invite, already redeemed (redeeming clears it) or expired | `accept_invite` |
 | `AMRAP_INVITE_USED` | The token belongs to a customer record that is already linked | `accept_invite` |
 | `AMRAP_ALREADY_LINKED` | The customer record already has an account (`create_invite`), or the caller is already linked to a customer (`accept_invite`) | `create_invite`, `accept_invite` |
+| `AMRAP_SETTINGS_MISSING` | The `settings` row (`id = 1`) is missing, so the timezone or cutoff is unknown; the call fails closed | `book` (with a template), `cancel` (customer) |
 | `AMRAP_NOT_CANCELLABLE` | The appointment is not in a state the caller may cancel (customer: not `booked` or already started; anyone: already cancelled) | `cancel` |
 
 ## book
@@ -58,7 +59,8 @@ public.book(p_customer_id uuid, p_starts_at timestamptz,
   4. With a template: it must exist (`AMRAP_NOT_FOUND`) and be active (`AMRAP_SLOT_INACTIVE`);
      for a customer `p_starts_at` must be in the future (`AMRAP_IN_PAST`; the trainer may book
      past occurrences); `p_starts_at` in `settings.timezone` must fall on the template's
-     `weekday` (`isodow - 1`) at its `start_time` (`AMRAP_SLOT_MISMATCH`).
+     `weekday` (`isodow - 1`) at its `start_time` (`AMRAP_SLOT_MISMATCH`). If the `settings`
+     row is missing the call fails closed (`AMRAP_SETTINGS_MISSING`).
   5. `p_starts_at` must not fall inside a blocked period, `starts_at <= p_starts_at < ends_at`
      (`AMRAP_BLOCKED`). Applies to the trainer and to ad-hoc bookings too.
   6. With a template: takes `pg_advisory_xact_lock(hashtext(template_id || '@' ||
@@ -92,7 +94,9 @@ public.cancel(p_appointment_id uuid) returns void
     rejected first (`AMRAP_FORBIDDEN`).
   - **Customer:** must own it (`AMRAP_FORBIDDEN`). Status must be `booked` and `starts_at`
     must still be in the future, else `AMRAP_NOT_CANCELLABLE` (covers charged, started but not
-    yet charged, and every cancelled status). With `cutoff = settings.late_cancel_hours`:
+    yet charged, and every cancelled status). With `cutoff = settings.late_cancel_hours`
+    (missing `settings` row → `AMRAP_SETTINGS_MISSING`, so a cancel is never charged by
+    default):
     - `now() < starts_at - cutoff` → status `cancelled`, no transaction (free);
     - otherwise → status `cancelled_late` and one `late_cancel` transaction (−1,
       `created_by = auth.uid()`). The balance may go negative; that is allowed and shown.
@@ -163,7 +167,10 @@ public.accept_invite(p_token text) returns uuid
   without a user). The customer row is looked up by `invite_token = p_token` and locked
   `for update`, so two concurrent redemptions cannot both win. No row, or
   `invite_expires_at <= now()` → `AMRAP_INVITE_INVALID`. The row is already linked →
-  `AMRAP_INVITE_USED`. The caller is already linked to a customer → `AMRAP_ALREADY_LINKED`.
+  `AMRAP_INVITE_USED`. The caller is already linked to a customer → `AMRAP_ALREADY_LINKED`;
+  this also covers the same user redeeming two tokens concurrently, where the second update
+  hits the unique `auth_user_id` and the `unique_violation` is reported as
+  `AMRAP_ALREADY_LINKED` rather than a raw `23505`.
 - **Single use:** a successful accept clears the token, so a second use of the same token finds
   no row and is rejected with `AMRAP_INVITE_INVALID`. `AMRAP_INVITE_USED` only occurs if a
   linked record still carries a token (for example after a direct trainer edit).

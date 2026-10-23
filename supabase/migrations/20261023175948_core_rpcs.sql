@@ -136,6 +136,9 @@ begin
 
     -- weekday 0 = Monday (isodow - 1), both compared in the gym's timezone.
     select p_starts_at at time zone s.timezone into v_local from public.settings s where s.id = 1;
+    if not found then
+      raise exception 'AMRAP_SETTINGS_MISSING: the settings row (id = 1) is missing' using errcode = 'P0001';
+    end if;
     if extract(isodow from v_local) - 1 <> v_template.weekday or v_local::time <> v_template.start_time then
       raise exception 'AMRAP_SLOT_MISMATCH: % is not an occurrence of slot template %',
         p_starts_at, p_slot_template_id using errcode = 'P0001';
@@ -244,6 +247,9 @@ begin
   end if;
 
   select s.late_cancel_hours * interval '1 hour' into v_cutoff from public.settings s where s.id = 1;
+  if not found then
+    raise exception 'AMRAP_SETTINGS_MISSING: the settings row (id = 1) is missing' using errcode = 'P0001';
+  end if;
 
   if now() < v_appt.starts_at - v_cutoff then
     update public.appointments
@@ -362,9 +368,15 @@ begin
     raise exception 'AMRAP_ALREADY_LINKED: this user is already linked to a customer' using errcode = 'P0001';
   end if;
 
-  update public.customers
-    set auth_user_id = auth.uid(), invite_token = null, invite_expires_at = null
-    where id = v_customer.id;
+  -- A concurrent accept_invite by the same user on another token can link first; the
+  -- unique auth_user_id then surfaces here instead of in the check above.
+  begin
+    update public.customers
+      set auth_user_id = auth.uid(), invite_token = null, invite_expires_at = null
+      where id = v_customer.id;
+  exception when unique_violation then
+    raise exception 'AMRAP_ALREADY_LINKED: this user is already linked to a customer' using errcode = 'P0001';
+  end;
 
   return v_customer.id;
 end;

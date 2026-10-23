@@ -7,7 +7,7 @@
 -- local time so a DST change between the dates cannot move the wall-clock time.
 begin;
 
-select plan(34);
+select plan(35);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
@@ -50,7 +50,8 @@ insert into times
          ('slot_past', base.local - interval '14 days'),
          ('wrong_day', base.local + interval '1 day'),
          ('wrong_time', base.local + interval '30 minutes'),
-         ('adhoc', base.local + interval '2 days' + interval '3 hours')
+         ('adhoc', base.local + interval '2 days' + interval '3 hours'),
+         ('slot_later', base.local + interval '14 days')
        ) v(key, local);
 
 -- A slot template matching 'slot' with a custom duration and capacity, and an inactive twin.
@@ -294,6 +295,16 @@ select is(
   (select count(*) from public.appointments where id in (select id from booked)),
   (select count(*) from booked),
   'every successful book() call left exactly one appointment row');
+
+-- Without the settings row the timezone is unknown: fail closed ----------------------------
+
+delete from public.settings where id = 1;
+select tests.authenticate_as((select id from fx where key = 'user_a'));
+select throws_matching(
+  $$select public.book((select id from fx where key = 'cust_a'), (select ts from times where key = 'slot_later'),
+                       (select id from fx where key = 'slot'))$$,
+  '^AMRAP_SETTINGS_MISSING:', 'book fails closed when the settings row is missing');
+select tests.clear_authentication();
 
 select * from finish();
 rollback;
