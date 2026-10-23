@@ -9,6 +9,7 @@ import {
   occurrenceInWeek,
   overlaps,
   timeUntil,
+  weekdayName,
   weekdayOf,
   weekRange,
   weekStart,
@@ -123,6 +124,13 @@ describe('timeUntil', () => {
       hours: 0,
       minutes: 0,
     });
+  });
+});
+
+describe('weekdayName', () => {
+  it('names weekdays from Monday = 0 in Slovenian', () => {
+    expect(weekdayName(0)).toBe('ponedeljek');
+    expect(weekdayName(6)).toBe('nedelja');
   });
 });
 

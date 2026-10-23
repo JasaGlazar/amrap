@@ -3,10 +3,11 @@ import { useCustomer } from '../../auth/AuthContext';
 import { pastAppointments } from '../../data/appointments';
 import { ledgerOf } from '../../data/credits';
 import { getSettings } from '../../data/settings';
-import { fill, formatAmount, t } from '../../i18n';
+import { fill, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { formatDate, formatTime } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
+import { LedgerList } from '../shared/LedgerList';
 
 export function CustomerHistory() {
   const customer = useCustomer();
@@ -57,24 +58,7 @@ export function CustomerHistory() {
       </section>
       <section aria-labelledby="history-ledger">
         <h2 id="history-ledger">{t.history.ledgerTitle}</h2>
-        {ledger.length === 0 ? (
-          <p>{t.history.noTransactions}</p>
-        ) : (
-          <ul className="list">
-            {ledger.map((entry) => (
-              <li key={entry.id} className="row ledger">
-                <span className="ledger-main">
-                  <span>{t.transactionType[entry.type]}</span>
-                  {entry.note !== null && <span className="detail">{entry.note}</span>}
-                  <span className="detail">{when(entry.createdAt)}</span>
-                </span>
-                <span className={entry.amount < 0 ? 'amount negative' : 'amount'}>
-                  {formatAmount(entry.amount)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <LedgerList ledger={ledger} timeZone={timeZone} />
       </section>
     </>
   );

@@ -154,6 +154,12 @@ export function formatDate(instant: Date, timeZone: string): string {
   return display(timeZone, { day: 'numeric', month: 'numeric', year: 'numeric' }).format(instant);
 }
 
+const referenceMonday: LocalDate = '2026-10-19';
+
+export function weekdayName(weekday: number): string {
+  return formatLocalDate(addDays(referenceMonday, weekday), { weekday: 'long' });
+}
+
 export function formatLocalDate(date: LocalDate, options: Intl.DateTimeFormatOptions): string {
   return display('UTC', options).format(new Date(utcMsOf(date)));
 }

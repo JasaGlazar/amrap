@@ -21,7 +21,8 @@ built out later in Stage 2 (see `PLAN.md`, "Screens").
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
 | `/t` | trainer | Trainer shell: the same top bar with sign-out, bottom navigation (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `trainer`, `calendar`, `slot` | Stage 2 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
-| `/t/stranke` | trainer | Balances, ledger, top-up, adjust, invite link. | `trainer.customersTitle`, `common.comingSoon` | placeholder |
+| `/t/stranke` | trainer | Customer list with balance and invite status; create a customer. | `trainer`, `customers` | Stage 2 |
+| `/t/stranke/:id` | trainer | One customer: credits, invite link, recurring rules, upcoming appointments, details, ledger. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType` | Stage 2 |
 | `/t/nastavitve` | trainer | Slot templates, cutoff hours, blocked periods. | `trainer.settingsTitle`, `common.comingSoon` | placeholder |
 | anything else | anyone | Redirects to `/`. | none | Stage 1 |
 
@@ -132,6 +133,42 @@ are matched to appointments by customer id. Load failures show `customer.loadFai
 - **Cancel:** the cancel dialog in trainer mode: the customer's name, no cutoff, and
   `cancelDialog.noCharge` for a booked appointment or `cancelDialog.refund` ("s povračilom",
   +1 credit) for a charged one, matching what `cancel()` does for the trainer.
+
+### Customers (`/t/stranke`)
+
+- **Data:** `listCustomers` (customer records only, not the trainer's own row) and
+  `allBalances`.
+- **List:** by name; each row links to the detail page and shows the invite status
+  (`customers.inviteStatus`: linked, pending = an unexpired token, none) and the balance (red
+  when negative).
+- **Nova stranka:** name (required, `customers.nameRequired`), phone and email (empty becomes
+  null). Submit inserts the record through RLS (`createCustomer`) and opens its detail page.
+
+### Customer detail (`/t/stranke/:id`)
+
+- **Data:** `getCustomer`, `getSettings`, `balanceOf`, `ledgerOf`, `upcomingAppointments`,
+  `rulesOf`, `allTemplates`. A missing record (or the trainer's own id) shows the load error
+  with the back link.
+- **Header:** name, balance (red with `dolg` when negative) and invite status.
+- **Krediti:** one amount field and a note. **Dodaj kredite** calls `top_up` (a positive whole
+  number, else `customerDetail.topUpInvalid`); **Popravi stanje** calls `adjust` (any non-zero
+  whole number, negative subtracts; else `customerDetail.adjustInvalid`). Waiving a late
+  cancel is an adjustment of +1.
+- **Povabilo:** for an unlinked record, **Ustvari povabilo** calls `create_invite` and shows
+  the full link `${location.origin}/invite/<token>` in a read-only field with **Kopiraj**
+  (clipboard) and the 7-day hint. A pending invite's link is shown on load, and the button
+  becomes **Ustvari novo povabilo** (a new token replaces the old one). A linked record shows
+  the re-link hint pointing to the runbook ("Re-link a customer", ADR 0007) instead.
+- **Stalni termini:** the customer's recurring rules (`{weekday} ob {time}`, stopped ones
+  greyed with `ustavljen`). **Ustavi** calls `deactivate_rule` (future booked instances are
+  cancelled; the message shows how many); **Ponovno vključi** calls `activate_rule` (shows how
+  many instances were created; cancelled dates stay cancelled, ADR 0008). The add control
+  lists active templates that have no active rule for this customer; **Dodaj stalni termin**
+  inserts the rule and activates it, which materializes it right away.
+- **Prihajajoči termini:** the customer's upcoming booked appointments, each with **Odpovej**
+  (trainer cancel dialog).
+- **Podatki:** name, phone, email; **Shrani** updates the record through RLS.
+- **Zgodovina kreditov:** the ledger, as on the customer's History.
 
 ## Access rules
 

@@ -12,10 +12,6 @@ export function TrainerShell() {
   return <AppShell items={items} label={t.nav.trainerLabel} />;
 }
 
-export function TrainerCustomers() {
-  return <PlaceholderPage title={t.trainer.customersTitle} />;
-}
-
 export function TrainerSettings() {
   return <PlaceholderPage title={t.trainer.settingsTitle} />;
 }

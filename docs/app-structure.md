@@ -12,7 +12,7 @@ screens are in [screens.md](screens.md), sign-in and role gating in [auth.md](au
 | `src/routes.tsx` | The route tree (React Router v7 data router). The tests render the same tree. |
 | `src/data/` | Typed reads and RPC wrappers ([data-layer.md](data-layer.md)). |
 | `src/auth/` | `AuthProvider`, `useAuth()`, the route guards ([auth.md](auth.md)). |
-| `src/pages/` | One component per screen or state page. The shells (`CustomerPages.tsx`, `TrainerPages.tsx`) use `AppShell`: a top bar with the app name and a sign-out link, the page, and a fixed bottom navigation bar. Customer screens are in `pages/customer/`, trainer screens in `pages/trainer/`; the pieces both calendars use (`WeekNav`, `WeekSlots`, `CancelDialog`) are in `pages/shared/` ([screens.md](screens.md#customer-screens)). |
+| `src/pages/` | One component per screen or state page. The shells (`CustomerPages.tsx`, `TrainerPages.tsx`) use `AppShell`: a top bar with the app name and a sign-out link, the page, and a fixed bottom navigation bar. Customer screens are in `pages/customer/`, trainer screens in `pages/trainer/`; the pieces several screens use (`WeekNav`, `WeekSlots`, `CancelDialog`, `LedgerList`) are in `pages/shared/` ([screens.md](screens.md#customer-screens)). |
 | `src/i18n/` | `sl.ts` (all copy), `errors.ts` (`fromError`), `fill.ts` (`fill` for `{name}` placeholders, `formatTimeUntil`), `index.ts` (exports `t` and the helpers). |
 | `src/lib/` | `supabase.ts` (the one client), `database.types.ts` (generated), `keepAlive.ts`, `time.ts` ([time.md](time.md)), `useLoad.ts`. |
 | `src/test/` | `fakeSupabase.ts` and the Vitest setup (`setup.ts`: jest-dom matchers, cleanup after each test). |

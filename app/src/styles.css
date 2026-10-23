@@ -409,3 +409,13 @@ select {
 .dialog-name {
   font-weight: 700;
 }
+
+.row-link {
+  flex: 1;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.row.muted {
+  opacity: 0.6;
+}

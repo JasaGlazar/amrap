@@ -10,7 +10,9 @@ import { CustomerHome } from './pages/customer/Home';
 import { InvitePage } from './pages/InvitePage';
 import { LoginPage } from './pages/LoginPage';
 import { LogoutFailedPage } from './pages/LogoutFailedPage';
-import { TrainerCustomers, TrainerSettings, TrainerShell } from './pages/TrainerPages';
+import { TrainerSettings, TrainerShell } from './pages/TrainerPages';
+import { TrainerCustomerDetail } from './pages/trainer/CustomerDetail';
+import { TrainerCustomers } from './pages/trainer/Customers';
 import { TrainerCalendar } from './pages/trainer/Calendar';
 import { TrainerToday } from './pages/trainer/Today';
 
@@ -66,6 +68,7 @@ export const routes: RouteObject[] = [
                   { index: true, element: <TrainerToday /> },
                   { path: 'koledar', element: <TrainerCalendar /> },
                   { path: 'stranke', element: <TrainerCustomers /> },
+                  { path: 'stranke/:id', element: <TrainerCustomerDetail /> },
                   { path: 'nastavitve', element: <TrainerSettings /> },
                 ],
               },
