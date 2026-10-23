@@ -263,7 +263,7 @@ How the guards and the auth state work is in [auth.md](auth.md).
   them `start.tsx` shows a start-up error page (`startupError`) naming the missing variable
   instead of a blank page ([runbook.md](runbook.md#cloudflare-pages-build-settings)).
 - **PWA.** A custom service worker (`src/sw.ts`, vite-plugin-pwa `injectManifest`) precaches
-  the build, updates itself (`skipWaiting` + `clientsClaim`, the `autoUpdate` behaviour) and
+  the build, serves `index.html` for every navigation (deep links work offline), updates itself (`skipWaiting` + `clientsClaim`, the `autoUpdate` behaviour) and
   shows push notifications ([notifications.md](notifications.md#service-worker)).
   `display: standalone`, manifest language `sl`, icons
   192 and 512 px. Cloudflare Pages falls back to `index.html` for unknown paths natively;

@@ -1,10 +1,18 @@
 import { clientsClaim } from 'workbox-core';
-import { precacheAndRoute, type PrecacheEntry } from 'workbox-precaching';
+import {
+  cleanupOutdatedCaches,
+  createHandlerBoundToURL,
+  precacheAndRoute,
+  type PrecacheEntry,
+} from 'workbox-precaching';
+import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { parsePush } from './push/render';
 
 declare let self: ServiceWorkerGlobalScope & { __WB_MANIFEST: (PrecacheEntry | string)[] };
 
 precacheAndRoute(self.__WB_MANIFEST);
+cleanupOutdatedCaches();
+registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')));
 void self.skipWaiting();
 clientsClaim();
 

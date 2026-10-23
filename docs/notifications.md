@@ -74,6 +74,11 @@ A reminder that expires at the cutoff is never delivered after it, when it would
 `app/src/sw.ts`, built by vite-plugin-pwa (`strategies: 'injectManifest'`) into `dist/sw.js`
 and registered by the plugin's `registerSW.js`:
 
+- **app shell:** precaches the build (`precacheAndRoute`), deletes caches of older builds
+  (`cleanupOutdatedCaches`), answers every navigation with the precached `index.html`
+  (`NavigationRoute` + `createHandlerBoundToURL`, so a deep link opens offline too) and takes
+  over at once (`skipWaiting` + `clientsClaim`), as the plugin's generated worker did before.
+
 - **push:** `parsePush(event.data.text())` (`app/src/push/render.ts`) parses `{kind, data,
   url}` and renders title and body from `sl.push.*` with the times in `data.timezone` (the
   device's zone if missing). A reminder shows the start and the cutoff (time only when the
