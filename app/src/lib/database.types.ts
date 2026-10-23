@@ -353,6 +353,15 @@ export type Database = {
         Args: { p_amount: number; p_customer_id: string; p_note?: string }
         Returns: string
       }
+      book: {
+        Args: {
+          p_customer_id: string
+          p_ends_at?: string
+          p_slot_template_id?: string
+          p_starts_at: string
+        }
+        Returns: string
+      }
       current_customer_id: { Args: never; Returns: string }
       is_trainer: { Args: never; Returns: boolean }
       top_up: {
