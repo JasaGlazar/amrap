@@ -26,7 +26,7 @@ export function CustomerHistory() {
   if (state.status === 'error') {
     return (
       <p role="alert" className="error">
-        {t.customer.loadFailed}
+        {t.common.loadFailed}
       </p>
     );
   }

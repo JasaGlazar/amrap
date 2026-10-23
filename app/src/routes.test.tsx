@@ -66,14 +66,14 @@ describe('role gating', () => {
 
   it('sends a customer away from /t to /c', async () => {
     signedInAs(customer);
-    const router = renderAt('/t/customers');
+    const router = renderAt('/t/stranke');
     await screen.findByRole('heading', { name: t.nav.home });
     expect(router.state.location.pathname).toBe('/c');
   });
 
   it('sends a trainer away from /c to /t', async () => {
     signedInAs(trainer);
-    const router = renderAt('/c/history');
+    const router = renderAt('/c/zgodovina');
     await screen.findByRole('heading', { name: t.trainer.todayTitle });
     expect(router.state.location.pathname).toBe('/t');
   });

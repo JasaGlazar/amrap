@@ -1,15 +1,17 @@
 import { useCallback, useState } from 'react';
 import { book, type Appointment, type Booking } from '../../data/appointments';
 import { listCustomers } from '../../data/customers';
-import { appointmentsIn, loadWeek } from '../../data/week';
+import { appointmentsIn, appointmentsOutsideSlots, loadWeek } from '../../data/week';
 import { fill, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { formatLongDay, formatTime } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
 import { CancelDialog } from '../shared/CancelDialog';
+import { NoticeLine, type Notice } from '../shared/NoticeLine';
 import { WeekNav } from '../shared/WeekNav';
 import { WeekSlots } from '../shared/WeekSlots';
 import { AdHocForm } from './AdHocForm';
+import { OtherAppointments } from './OtherAppointments';
 import { SlotRoster } from './SlotRoster';
 
 export function TrainerCalendar() {
@@ -22,7 +24,7 @@ export function TrainerCalendar() {
     return { week, customers };
   }, [weekOffset]);
   const [state, reload] = useLoad(load);
-  const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
+  const [message, setMessage] = useState<Notice>(null);
   const [pending, setPending] = useState(false);
   const [cancelling, setCancelling] = useState<Appointment | null>(null);
 
@@ -45,7 +47,6 @@ export function TrainerCalendar() {
   const data = state.status === 'ok' ? state.data : null;
   const names = new Map(data?.customers.map((customer) => [customer.id, customer.name]));
   const timeZone = data?.week.settings.timeZone ?? '';
-  const adHoc = data?.week.appointments.filter((a) => a.slotTemplateId === null) ?? [];
 
   return (
     <>
@@ -56,15 +57,11 @@ export function TrainerCalendar() {
         onPrevious={() => goToWeek(weekOffset - 1)}
         onNext={() => goToWeek(weekOffset + 1)}
       />
-      {message !== null && (
-        <p role={message.error ? 'alert' : 'status'} className={message.error ? 'error' : 'ok'}>
-          {message.text}
-        </p>
-      )}
+      <NoticeLine notice={message} />
       {state.status === 'loading' && <p className="status">{t.common.loading}</p>}
       {state.status === 'error' && (
         <p role="alert" className="error">
-          {t.customer.loadFailed}
+          {t.common.loadFailed}
         </p>
       )}
       {data !== null && (
@@ -97,36 +94,12 @@ export function TrainerCalendar() {
               />
             )}
           />
-          <section aria-label={t.trainer.adHocTitle}>
-            <h2>{t.trainer.adHocTitle}</h2>
-            {adHoc.length === 0 ? (
-              <p>{t.trainer.noAdHoc}</p>
-            ) : (
-              <ul className="list">
-                {adHoc.map((appointment) => (
-                  <li key={appointment.id} className="row">
-                    <span>
-                      {fill(t.slot.when, {
-                        day: formatLongDay(appointment.startsAt, timeZone),
-                        time: fill(t.trainer.timeRange, {
-                          from: formatTime(appointment.startsAt, timeZone),
-                          to: formatTime(appointment.endsAt, timeZone),
-                        }),
-                      })}
-                    </span>
-                    <span>{names.get(appointment.customerId)}</span>
-                    <button
-                      type="button"
-                      className="button secondary small"
-                      onClick={() => setCancelling(appointment)}
-                    >
-                      {t.slot.cancel}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          <OtherAppointments
+            appointments={appointmentsOutsideSlots(data.week)}
+            names={names}
+            timeZone={timeZone}
+            onCancel={setCancelling}
+          />
           <AdHocForm
             key={data.week.start}
             customers={data.customers}
@@ -141,7 +114,7 @@ export function TrainerCalendar() {
         <CancelDialog
           appointment={cancelling}
           settings={data.week.settings}
-          customerName={names.get(cancelling.customerId)}
+          customerName={names.get(cancelling.customerId) ?? t.trainer.unknownCustomer}
           asTrainer
           onClose={() => {
             setCancelling(null);

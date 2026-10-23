@@ -248,6 +248,8 @@ describe('cancel dialog', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
     expect(dialog).toHaveTextContent(t.cancelDialog.late);
     expect(fakeSupabase.rpc).not.toHaveBeenCalledWith('cancel', expect.anything());
+    await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', { p_appointment_id: 'a1' });
   });
 
   it('takes focus when it opens and closes on Escape', async () => {

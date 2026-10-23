@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fill, t } from '../../i18n';
 import { weekdayName } from '../../lib/time';
 import { routes } from '../../routes';
+import { RECENT_DAYS } from './CustomerDetail';
 import { db, fakeSupabase, makeCustomer, makeSession, resetFake } from '../../test/fakeSupabase';
 
 vi.mock('../../lib/supabase', async () => ({
@@ -60,7 +61,8 @@ describe('customer list', () => {
     expect(items[0]).toHaveTextContent(t.customers.inviteStatus.linked);
     expect(items[1]).toHaveTextContent(t.customers.inviteStatus.pending);
     expect(items[2]).toHaveTextContent(t.customers.inviteStatus.none);
-    expect(within(items[1]).getByText('-2')).toHaveClass('negative');
+    const borBalance = db.tables.customer_balances.find((row) => row.customer_id === bor.id);
+    expect(within(items[1]).getByText(String(borBalance?.balance))).toHaveClass('negative');
   });
 
   it('creates a customer and opens the detail page', async () => {
@@ -154,6 +156,35 @@ describe('customer detail', () => {
     expect(within(invite).queryByRole('button')).not.toBeInTheDocument();
   });
 
+  it('lists recently charged appointments and offers a refunding cancel', async () => {
+    const day = 86_400_000;
+    const charged = (id: string, daysAgo: number) => {
+      const startsAt = new Date(Date.now() - daysAgo * day).toISOString();
+      return {
+        id,
+        customer_id: ana.id,
+        slot_template_id: template.id,
+        starts_at: startsAt,
+        ends_at: startsAt,
+        status: 'charged',
+      };
+    };
+    const ages = { recent: 3, old: RECENT_DAYS + 10 };
+    db.tables.appointments = Object.entries(ages).map(([id, daysAgo]) => charged(id, daysAgo));
+    renderAt(`/t/stranke/${ana.id}`);
+    const recent = await screen.findByRole('region', {
+      name: fill(t.customerDetail.recentTitle, { days: RECENT_DAYS }),
+    });
+    expect(within(recent).getAllByRole('listitem')).toHaveLength(
+      Object.values(ages).filter((daysAgo) => daysAgo < RECENT_DAYS).length,
+    );
+    await userEvent.click(within(recent).getByRole('button', { name: t.slot.cancel }));
+    const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
+    expect(dialog).toHaveTextContent(t.cancelDialog.refund);
+    await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', { p_appointment_id: 'recent' });
+  });
+
   it('adds a recurring rule and activates it', async () => {
     renderAt(`/t/stranke/${ana.id}`);
     const rules = await screen.findByRole('region', { name: t.customerDetail.rulesTitle });
@@ -191,10 +222,13 @@ describe('customer detail', () => {
     ];
     renderAt(`/t/stranke/${ana.id}`);
     const rules = await screen.findByRole('region', { name: t.customerDetail.rulesTitle });
+    const cancelled = db.tables.appointments.filter(
+      (row) => row.rule_id === 'r1' && row.status === 'booked',
+    ).length;
     await userEvent.click(within(rules).getByRole('button', { name: t.customerDetail.stopRule }));
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('deactivate_rule', { p_rule_id: 'r1' });
     expect(await within(rules).findByRole('status')).toHaveTextContent(
-      fill(t.customerDetail.ruleStopped, { count: 1 }),
+      fill(t.customerDetail.ruleStopped, { count: cancelled }),
     );
     expect(within(rules).getByRole('button', { name: t.customerDetail.restartRule })).toBeVisible();
     const addable = within(rules).getByLabelText(t.customerDetail.addRuleLabel);

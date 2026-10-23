@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { upcomingAppointments, type Appointment } from '../../data/appointments';
+import { chargedSince, upcomingAppointments, type Appointment } from '../../data/appointments';
 import type { ActionResult } from '../../data/client';
 import { adjust, balanceOf, ledgerOf, topUp } from '../../data/credits';
 import { createInvite, getCustomer, inviteStatus, updateCustomer } from '../../data/customers';
@@ -13,33 +13,28 @@ import { formatLongDay, formatTime, weekdayName } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
 import { CancelDialog } from '../shared/CancelDialog';
 import { LedgerList } from '../shared/LedgerList';
+import { NoticeLine, type Notice } from '../shared/NoticeLine';
 import { CustomerFieldsForm } from './CustomerFieldsForm';
 
-type Notice = { error: boolean; text: string } | null;
-
-function NoticeLine({ notice }: { notice: Notice }) {
-  if (notice === null) return null;
-  return (
-    <p role={notice.error ? 'alert' : 'status'} className={notice.error ? 'error' : 'ok'}>
-      {notice.text}
-    </p>
-  );
-}
+export const RECENT_DAYS = 30;
 
 export function TrainerCustomerDetail() {
   const { id = '' } = useParams();
   const load = useCallback(async () => {
     const now = new Date();
-    const [customer, settings, balance, ledger, upcoming, rules, templates] = await Promise.all([
-      getCustomer(supabase, id),
-      getSettings(supabase),
-      balanceOf(supabase, id),
-      ledgerOf(supabase, id),
-      upcomingAppointments(supabase, id, now),
-      rulesOf(supabase, id),
-      allTemplates(supabase),
-    ]);
-    return { now, customer, settings, balance, ledger, upcoming, rules, templates };
+    const since = new Date(now.getTime() - RECENT_DAYS * 86_400_000);
+    const [customer, settings, balance, ledger, upcoming, recent, rules, templates] =
+      await Promise.all([
+        getCustomer(supabase, id),
+        getSettings(supabase),
+        balanceOf(supabase, id),
+        ledgerOf(supabase, id),
+        upcomingAppointments(supabase, id, now),
+        chargedSince(supabase, id, since),
+        rulesOf(supabase, id),
+        allTemplates(supabase),
+      ]);
+    return { now, customer, settings, balance, ledger, upcoming, recent, rules, templates };
   }, [id]);
   const [state, reload] = useLoad(load);
   const [busy, setBusy] = useState(false);
@@ -48,7 +43,10 @@ export function TrainerCustomerDetail() {
   const [note, setNote] = useState('');
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [chosenTemplate, setChosenTemplate] = useState('');
-  const [cancelling, setCancelling] = useState<Appointment | null>(null);
+  const [cancelling, setCancelling] = useState<{
+    appointment: Appointment;
+    section: string;
+  } | null>(null);
 
   async function run<T>(
     section: string,
@@ -75,20 +73,21 @@ export function TrainerCustomerDetail() {
       <>
         <Link to="/t/stranke">{t.customerDetail.back}</Link>
         <p role="alert" className="error">
-          {t.customer.loadFailed}
+          {t.common.loadFailed}
         </p>
       </>
     );
   }
 
-  const { now, customer, settings, balance, ledger, upcoming, rules, templates } = state.data;
+  const { now, customer, settings, balance, ledger, upcoming, recent, rules, templates } =
+    state.data;
   const { timeZone } = settings;
   const status = inviteStatus(customer, now);
   const shownToken = inviteToken ?? (status === 'pending' ? customer.inviteToken : null);
   const inviteLink = shownToken === null ? null : `${window.location.origin}/invite/${shownToken}`;
   const templateLabel = (templateId: string) => {
     const template = templates.find((row) => row.id === templateId);
-    if (template === undefined) return templateId;
+    if (template === undefined) return t.customerDetail.unknownTemplate;
     return fill(t.customerDetail.ruleLabel, {
       weekday: weekdayName(template.weekday),
       time: template.start_time.slice(0, 5),
@@ -114,6 +113,41 @@ export function TrainerCustomerDetail() {
         : { error: true, text: t.customerDetail.copyFailed },
     }));
   }
+
+  const appointmentSection = (
+    section: string,
+    title: string,
+    appointments: Appointment[],
+    empty: string,
+  ) => (
+    <section aria-label={title}>
+      <h2>{title}</h2>
+      <NoticeLine notice={notices[section]} />
+      {appointments.length === 0 ? (
+        <p>{empty}</p>
+      ) : (
+        <ul className="list">
+          {appointments.map((appointment) => (
+            <li key={appointment.id} className="row">
+              <span>
+                {fill(t.slot.when, {
+                  day: formatLongDay(appointment.startsAt, timeZone),
+                  time: formatTime(appointment.startsAt, timeZone),
+                })}
+              </span>
+              <button
+                type="button"
+                className="button secondary small"
+                onClick={() => setCancelling({ appointment, section })}
+              >
+                {t.slot.cancel}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 
   async function changeCredits(kind: 'topUp' | 'adjust') {
     const value = Number(amount);
@@ -169,7 +203,7 @@ export function TrainerCustomerDetail() {
           {t.customerDetail.note}
           <input value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
-        <NoticeLine notice={notices.credits ?? null} />
+        <NoticeLine notice={notices.credits} />
         <div className="actions">
           <button
             type="button"
@@ -212,7 +246,7 @@ export function TrainerCustomerDetail() {
                 </button>
               </div>
             )}
-            <NoticeLine notice={notices.invite ?? null} />
+            <NoticeLine notice={notices.invite} />
             <button
               type="button"
               className="button"
@@ -237,7 +271,7 @@ export function TrainerCustomerDetail() {
 
       <section aria-label={t.customerDetail.rulesTitle}>
         <h2>{t.customerDetail.rulesTitle}</h2>
-        <NoticeLine notice={notices.rules ?? null} />
+        <NoticeLine notice={notices.rules} />
         {rules.length === 0 ? (
           <p>{t.customerDetail.noRules}</p>
         ) : (
@@ -302,33 +336,18 @@ export function TrainerCustomerDetail() {
         </div>
       </section>
 
-      <section aria-label={t.customerDetail.upcomingTitle}>
-        <h2>{t.customerDetail.upcomingTitle}</h2>
-        <NoticeLine notice={notices.upcoming ?? null} />
-        {upcoming.length === 0 ? (
-          <p>{t.customer.noUpcoming}</p>
-        ) : (
-          <ul className="list">
-            {upcoming.map((appointment) => (
-              <li key={appointment.id} className="row">
-                <span>
-                  {fill(t.slot.when, {
-                    day: formatLongDay(appointment.startsAt, timeZone),
-                    time: formatTime(appointment.startsAt, timeZone),
-                  })}
-                </span>
-                <button
-                  type="button"
-                  className="button secondary small"
-                  onClick={() => setCancelling(appointment)}
-                >
-                  {t.slot.cancel}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {appointmentSection(
+        'upcoming',
+        t.customerDetail.upcomingTitle,
+        upcoming,
+        t.customer.noUpcoming,
+      )}
+      {appointmentSection(
+        'recent',
+        fill(t.customerDetail.recentTitle, { days: RECENT_DAYS }),
+        recent,
+        t.customerDetail.noRecent,
+      )}
 
       <CustomerFieldsForm
         key={`${customer.name}|${customer.phone}|${customer.email}`}
@@ -354,7 +373,7 @@ export function TrainerCustomerDetail() {
 
       {cancelling !== null && (
         <CancelDialog
-          appointment={cancelling}
+          appointment={cancelling.appointment}
           settings={settings}
           customerName={customer.name}
           asTrainer
@@ -366,7 +385,7 @@ export function TrainerCustomerDetail() {
             setCancelling(null);
             setNotices((current) => ({
               ...current,
-              upcoming: { error: false, text: t.cancelDialog.done },
+              [cancelling.section]: { error: false, text: t.cancelDialog.done },
             }));
             void reload();
           }}

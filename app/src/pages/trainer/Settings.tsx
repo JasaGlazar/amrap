@@ -1,4 +1,5 @@
 import { useCallback, useState, type FormEvent } from 'react';
+import { futureBookedCount } from '../../data/appointments';
 import type { ActionResult } from '../../data/client';
 import { getSettings, setLateCancelHours } from '../../data/settings';
 import {
@@ -14,10 +15,9 @@ import { fill, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { formatDay, formatTime, localDateOf, weekdayName } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
+import { NoticeLine, type Notice } from '../shared/NoticeLine';
 import { BlockedForm } from './BlockedForm';
 import { TemplateForm } from './TemplateForm';
-
-type Notice = { error: boolean; text: string } | null;
 
 const newTemplate: TemplateFields = {
   weekday: 0,
@@ -41,6 +41,7 @@ export function TrainerSettings() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Record<string, Notice>>({});
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
+  const [stranded, setStranded] = useState<{ key: string; id: string; count: number } | null>(null);
   const [editingBlocked, setEditingBlocked] = useState<string | null>(null);
   const [formVersion, setFormVersion] = useState(0);
   const [cutoff, setCutoff] = useState<string | null>(null);
@@ -64,7 +65,7 @@ export function TrainerSettings() {
   if (state.status === 'error') {
     return (
       <p role="alert" className="error">
-        {t.customer.loadFailed}
+        {t.common.loadFailed}
       </p>
     );
   }
@@ -72,15 +73,6 @@ export function TrainerSettings() {
   const { now, settings, templates, blocked } = state.data;
   const { timeZone } = settings;
   const cutoffValue = cutoff ?? String(settings.lateCancelHours);
-  const noticeLine = (section: string) => {
-    const current = notice[section];
-    if (current === undefined || current === null) return null;
-    return (
-      <p role={current.error ? 'alert' : 'status'} className={current.error ? 'error' : 'ok'}>
-        {current.text}
-      </p>
-    );
-  };
 
   async function saveCutoff(event: FormEvent) {
     event.preventDefault();
@@ -96,7 +88,23 @@ export function TrainerSettings() {
   }
 
   async function storeTemplate(id: string | null, fields: TemplateFields) {
+    const before = templates.find((template) => template.id === id);
+    const strands =
+      before !== undefined &&
+      before.active &&
+      (!fields.active ||
+        before.weekday !== fields.weekday ||
+        before.start_time.slice(0, 5) !== fields.start_time.slice(0, 5));
+    const key = `${id}|${JSON.stringify(fields)}`;
+    if (strands && id !== null && stranded?.key !== key) {
+      const count = await futureBookedCount(supabase, id, new Date());
+      if (count > 0) {
+        setStranded({ key, id, count });
+        return;
+      }
+    }
     if (await run('templates', () => saveTemplate(supabase, id, fields))) {
+      setStranded(null);
       setEditingTemplate(null);
       setFormVersion((value) => value + 1);
     }
@@ -118,7 +126,7 @@ export function TrainerSettings() {
 
       <section aria-label={t.settings.templatesTitle}>
         <h2>{t.settings.templatesTitle}</h2>
-        {noticeLine('templates')}
+        <NoticeLine notice={notice.templates} />
         {templates.length === 0 && <p>{t.settings.noTemplates}</p>}
         <ul className="list">
           {templates.map((template) =>
@@ -128,8 +136,16 @@ export function TrainerSettings() {
                   title={t.settings.editTemplate}
                   initial={template}
                   busy={busy}
+                  warning={
+                    stranded?.id === template.id
+                      ? fill(t.settings.strandedWarning, { count: stranded.count })
+                      : null
+                  }
                   onSave={(fields) => void storeTemplate(template.id, fields)}
-                  onCancel={() => setEditingTemplate(null)}
+                  onCancel={() => {
+                    setStranded(null);
+                    setEditingTemplate(null);
+                  }}
                 />
               </li>
             ) : (
@@ -178,7 +194,7 @@ export function TrainerSettings() {
             onChange={(e) => setCutoff(e.target.value)}
           />
         </label>
-        {noticeLine('cutoff')}
+        <NoticeLine notice={notice.cutoff} />
         <button type="submit" className="button" disabled={busy}>
           {t.settings.save}
         </button>
@@ -186,7 +202,7 @@ export function TrainerSettings() {
 
       <section aria-label={t.settings.blockedTitle}>
         <h2>{t.settings.blockedTitle}</h2>
-        {noticeLine('blocked')}
+        <NoticeLine notice={notice.blocked} />
         {blocked.length === 0 && <p>{t.settings.noBlocked}</p>}
         <ul className="list">
           {blocked.map((period) =>

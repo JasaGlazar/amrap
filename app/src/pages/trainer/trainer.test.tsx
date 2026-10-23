@@ -88,27 +88,69 @@ describe('today', () => {
   it('lists the customers with a negative balance, most negative first', async () => {
     renderAt('/t');
     const strip = await screen.findByRole('region', { name: t.trainer.debtorsTitle });
-    const expected = customers
+    const debtors = customers
       .filter((customer) => balances[customer.id as keyof typeof balances] < 0)
       .sort(
         (a, b) => balances[a.id as keyof typeof balances] - balances[b.id as keyof typeof balances],
-      )
-      .map((customer) => customer.name);
+      );
     const links = within(strip).getAllByRole('link');
-    expect(links.map((link) => link.textContent?.split(' ')[0])).toEqual(expected);
-    expect(links[0]).toHaveAttribute('href', `/t/stranke/${customers[0].id}`);
+    expect(links.map((link) => link.textContent?.split(' ')[0])).toEqual(
+      debtors.map((customer) => customer.name),
+    );
+    expect(links[0]).toHaveAttribute('href', `/t/stranke/${debtors[0].id}`);
   });
 
   it("shows today's occurrence with its booked customers and remaining capacity", async () => {
     renderAt('/t');
     const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
-    expect(row).toHaveTextContent('Ana');
+    const booked = db.tables.appointments.map((row) => row.customer_id);
+    for (const customer of customers.filter((customer) => booked.includes(customer.id))) {
+      expect(row).toHaveTextContent(customer.name);
+    }
+    const count = db.tables.slot_occupancy.reduce((sum, row) => sum + Number(row.booked_count), 0);
     expect(row).toHaveTextContent(
       fill(t.calendar.spots, {
-        free: todayTemplate.capacity - 1,
+        free: todayTemplate.capacity - count,
         capacity: todayTemplate.capacity,
       }),
     );
+  });
+});
+
+describe('appointments outside the slot grid', () => {
+  const retired = { ...todayTemplate, id: 'tpl-retired', start_time: '09:00:00', active: false };
+  const retiredStart = occurrenceInWeek(retired, weekStart(today), tz)!.startsAt;
+
+  beforeEach(() => {
+    db.tables.slot_templates = [todayTemplate, retired];
+    db.tables.appointments.push({
+      id: 'a-orphan',
+      customer_id: 'c-bor',
+      slot_template_id: retired.id,
+      starts_at: postgrestTime(retiredStart),
+      ends_at: postgrestTime(new Date(retiredStart.getTime() + retired.duration_minutes * 60_000)),
+      status: 'booked',
+    });
+  });
+
+  function orphanRow(section: HTMLElement) {
+    const name = customers.find((customer) => customer.id === 'c-bor')!.name;
+    return within(section).getByText(name).closest('li') as HTMLElement;
+  }
+
+  it('shows a booking of a deactivated template on Today', async () => {
+    renderAt('/t');
+    const section = await screen.findByRole('region', { name: t.trainer.otherTitle });
+    expect(orphanRow(section)).toHaveTextContent(t.trainer.offGridTag);
+  });
+
+  it('lets the trainer cancel it from the calendar', async () => {
+    renderAt('/t/koledar');
+    const section = await screen.findByRole('region', { name: t.trainer.otherTitle });
+    await userEvent.click(within(orphanRow(section)).getByRole('button', { name: t.slot.cancel }));
+    const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
+    await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', { p_appointment_id: 'a-orphan' });
   });
 });
 

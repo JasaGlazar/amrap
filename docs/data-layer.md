@@ -39,6 +39,8 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 | `rulesOf(client, customerId)` | `recurring_rules` | that customer's rules, oldest first |
 | `allTemplates(client)` | `slot_templates` | active and inactive, by `weekday`, `start_time` |
 | `upcomingBlocked(client, now)` | `blocked_periods` | `ends_at > now`, by start |
+| `chargedSince(client, customerId, since)` | `appointments` | that customer's `charged` appointments with `starts_at >= since`, newest first |
+| `futureBookedCount(client, templateId, now)` | `appointments` | the number of `booked` appointments of that template with `starts_at > now` |
 
 `inviteStatus(customer, now)` derives a customer's invite status: `linked` (an auth user is
 linked), `pending` (an invite token that has not expired) or `none`.
@@ -57,7 +59,9 @@ without a row), `free = max(0, capacity − booked)`, `past` (`startsAt <= now`)
 (overlaps a blocked period). Blocked periods are read up to the week's end plus the longest
 template duration, so an occurrence late on Sunday that runs into the next week is checked
 too. `appointmentsIn(week, slot)` returns the week's appointments of that occurrence (same
-template and start).
+template and start). `appointmentsOutsideSlots(week)` returns the week's appointments that
+match no occurrence: ad-hoc ones and those of a template that was deactivated or moved to
+another weekday or time.
 
 `upcomingAppointments` and `pastAppointments` split my appointments into two disjoint sets: an
 appointment that has started but is not charged yet (the charge job runs every 15 minutes) is

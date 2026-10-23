@@ -2,8 +2,6 @@ import { useState, type FormEvent } from 'react';
 import type { CustomerFields } from '../../data/customers';
 import { t } from '../../i18n';
 
-export type FieldsDraft = CustomerFields;
-
 type Props = {
   title: string;
   submitLabel: string;
@@ -11,7 +9,7 @@ type Props = {
   busy: boolean;
   error: string | null;
   notice?: string | null;
-  onSubmit: (fields: CustomerFields, event: FormEvent) => void;
+  onSubmit: (fields: CustomerFields) => void;
 };
 
 function orNull(value: string): string | null {
@@ -37,7 +35,7 @@ export function CustomerFieldsForm({
     event.preventDefault();
     if (name.trim() === '') return setInvalid(true);
     setInvalid(false);
-    onSubmit({ name: name.trim(), phone: orNull(phone), email: orNull(email) }, event);
+    onSubmit({ name: name.trim(), phone: orNull(phone), email: orNull(email) });
   }
 
   return (

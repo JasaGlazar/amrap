@@ -2,12 +2,13 @@ import { useCallback } from 'react';
 import { Link } from 'react-router';
 import { allBalances } from '../../data/credits';
 import { listCustomers } from '../../data/customers';
-import { appointmentsIn, loadWeek } from '../../data/week';
-import { fill, t } from '../../i18n';
+import { appointmentsIn, appointmentsOutsideSlots, loadWeek } from '../../data/week';
+import { t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
-import { formatTime, localDateOf } from '../../lib/time';
+import { localDateOf } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
 import { WeekSlots } from '../shared/WeekSlots';
+import { OtherAppointments } from './OtherAppointments';
 import { SlotRoster } from './SlotRoster';
 
 export function TrainerToday() {
@@ -26,7 +27,7 @@ export function TrainerToday() {
   if (state.status === 'error') {
     return (
       <p role="alert" className="error">
-        {t.customer.loadFailed}
+        {t.common.loadFailed}
       </p>
     );
   }
@@ -38,9 +39,8 @@ export function TrainerToday() {
     .filter((customer) => (balances.get(customer.id) ?? 0) < 0)
     .sort((a, b) => (balances.get(a.id) ?? 0) - (balances.get(b.id) ?? 0));
   const slots = week.slots.filter((slot) => slot.date === today);
-  const adHoc = week.appointments.filter(
-    (appointment) =>
-      appointment.slotTemplateId === null && localDateOf(appointment.startsAt, timeZone) === today,
+  const other = appointmentsOutsideSlots(week).filter(
+    (appointment) => localDateOf(appointment.startsAt, timeZone) === today,
   );
 
   return (
@@ -63,7 +63,7 @@ export function TrainerToday() {
           </ul>
         )}
       </section>
-      {slots.length === 0 && adHoc.length === 0 && <p>{t.trainer.noSlotsToday}</p>}
+      {slots.length === 0 && other.length === 0 && <p>{t.trainer.noSlotsToday}</p>}
       {slots.length > 0 && (
         <WeekSlots
           slots={slots}
@@ -72,23 +72,8 @@ export function TrainerToday() {
           details={(slot) => <SlotRoster appointments={appointmentsIn(week, slot)} names={names} />}
         />
       )}
-      {adHoc.length > 0 && (
-        <section aria-label={t.trainer.adHocTitle}>
-          <h2>{t.trainer.adHocTitle}</h2>
-          <ul className="list">
-            {adHoc.map((appointment) => (
-              <li key={appointment.id} className="row">
-                <span>
-                  {fill(t.trainer.timeRange, {
-                    from: formatTime(appointment.startsAt, timeZone),
-                    to: formatTime(appointment.endsAt, timeZone),
-                  })}
-                </span>
-                <span>{names.get(appointment.customerId)}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {other.length > 0 && (
+        <OtherAppointments appointments={other} names={names} timeZone={timeZone} />
       )}
     </>
   );

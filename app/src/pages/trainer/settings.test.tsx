@@ -51,19 +51,21 @@ afterEach(() => vi.useRealTimers());
 
 describe('slot templates', () => {
   it('rejects a duration that is not positive', async () => {
+    const before = db.tables.slot_templates.length;
     const form = await newTemplateForm();
     await fillTemplate(form, { [t.settings.startTime]: '18:00', [t.settings.duration]: '0' });
     await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
     expect(within(form).getByRole('alert')).toHaveTextContent(t.settings.durationInvalid);
-    expect(db.tables.slot_templates).toHaveLength(1);
+    expect(db.tables.slot_templates).toHaveLength(before);
   });
 
   it('rejects a capacity that is not positive', async () => {
+    const before = db.tables.slot_templates.length;
     const form = await newTemplateForm();
     await fillTemplate(form, { [t.settings.startTime]: '18:00', [t.settings.capacity]: '0' });
     await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
     expect(within(form).getByRole('alert')).toHaveTextContent(t.settings.capacityInvalid);
-    expect(db.tables.slot_templates).toHaveLength(1);
+    expect(db.tables.slot_templates).toHaveLength(before);
   });
 
   it('creates a template', async () => {
@@ -102,6 +104,64 @@ describe('slot templates', () => {
     await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
     expect(await within(list).findByText(t.settings.inactive)).toBeVisible();
     expect(db.tables.slot_templates[0]).toMatchObject({ id: existing.id, active: false });
+  });
+});
+
+describe('stranded bookings', () => {
+  beforeEach(() => {
+    db.tables.appointments = [
+      {
+        id: 'future-1',
+        customer_id: 'c-1',
+        slot_template_id: existing.id,
+        starts_at: new Date(now.getTime() + 3 * 86_400_000).toISOString(),
+        ends_at: new Date(now.getTime() + 3 * 86_400_000 + 3_600_000).toISOString(),
+        status: 'booked',
+      },
+    ];
+  });
+
+  it('warns with the count of future bookings and saves only on the second click', async () => {
+    renderSettings();
+    const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
+    const form = await screen.findByRole('form', { name: t.settings.editTemplate });
+    await userEvent.click(within(form).getByLabelText(t.settings.active));
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+    const count = db.tables.appointments.filter(
+      (row) => row.slot_template_id === existing.id && row.status === 'booked',
+    ).length;
+    expect(await within(form).findByRole('alert')).toHaveTextContent(
+      fill(t.settings.strandedWarning, { count }),
+    );
+    expect(db.tables.slot_templates[0].active).toBe(true);
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+    expect(await within(list).findByText(t.settings.inactive)).toBeVisible();
+    expect(db.tables.slot_templates[0].active).toBe(false);
+  });
+
+  it('warns when the start time moves too', async () => {
+    renderSettings();
+    const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
+    const form = await screen.findByRole('form', { name: t.settings.editTemplate });
+    await fillTemplate(form, { [t.settings.startTime]: '08:00' });
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+    expect(await within(form).findByRole('alert')).toHaveTextContent(
+      fill(t.settings.strandedWarning, { count: db.tables.appointments.length }),
+    );
+    expect(db.tables.slot_templates[0].start_time).toBe(existing.start_time);
+  });
+
+  it('saves a capacity change without a warning', async () => {
+    renderSettings();
+    const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
+    const form = await screen.findByRole('form', { name: t.settings.editTemplate });
+    await fillTemplate(form, { [t.settings.capacity]: String(existing.capacity + 1) });
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    expect(db.tables.slot_templates[0].capacity).toBe(existing.capacity + 1);
   });
 });
 

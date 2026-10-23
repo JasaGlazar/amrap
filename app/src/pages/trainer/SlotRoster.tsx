@@ -23,7 +23,7 @@ export function SlotRoster({ appointments, names, onCancel, add }: Props) {
         <ul className="roster-list">
           {appointments.map((appointment) => (
             <li key={appointment.id}>
-              <span>{names.get(appointment.customerId) ?? appointment.customerId}</span>
+              <span>{names.get(appointment.customerId) ?? t.trainer.unknownCustomer}</span>
               {appointment.status === 'charged' && (
                 <span className="tag status-charged">{t.trainer.chargedTag}</span>
               )}

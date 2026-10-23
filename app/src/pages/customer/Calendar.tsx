@@ -6,6 +6,7 @@ import { t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { useLoad } from '../../lib/useLoad';
 import { CancelDialog } from '../shared/CancelDialog';
+import { NoticeLine, type Notice } from '../shared/NoticeLine';
 import { WeekNav } from '../shared/WeekNav';
 import { WeekSlots } from '../shared/WeekSlots';
 
@@ -17,7 +18,7 @@ export function CustomerCalendar() {
     [customer.id, weekOffset],
   );
   const [state, reload] = useLoad(load);
-  const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
+  const [message, setMessage] = useState<Notice>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<Appointment | null>(null);
 
@@ -50,15 +51,11 @@ export function CustomerCalendar() {
         onPrevious={() => goToWeek(weekOffset - 1)}
         onNext={() => goToWeek(weekOffset + 1)}
       />
-      {message !== null && (
-        <p role={message.error ? 'alert' : 'status'} className={message.error ? 'error' : 'ok'}>
-          {message.text}
-        </p>
-      )}
+      <NoticeLine notice={message} />
       {state.status === 'loading' && <p className="status">{t.common.loading}</p>}
       {state.status === 'error' && (
         <p role="alert" className="error">
-          {t.customer.loadFailed}
+          {t.common.loadFailed}
         </p>
       )}
       {state.status === 'ok' && (

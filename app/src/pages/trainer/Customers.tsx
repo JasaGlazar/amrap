@@ -1,11 +1,16 @@
-import { useCallback, useState, type FormEvent } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { allBalances } from '../../data/credits';
-import { createCustomer, inviteStatus, listCustomers } from '../../data/customers';
+import {
+  createCustomer,
+  inviteStatus,
+  listCustomers,
+  type CustomerFields,
+} from '../../data/customers';
 import { t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { useLoad } from '../../lib/useLoad';
-import { CustomerFieldsForm, type FieldsDraft } from './CustomerFieldsForm';
+import { CustomerFieldsForm } from './CustomerFieldsForm';
 
 export function TrainerCustomers() {
   const navigate = useNavigate();
@@ -20,8 +25,7 @@ export function TrainerCustomers() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function create(draft: FieldsDraft, event: FormEvent) {
-    event.preventDefault();
+  async function create(draft: CustomerFields) {
     setBusy(true);
     const result = await createCustomer(supabase, draft);
     setBusy(false);
@@ -35,7 +39,7 @@ export function TrainerCustomers() {
       {state.status === 'loading' && <p className="status">{t.common.loading}</p>}
       {state.status === 'error' && (
         <p role="alert" className="error">
-          {t.customer.loadFailed}
+          {t.common.loadFailed}
         </p>
       )}
       {state.status === 'ok' && (
@@ -68,7 +72,7 @@ export function TrainerCustomers() {
         initial={{ name: '', phone: null, email: null }}
         busy={busy}
         error={error}
-        onSubmit={(draft, event) => void create(draft, event)}
+        onSubmit={(draft) => void create(draft)}
       />
     </>
   );

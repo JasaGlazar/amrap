@@ -84,3 +84,14 @@ export function appointmentsIn(week: Week, slot: WeekSlot): Appointment[] {
       appointment.startsAt.getTime() === slot.startsAt.getTime(),
   );
 }
+
+export function appointmentsOutsideSlots(week: Week): Appointment[] {
+  return week.appointments.filter(
+    (appointment) =>
+      !week.slots.some(
+        (slot) =>
+          appointment.slotTemplateId === slot.templateId &&
+          appointment.startsAt.getTime() === slot.startsAt.getTime(),
+      ),
+  );
+}

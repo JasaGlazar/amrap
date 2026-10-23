@@ -28,7 +28,7 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 ## Customer screens
 
 All three load their data through `app/src/data/` ([data-layer.md](data-layer.md)), show a
-loading line first and `customer.loadFailed` if any read fails. Dates and times are in
+loading line first and `common.loadFailed` if any read fails. Dates and times are in
 `settings.timezone` ([time.md](time.md)). After a booking or a cancel the screen reloads its
 data.
 
@@ -97,7 +97,7 @@ data.
 ## Trainer screens
 
 The trainer reads every customer's rows (RLS `for all`); names come from `listCustomers` and
-are matched to appointments by customer id. Load failures show `customer.loadFailed`.
+are matched to appointments by customer id. Load failures show `common.loadFailed`.
 
 ### Today (`/t`)
 
@@ -106,9 +106,12 @@ are matched to appointments by customer id. Load failures show `customer.loadFai
   their detail page with the balance in red. None: `trainer.noDebtors`.
 - **Today's occurrences:** the week's occurrences on today's local date, each with remaining
   capacity (as in the customer calendar) and the names of the customers booked (`booked` or
-  `charged`, the latter tagged `opravljeno`). Ad-hoc appointments today are listed below with
-  their time range and name. Nothing today: `trainer.noSlotsToday`. Read-only; changes are
-  made in the calendar.
+  `charged`, the latter tagged `opravljeno`). Nothing today: `trainer.noSlotsToday`.
+- **Termini zunaj urnika:** today's live appointments that match no shown occurrence, with
+  time range, name and a tag: `po dogovoru` (ad hoc, no template) or `ni več v urniku` (their
+  template was deactivated or its weekday or start time changed; they are still booked and the
+  charge job still charges them). Shown only when there are any. Read-only; changes are made in
+  the calendar.
 
 ### Calendar (`/t/koledar`)
 
@@ -122,8 +125,11 @@ are matched to appointments by customer id. Load failures show `customer.loadFai
   out) with **Dodaj**, disabled while the occurrence is full or blocked or another booking is in
   flight. **Dodaj** calls `book(customer, startsAt, template)`; success shows `trainer.added`,
   a rejection its `errors.AMRAP_*` copy.
-- **Termini po dogovoru:** the week's ad-hoc appointments (no template) with day, time range
-  and name, each with **Odpovej**; then the form **Nov termin po dogovoru**: customer, date
+- **Termini zunaj urnika:** the week's live appointments that match no shown occurrence
+  (`appointmentsOutsideSlots`): ad-hoc ones (`po dogovoru`) and bookings left behind by a
+  deactivated or moved template (`ni več v urniku`), with day, time range and name, each with
+  **Odpovej**. None: `trainer.noOther`.
+- **Nov termin po dogovoru:** a form with customer, date
   (defaults to the week's Monday), start and end time. The date and times are converted with
   `zonedInstant` in the gym timezone ([time.md](time.md)); a time that does not exist that day
   shows `trainer.invalidTime`, an end not after the start `trainer.invalidRange`, no customer
@@ -168,6 +174,10 @@ are matched to appointments by customer id. Load failures show `customer.loadFai
   inserts the rule and activates it, which materializes it right away.
 - **Prihajajoči termini:** the customer's upcoming booked appointments, each with **Odpovej**
   (trainer cancel dialog).
+- **Opravljeni termini (zadnjih 30 dni):** the customer's charged appointments that started in
+  the last 30 days (`RECENT_DAYS`), newest first, each with **Odpovej**; the trainer cancel
+  dialog says the credit is refunded (`cancelDialog.refund`), and `cancel()` adds the +1
+  refund. Older charges are corrected with an adjustment.
 - **Podatki:** name, phone, email; **Shrani** updates the record through RLS.
 - **Zgodovina kreditov:** the ledger, as on the customer's History.
 
@@ -183,6 +193,12 @@ are matched to appointments by customer id. Load failures show `customer.loadFai
   template that has appointments or rules cannot be deleted, so it is deactivated (customers no
   longer see or book it, materialization skips it). Changing a template's time or weekday does
   not move appointments already booked.
+- **Stranded bookings:** saving a deactivation, or a weekday or start-time change, of an
+  active template first counts its future `booked` appointments (`futureBookedCount`). If there
+  are any, the form shows `settings.strandedWarning` with the count (they stay booked and
+  charged and appear under "Termini zunaj urnika" in the trainer calendar) and saves only when
+  **Shrani** is clicked again with the same values. Capacity, duration and reactivation save
+  at once.
 - **Rok za brezplačno odpoved:** `settings.late_cancel_hours`, a whole number of hours, 0 or
   more (`settings.cutoffInvalid`). It applies to every later cancel and to the customers'
   cancel dialog.

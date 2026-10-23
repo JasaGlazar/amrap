@@ -109,3 +109,34 @@ export function cancel(client: Client, appointmentId: string): Promise<ActionRes
     return { data: undefined, error };
   });
 }
+
+export async function futureBookedCount(
+  client: Client,
+  slotTemplateId: string,
+  now: Date,
+): Promise<number> {
+  const { data, error } = await client
+    .from('appointments')
+    .select('id')
+    .eq('slot_template_id', slotTemplateId)
+    .eq('status', 'booked')
+    .gt('starts_at', now.toISOString());
+  if (error) throw error;
+  return data.length;
+}
+
+export async function chargedSince(
+  client: Client,
+  customerId: string,
+  since: Date,
+): Promise<Appointment[]> {
+  const { data, error } = await client
+    .from('appointments')
+    .select(columns)
+    .eq('customer_id', customerId)
+    .eq('status', 'charged')
+    .gte('starts_at', since.toISOString())
+    .order('starts_at', { ascending: false });
+  if (error) throw error;
+  return data.map(toAppointment);
+}

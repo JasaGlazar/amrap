@@ -1,4 +1,4 @@
-import { sl } from '../i18n/sl';
+import { t } from '../i18n';
 import { runAction, type ActionResult, type Client } from './client';
 
 export type Rule = { id: string; slotTemplateId: string; active: boolean };
@@ -41,6 +41,6 @@ export async function addRule(
       .single(),
   );
   if (!inserted.ok) return inserted;
-  if (inserted.data === null) return { ok: false, message: sl.genericError };
+  if (inserted.data === null) return { ok: false, message: t.genericError };
   return activateRule(client, inserted.data.id);
 }

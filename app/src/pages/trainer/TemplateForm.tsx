@@ -7,6 +7,7 @@ type Props = {
   title: string;
   initial: TemplateFields;
   busy: boolean;
+  warning?: string | null;
   onSave: (fields: TemplateFields) => void;
   onCancel?: () => void;
 };
@@ -18,7 +19,7 @@ function positiveInteger(value: string): number | null {
   return value.trim() !== '' && Number.isInteger(number) && number > 0 ? number : null;
 }
 
-export function TemplateForm({ title, initial, busy, onSave, onCancel }: Props) {
+export function TemplateForm({ title, initial, busy, warning, onSave, onCancel }: Props) {
   const [weekday, setWeekday] = useState(String(initial.weekday));
   const [start, setStart] = useState(initial.start_time.slice(0, 5));
   const [duration, setDuration] = useState(String(initial.duration_minutes));
@@ -89,6 +90,11 @@ export function TemplateForm({ title, initial, busy, onSave, onCancel }: Props) 
       {error !== null && (
         <p role="alert" className="error">
           {error}
+        </p>
+      )}
+      {warning !== undefined && warning !== null && (
+        <p role="alert" className="notice late">
+          {warning}
         </p>
       )}
       <div className="actions">
