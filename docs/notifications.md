@@ -90,8 +90,8 @@ creation order. Because of the `(kind, appointment_id)` key only the first train
 device would get a booking notification if there were more than one.
 
 `enqueue_notification()` records nothing without push config or when the recipient has no
-linked user or no subscription, inserts the row and dispatches its id. Each trigger function
-catches every error (`raise warning`), so a failing notification never fails `book`, `cancel`,
+linked user or no subscription, inserts the row and dispatches its id. It and each trigger
+function catch every error (`raise warning`), so a failing notification never fails `book`, `cancel`,
 `top_up` or `adjust`.
 
 ## Subscriptions

@@ -405,7 +405,8 @@ grant for the role that fires it). See [notifications.md](notifications.md#event
   without push config logs (`raise log`) and returns; returns when the recipient has no linked
   user or no push subscription; otherwise inserts the `notifications` row `on conflict (kind,
   appointment_id) do nothing` and, when a row was inserted, calls
-  `dispatch_notifications(array[id])`.
+  `dispatch_notifications(array[id])`. Any error inside it is caught and reported with
+  `raise warning` (nothing is recorded then).
 - `public.notify_booking_created() returns trigger` — trigger
   `appointments_notify_booking_created` (`after insert`, `source = 'self_booked'`): enqueues
   `booking_created` for every trainer.
@@ -417,5 +418,6 @@ grant for the role that fires it). See [notifications.md](notifications.md#event
   'adjustment')`): enqueues `credit_topup` or `credit_adjustment` for the customer with the
   balance after the row.
 
-Each trigger function catches every error and reports it with `raise warning`, so a
-notification problem never fails `book`, `cancel`, `top_up` or `adjust`.
+Each trigger function, like `enqueue_notification` itself, catches every error and reports it
+with `raise warning`, so a notification problem never fails `book`, `cancel`, `top_up` or
+`adjust`.

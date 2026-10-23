@@ -42,6 +42,9 @@ begin
   if v_id is not null then
     perform public.dispatch_notifications(array[v_id]);
   end if;
+exception when others then
+  -- Best effort: a notification problem must never fail the action that triggered it.
+  raise warning 'enqueue_notification failed: % (%)', sqlerrm, sqlstate;
 end;
 $$;
 

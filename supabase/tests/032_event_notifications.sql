@@ -10,7 +10,7 @@
 -- derived from the fixtures and the ledger.
 begin;
 
-select plan(27);
+select plan(29);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
@@ -236,6 +236,16 @@ select tests.clear_authentication();
 select is_empty($$select 1 from mine where transaction_id = (select id from appts where key = 'topup_unconfigured')$$,
   'without push config nothing is recorded');
 select vault.create_secret('test-push-secret', 'amrap_push_secret');
+
+-- An unknown appointment id makes the insert inside enqueue_notification fail (foreign key).
+set local client_min_messages = error;
+select lives_ok(
+  $$select public.enqueue_notification((select id from fx where key = 'cust_a'), 'booking_created',
+                                       '{}'::jsonb, '00000000-0000-4000-8000-000000000000')$$,
+  'enqueue_notification catches a failure inside its own body');
+reset client_min_messages;
+select is_empty($$select 1 from public.notifications where appointment_id = '00000000-0000-4000-8000-000000000000'$$,
+  'the failed enqueue recorded nothing');
 
 create or replace function public.enqueue_notification(p_customer_id uuid, p_kind public.notification_kind,
   p_data jsonb, p_appointment_id uuid default null, p_transaction_id uuid default null)
