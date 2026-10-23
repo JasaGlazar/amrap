@@ -100,14 +100,9 @@ checklist skill. Branch `stage-4-pilot`.
 
 ### Handoff state (2026-10-23, end of Fable session)
 - Stage 1: PR #1 open, CI green. Not merged yet.
-- Stage 2: branch `stage-2-core`. Task 6 committed (c99c787..d2bce86), **task review not yet
-  done**. Implementer concerns for the reviewer/orchestrator to rule on: (a) deactivate →
-  reactivate a rule leaves the cancelled dates cancelled (unique index on rule+start, any
-  status) — acceptable for now, the trainer can re-book by hand; (b) Supabase Security Advisor
-  will flag `slot_occupancy` as a security-definer view — by design; (c) `materialize_recurring`
-  is granted to `authenticated` with an in-function trainer check so the UI can call it;
-  (d) the DST test skips on dates with no change in the 4-week window; (e) a rare deadlock
-  between the nightly run and a booking at the same start is safe to retry.
+- Stage 2: branch `stage-2-core`. Task 6 committed (c99c787..d2bce86), reviewed (approve with
+  fixes); fixes done: ADR 0008, deterministic DST tests, docs index/jobs/schema notes. Next:
+  Task 9. The implementer's concerns were all ruled acceptable and are recorded in ADR 0008.
 - Tasks 7, 8, 9 not started. Run Task 9 first (small), then 7, then 8.
 
 ---
@@ -417,7 +412,7 @@ Commit: `ci: pgTAP, app and docs checks`.
 ## Stage 2 tasks
 
 Branch `stage-2-core` off `stage-1-foundation`; PR base `stage-1-foundation` (stacked on #1).
-Rulings for this stage (recorded in the ledger):
+Rulings for this stage (lasting ones recorded in ADR 0008):
 - Blocked periods are checked by **interval overlap** (`appointment [starts_at, ends_at)` vs
   `blocked [starts_at, ends_at)`), for `book()` and materialization alike.
 - `materialize_recurring()` may be called by cron/service role (no JWT: `auth.uid() is null`)
@@ -425,9 +420,13 @@ Rulings for this stage (recorded in the ledger):
 - Deactivating a rule cancels its future `booked` instances as `cancelled_by_trainer` (no
   charge) through `deactivate_rule()`; past/charged instances are untouched.
 - Remaining capacity is exposed to customers through the owner-executed view
-  `slot_occupancy` (counts only, no customer identity), gated on a linked caller.
-- Cron runs as the migration owner; `charge_due_appointments` and `materialize_recurring`
-  get no grant to `authenticated`/`anon` for the cron path.
+  `slot_occupancy`, a deliberate exception to invoker RLS (ADR 0008): counts only, no
+  customer identity, rows only for a linked caller.
+- Cron runs as the migration owner (no JWT). `charge_due_appointments` has no grant to
+  `authenticated`/`anon`; `materialize_recurring` is granted to `authenticated` and checks
+  the role inside (trainer, or no JWT) (ADR 0008).
+- A cancelled rule instance is never recreated (any-status `(rule_id, starts_at)` index);
+  reactivating a rule does not restore it.
 
 ### Task 6: Recurring rules, materialization, occupancy view, pg_cron
 

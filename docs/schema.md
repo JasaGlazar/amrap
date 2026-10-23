@@ -204,8 +204,11 @@ exposes counts only, never a customer id or name. Rows are returned only when th
 linked: `where (select current_customer_id()) is not null or (select is_trainer())`, so an
 auth user without a customer record sees nothing. `select` is granted to `authenticated` and
 `service_role` (insert, update and delete revoked, matching `customer_balances`); `anon` has
-nothing. The dashboard's Security Advisor reports it as a "security definer view"; that is
-intended (Stage 2 ruling), the filter above and the count-only columns are the guard.
+nothing. `service_role` (and any caller without a JWT) gets zero rows, since both helpers
+return null/false without `auth.uid()`; its grant is only for parity with `customer_balances`.
+The dashboard's Security Advisor reports it as a "security definer view"; that is intended
+([ADR 0008](adr/0008-recurrence-and-occupancy.md)), the filter above and the count-only
+columns are the guard.
 
 ## Helpers
 

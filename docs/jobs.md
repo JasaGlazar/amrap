@@ -93,6 +93,9 @@ Turns recurring rules into appointments about four weeks ahead. Defined in
 - **Who may run it:** no signed-in user (`auth.uid() is null`: pg_cron as `postgres`, the
   service role) or the trainer. Granted to `authenticated` for the trainer path; a customer or
   an unlinked user gets `AMRAP_FORBIDDEN`.
+- **Deadlock:** a `40P01` for `materialize_recurring` in `cron.job_run_details` is harmless
+  (the next run catches up); a booking that hits `40P01` in that window can be retried
+  ([ADR 0008](adr/0008-recurrence-and-occupancy.md)).
 - **Tests:** `supabase/tests/020_materialize.sql`.
 - **Tests (schedule):** `supabase/tests/021_rules_and_jobs.sql` checks both jobs in `cron.job`.
 - **Manual run:** see [Schedules](#schedules).

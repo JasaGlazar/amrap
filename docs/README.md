@@ -6,9 +6,9 @@
 | [harness.md](harness.md) | Repo conventions and gates (docs 1:1, ADRs, diagrams, skills, reviewer, pgTAP testing) |
 | [runbook.md](runbook.md) | Operations: unpause, bootstrap trainer, deploy migrations, Cloudflare Pages |
 | [adr/](adr/README.md) | Architecture decision records |
-| [schema.md](schema.md) | Tables, columns, constraints, indexes, RLS, grants, view `customer_balances`, helpers, migrations list |
-| [rpcs.md](rpcs.md) | RPC reference: `book`, `cancel`, `top_up`, `adjust`, `create_invite`, `accept_invite`, `charge_due_appointments`, error tokens, helpers |
-| [jobs.md](jobs.md) | Scheduled jobs: `charge_due_appointments()` (every 15 min, scheduled in Stage 2) |
+| [schema.md](schema.md) | Tables, columns, constraints, indexes, RLS, grants, views `customer_balances` and `slot_occupancy`, helpers, migrations list |
+| [rpcs.md](rpcs.md) | RPC reference: `book`, `cancel`, `top_up`, `adjust`, `create_invite`, `accept_invite`, `charge_due_appointments`, `materialize_recurring`, `activate_rule`, `deactivate_rule`, error tokens, helpers |
+| [jobs.md](jobs.md) | Scheduled jobs: pg_cron schedules for `charge_due_appointments()` (every 15 min) and `materialize_recurring()` (nightly) |
 | [screens.md](screens.md) | Routes, role gating and strings of the customer and trainer screens |
 
 ## Architecture diagrams
@@ -19,3 +19,4 @@
 - [Charging sequence](architecture/charging-sequence.md)
 - [Booking sequence](architecture/booking-sequence.md)
 - [Auth and invite flow](architecture/auth-invite-flow.md)
+- [Materialization sequence](architecture/materialization-sequence.md)
