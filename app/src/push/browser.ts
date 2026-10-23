@@ -19,6 +19,19 @@ async function registration(): Promise<ServiceWorkerRegistration | undefined> {
   return navigator.serviceWorker.getRegistration();
 }
 
+const READY_TIMEOUT_MS = 5000;
+
+function activeRegistration(): Promise<ServiceWorkerRegistration> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error('service worker did not become active')),
+      READY_TIMEOUT_MS,
+    );
+  });
+  return Promise.race([navigator.serviceWorker.ready, timeout]).finally(() => clearTimeout(timer));
+}
+
 export const browserPlatform: PushPlatform = {
   environment() {
     const ios =
@@ -48,7 +61,7 @@ export const browserPlatform: PushPlatform = {
   },
   async subscribe(applicationServerKey) {
     if (!(await registration())) throw new Error('no service worker registration');
-    const active = await navigator.serviceWorker.ready;
+    const active = await activeRegistration();
     return active.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
   },
 };

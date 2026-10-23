@@ -33,6 +33,23 @@ describe('browserPlatform.subscribe', () => {
     expect(installing.pushManager.subscribe).not.toHaveBeenCalled();
   });
 
+  it('gives up when no worker becomes active within a few seconds', async () => {
+    vi.useFakeTimers();
+    try {
+      const installing = registration(() => Promise.reject(new Error('no active worker')));
+      stubServiceWorker({
+        getRegistration: vi.fn(async () => installing),
+        ready: new Promise(() => {}),
+      });
+      const subscribing = browserPlatform.subscribe(key);
+      const settled = expect(subscribing).rejects.toThrow('service worker did not become active');
+      await vi.advanceTimersByTimeAsync(5000);
+      await settled;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('fails without a registration rather than waiting forever', async () => {
     stubServiceWorker({
       getRegistration: vi.fn(async () => undefined),
