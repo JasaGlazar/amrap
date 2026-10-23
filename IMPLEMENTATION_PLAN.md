@@ -82,6 +82,31 @@ checklist skill. Branch `stage-4-pilot`.
 **Tests**: manual E2E on both roles on real phones.
 **Status**: Not Started
 
+## Workflow (from 2026-10-23 evening)
+
+- Orchestrator session runs on Opus. Per stage: a Herdr worktree with a fresh session does the
+  stage; the orchestrator reviews each task with the project `reviewer` agent.
+- PR per stage (`--label patch --assignee @me`), based on the previous stage branch. Merge
+  automatically when CI is green; no owner review needed. After a stage merges to `main`, run
+  `supabase db push` and report it (owner approved on 2026-10-23).
+- Only one worktree runs the local Supabase stack at a time (fixed ports): `supabase stop`
+  before switching.
+- Code comments are kept to a minimum (a non-obvious *why* only). What a layer does lives in
+  `docs/<layer>.md` (auth, data layer, time/calendar, RPCs, jobs). See Task 9.
+- The SDD ledger (`.superpowers/`) is gitignored; this file is the committed handoff.
+
+### Handoff state (2026-10-23, end of Fable session)
+- Stage 1: PR #1 open, CI green. Not merged yet.
+- Stage 2: branch `stage-2-core`. Task 6 committed (c99c787..d2bce86), **task review not yet
+  done**. Implementer concerns for the reviewer/orchestrator to rule on: (a) deactivate →
+  reactivate a rule leaves the cancelled dates cancelled (unique index on rule+start, any
+  status) — acceptable for now, the trainer can re-book by hand; (b) Supabase Security Advisor
+  will flag `slot_occupancy` as a security-definer view — by design; (c) `materialize_recurring`
+  is granted to `authenticated` with an in-function trainer check so the UI can call it;
+  (d) the DST test skips on dates with no change in the 4-week window; (e) a rare deadlock
+  between the nightly run and a booking at the same start is safe to retry.
+- Tasks 7, 8, 9 not started. Run Task 9 first (small), then 7, then 8.
+
 ---
 
 ## Stage 1 tasks
@@ -525,3 +550,16 @@ In `app/`; reuse Task 7's data layer and calendar components (extend, don't dupl
    "Invite a customer (Stage 1)" SQL recipe becomes a fallback note and the primary path is
    the Customers screen; `docs/architecture/auth-invite-flow.md` back to the UI step;
    `CONTEXT.md` if new terms appear. Manual check with `trainer@amrap.local`.
+
+### Task 9: Comment sweep and layer docs
+
+Owner feedback: too many explanatory comments in code. Sweep every file under `app/src/`,
+`supabase/migrations/`, `supabase/seeds/` and `scripts/` and remove comments that explain
+*what* the code does; keep only a non-obvious *why* (one line). Move the explanations into
+layer docs: `docs/auth.md` (session loading, customer-row lookup, role gating, invite
+acceptance, lookup-failed vs not-linked, keep-alive, start-up error), `docs/app-structure.md`
+(folders, i18n rule, data layer contract, testing with the fake client), and extend
+`docs/rpcs.md` / `docs/schema.md` / `docs/jobs.md` where a migration comment carried behaviour
+not yet documented. Add the rule to `docs/harness.md` and a checklist item to
+`.claude/agents/reviewer.md` ("no explanatory comments; behaviour documented in the layer doc").
+No behaviour changes; all suites green; one or two commits.
