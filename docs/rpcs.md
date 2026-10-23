@@ -30,7 +30,7 @@ app relies on.
 |---|---|---|
 | `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record, or (`accept_invite`) there is no signed-in user | all except `charge_due_appointments` |
 | `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record) | `book`, `top_up`, `adjust`, `create_invite`, `materialize_recurring` |
-| `AMRAP_NOT_FOUND` | The referenced customer, slot template or appointment does not exist | `book`, `cancel`, `top_up`, `adjust`, `create_invite` |
+| `AMRAP_NOT_FOUND` | The referenced customer, slot template, appointment or recurring rule does not exist | `book`, `cancel`, `top_up`, `adjust`, `create_invite`, `activate_rule`, `deactivate_rule` |
 | `AMRAP_SLOT_INACTIVE` | The slot template is deactivated | `book` |
 | `AMRAP_IN_PAST` | A customer tried to book a start that is not in the future | `book` |
 | `AMRAP_SLOT_MISMATCH` | The start is not on the template's weekday and start time (in `settings.timezone`) | `book` |
@@ -212,6 +212,40 @@ public.charge_due_appointments() returns int
   `created_by = null`). Returns the number charged. Idempotent: a second run returns 0.
   Described as a job in [jobs.md](jobs.md).
 - **Diagram:** [architecture/charging-sequence.md](architecture/charging-sequence.md).
+
+## activate_rule
+
+```sql
+public.activate_rule(p_rule_id uuid) returns int
+```
+
+- **Who may call:** the trainer only (`AMRAP_FORBIDDEN` otherwise).
+- **Rules:** the rule must exist (`AMRAP_NOT_FOUND`). Sets `active = true`, then materializes
+  that one rule over the default window (`materialize_rule(p_rule_id, 4)`, see
+  [Helpers](#helpers)), so the customer sees the instances without waiting for the nightly
+  run. A rule whose slot template is inactive is activated but materializes nothing.
+- **Side effects:** updates `recurring_rules.active`; inserts `booked` instances with
+  `source = 'recurring'`. Returns the number inserted. Instances that already exist for the
+  rule in any status are not inserted again, so after `deactivate_rule` → `activate_rule` the
+  instances the deactivation cancelled stay cancelled (the trainer rebooks one with `book()` if
+  needed); only occurrences without an instance are filled.
+- **Diagram:** [architecture/materialization-sequence.md](architecture/materialization-sequence.md).
+
+## deactivate_rule
+
+```sql
+public.deactivate_rule(p_rule_id uuid) returns int
+```
+
+- **Who may call:** the trainer only (`AMRAP_FORBIDDEN` otherwise).
+- **Rules:** the rule must exist (`AMRAP_NOT_FOUND`). Sets `active = false`, so later
+  materialization skips it, and cancels the rule's instances with `status = 'booked'` and
+  `starts_at > now()`.
+- **Side effects:** those instances become `cancelled_by_trainer` with `cancelled_at = now()`;
+  no credit transaction (a booked appointment has no charge to refund). Past instances
+  (`charged`, or `booked` but started and not yet charged) and instances already cancelled are
+  untouched. Returns the number cancelled.
+- **Diagram:** [architecture/appointment-states.md](architecture/appointment-states.md).
 
 ## materialize_recurring
 

@@ -347,9 +347,26 @@ export type Database = {
         }
         Relationships: []
       }
+      slot_occupancy: {
+        Row: {
+          booked_count: number | null
+          slot_template_id: string | null
+          starts_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_slot_template_id_fkey"
+            columns: ["slot_template_id"]
+            isOneToOne: false
+            referencedRelation: "slot_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       accept_invite: { Args: { p_token: string }; Returns: string }
+      activate_rule: { Args: { p_rule_id: string }; Returns: number }
       adjust: {
         Args: { p_amount: number; p_customer_id: string; p_note?: string }
         Returns: string
@@ -367,6 +384,7 @@ export type Database = {
       charge_due_appointments: { Args: never; Returns: number }
       create_invite: { Args: { p_customer_id: string }; Returns: string }
       current_customer_id: { Args: never; Returns: string }
+      deactivate_rule: { Args: { p_rule_id: string }; Returns: number }
       is_trainer: { Args: never; Returns: boolean }
       materialize_recurring: { Args: { p_weeks?: number }; Returns: number }
       materialize_rule: {

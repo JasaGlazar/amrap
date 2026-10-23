@@ -15,7 +15,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 |---|---|
 | `20261023173423_initial_schema.sql` | Enums, all tables, indexes, constraints, `customer_balances` view, `current_customer_id()` / `is_trainer()` helpers, RLS policies and grants. |
 | `20261023175948_core_rpcs.sql` | The RPCs in [rpcs.md](rpcs.md) and their execute grants. |
-| `20261023192556_recurring_and_jobs.sql` | `book()` replaced to check blocked periods by interval overlap; `appointments_rule_id_starts_at_idx`; `materialize_rule()` and `materialize_recurring()` and their grants. |
+| `20261023192556_recurring_and_jobs.sql` | `book()` replaced to check blocked periods by interval overlap; `appointments_rule_id_starts_at_idx`; `materialize_rule()`, `materialize_recurring()`, `activate_rule()`, `deactivate_rule()` and their grants; `slot_occupancy` view. |
 
 ## Enums
 
@@ -193,6 +193,20 @@ left join credit_transactions`, so a customer without transactions has balance 0
 row, the trainer sees all. Read-only (`select` only for `authenticated`). A debtor is a row with
 `balance < 0`.
 
+### slot_occupancy
+
+`(slot_template_id uuid, starts_at timestamptz, booked_count bigint)`: the number of
+appointments with status `booked` or `charged` per slot template and start (ad-hoc
+appointments, without a template, are not counted), so the customer calendar can show
+remaining capacity (`capacity - booked_count`). Unlike `customer_balances` it is **not**
+`security_invoker`: it runs as its owner, so it counts every customer's appointments, and it
+exposes counts only, never a customer id or name. Rows are returned only when the caller is
+linked: `where (select current_customer_id()) is not null or (select is_trainer())`, so an
+auth user without a customer record sees nothing. `select` is granted to `authenticated` and
+`service_role` (insert, update and delete revoked, matching `customer_balances`); `anon` has
+nothing. The dashboard's Security Advisor reports it as a "security definer view"; that is
+intended (Stage 2 ruling), the filter above and the count-only columns are the guard.
+
 ## Helpers
 
 Both are `language sql stable security definer set search_path = ''`. They are
@@ -221,6 +235,7 @@ Policies apply to `authenticated`. `is_trainer()` and `current_customer_id()` ar
 | `settings` | all | select |
 | `push_subscriptions` | all | all on own rows (`user_id = auth.uid()`), linked customers only |
 | `customer_balances` (view) | all rows via invoker RLS | own row via invoker RLS |
+| `slot_occupancy` (view) | all counts (owner view, gated on a linked caller) | all counts, no identities |
 
 Customers have no insert, update or delete policy on any table except `push_subscriptions`;
 such writes affect zero rows (update/delete) or fail with `42501` (insert). The shared reference
@@ -233,7 +248,7 @@ sign-up without an invite) can neither read nor write any row.
 - `anon`: nothing. `revoke all on all tables in schema public from anon`; execute on the helpers
   revoked from `public` and `anon`.
 - `authenticated`: `select, insert, update, delete` on every table (RLS decides rows),
-  `select` only on `customer_balances`. No `truncate`, `references`, `trigger` or `maintain`.
+  `select` only on `customer_balances` and `slot_occupancy`. No `truncate`, `references`, `trigger` or `maintain`.
 - `service_role`: Supabase defaults (bypasses RLS); used by server-side jobs.
 - Default privileges for objects that `postgres` (migrations) creates revoke everything on
   tables, sequences and functions in `public` from `anon`, and

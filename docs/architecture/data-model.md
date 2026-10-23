@@ -7,7 +7,10 @@ column; a customer's balance is `SUM(credit_transactions.amount)`, exposed by th
 otherwise none. `push_subscriptions.user_id` and `credit_transactions.created_by` reference
 `auth.users` (not drawn), so they reach a customer only indirectly through
 `customers.auth_user_id`. A recurring rule materializes at most one appointment per start
-(unique `appointments(rule_id, starts_at)` where `rule_id` is set, any status). All tables are under RLS and all credit and capacity changes go
+(unique `appointments(rule_id, starts_at)` where `rule_id` is set, any status). The view
+`slot_occupancy` (not drawn) counts `booked` and `charged` appointments per slot template and
+`starts_at` for linked callers; it runs as its owner and exposes counts only, never customer
+identities. All tables are under RLS and all credit and capacity changes go
 through RPCs. Column lists show the main fields; the migration is the exact definition and
 `docs/schema.md` is the reference.
 

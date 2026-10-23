@@ -272,3 +272,82 @@ revoke execute on function public.materialize_rule(uuid, int)
 revoke execute on function public.materialize_recurring(int) from public, anon;
 -- authenticated for the trainer path (the role check inside rejects everyone else).
 grant execute on function public.materialize_recurring(int) to authenticated, service_role;
+
+-- Rule activation --------------------------------------------------------------------------
+
+-- Trainer-only: deactivates a rule and cancels its future booked instances as
+-- cancelled_by_trainer (never charged). Past, charged and already cancelled instances are
+-- left alone. Returns the number cancelled. Reactivating does not bring the cancelled
+-- instances back (one instance per rule and start, any status).
+create function public.deactivate_rule(p_rule_id uuid)
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_cancelled int;
+begin
+  if not public.is_trainer() then
+    raise exception 'AMRAP_FORBIDDEN: only the trainer can deactivate recurring rules' using errcode = 'P0001';
+  end if;
+
+  update public.recurring_rules set active = false where id = p_rule_id;
+  if not found then
+    raise exception 'AMRAP_NOT_FOUND: recurring rule % does not exist', p_rule_id using errcode = 'P0001';
+  end if;
+
+  update public.appointments
+    set status = 'cancelled_by_trainer', cancelled_at = now()
+    where rule_id = p_rule_id and status = 'booked' and starts_at > now();
+  get diagnostics v_cancelled = row_count;
+
+  return v_cancelled;
+end;
+$$;
+
+-- Trainer-only: activates a rule and materializes it at once over the default four-week
+-- window, so the customer sees the instances without waiting for the nightly run. Returns the
+-- number inserted (0 when the template is inactive).
+create function public.activate_rule(p_rule_id uuid)
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not public.is_trainer() then
+    raise exception 'AMRAP_FORBIDDEN: only the trainer can activate recurring rules' using errcode = 'P0001';
+  end if;
+
+  update public.recurring_rules set active = true where id = p_rule_id;
+  if not found then
+    raise exception 'AMRAP_NOT_FOUND: recurring rule % does not exist', p_rule_id using errcode = 'P0001';
+  end if;
+
+  return public.materialize_rule(p_rule_id, 4);
+end;
+$$;
+
+revoke execute on function public.deactivate_rule(uuid) from public, anon;
+revoke execute on function public.activate_rule(uuid) from public, anon;
+grant execute on function public.deactivate_rule(uuid) to authenticated, service_role;
+grant execute on function public.activate_rule(uuid) to authenticated, service_role;
+
+-- Occupancy view ---------------------------------------------------------------------------
+
+-- Live (booked + charged) appointments per slot occurrence, so a customer can see remaining
+-- capacity without reading other customers' appointments. Not security_invoker: it runs as
+-- its owner and counts every row, and exposes counts only, no customer identity. Gated on a
+-- linked caller (a customer or the trainer); an auth user without a customer record sees no
+-- rows. Ad-hoc appointments (no template) have no capacity and are not counted.
+create view public.slot_occupancy as
+  select a.slot_template_id, a.starts_at, count(*) as booked_count
+  from public.appointments a
+  where a.slot_template_id is not null
+    and a.status in ('booked', 'charged')
+    and ((select public.current_customer_id()) is not null or (select public.is_trainer()))
+  group by a.slot_template_id, a.starts_at;
+
+revoke all on public.slot_occupancy from anon, authenticated;
+grant select on public.slot_occupancy to authenticated, service_role;

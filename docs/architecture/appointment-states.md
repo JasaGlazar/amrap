@@ -8,15 +8,18 @@ no longer cancel it. The trainer
 can cancel from `booked` or `charged` without charge (`cancelled_by_trainer`); from `charged` a
 `refund` transaction is inserted. A customer cannot cancel a `charged` appointment, and a
 `cancelled_late` appointment cannot be cancelled again (the trainer waives the charge with
-`adjust(+1, note)`).
+`adjust(+1, note)`). A new appointment can also come from `materialize_recurring()` or
+`activate_rule()` (an instance of a recurring rule); deactivating the rule
+(`deactivate_rule()`) moves its future `booked` instances to `cancelled_by_trainer`, and a
+cancelled instance is never recreated.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> booked : book() by customer or trainer / materialize_recurring()
+    [*] --> booked : book() by customer or trainer / materialize_recurring() or activate_rule()
     booked --> charged : charge_due_appointments() after start time (session -1)
     booked --> cancelled : customer cancel before cutoff (free)
     booked --> cancelled_late : customer cancel after cutoff, before start (late_cancel -1)
-    booked --> cancelled_by_trainer : trainer cancel (no charge)
+    booked --> cancelled_by_trainer : trainer cancel or deactivate_rule() for future instances (no charge)
     charged --> cancelled_by_trainer : trainer cancel (refund +1)
     cancelled --> [*]
     cancelled_late --> [*]
