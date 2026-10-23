@@ -19,7 +19,8 @@ app relies on.
   explicitly to `authenticated` and `service_role` (never `anon`), except the job functions
   `charge_due_appointments()` and `send_cutoff_reminders()` and the edge function's
   `claim_notifications()`, which have no grant to `authenticated` or `anon` (`service_role`
-  only). The grant is not the protection: `materialize_recurring()` is granted to
+  only), and `save_push_subscription()`, which is granted to `authenticated` only (it acts on
+  the caller's auth user, so `service_role` has no use for it). The grant is not the protection: `materialize_recurring()` is granted to
   `authenticated` so the trainer can call it, and its role check inside rejects everyone else.
   The private helpers `materialize_rule()`, `push_config()`, `dispatch_notifications()` and
   `enqueue_notification()` and the notification trigger functions are granted to nobody.
@@ -329,7 +330,7 @@ public.save_push_subscription(p_endpoint text, p_p256dh text, p_auth text) retur
 
 - **Who may call:** a linked customer or the trainer (`current_customer_id()` is not null),
   for their own auth user; an auth user without a customer record gets `AMRAP_FORBIDDEN`.
-  Granted to `authenticated` and `service_role`, not `anon` (`42501`).
+  Granted to `authenticated` only; `anon` and `service_role` get `42501`.
 - **Rules:** all three arguments are required and non-empty (`AMRAP_INVALID_ARGUMENT`). They
   are the browser's `PushSubscription` endpoint and its `p256dh` and `auth` keys.
 - **Side effects:** upserts `push_subscriptions` on `endpoint`: a new endpoint is inserted for
@@ -409,14 +410,16 @@ grant for the role that fires it). See [notifications.md](notifications.md#event
   `raise warning` (nothing is recorded then).
 - `public.notify_booking_created() returns trigger` — trigger
   `appointments_notify_booking_created` (`after insert`, `source = 'self_booked'`): enqueues
-  `booking_created` for every trainer.
+  `booking_created` for the trainer (see below).
 - `public.notify_booking_cancelled() returns trigger` — trigger
   `appointments_notify_booking_cancelled` (`after update of status`, `booked` → `cancelled` or
-  `cancelled_late`): enqueues `booking_cancelled` for every trainer.
+  `cancelled_late`): enqueues `booking_cancelled` for the trainer. The recipient is one
+  trainer record, the earliest created one with a push subscription (ties by id), matching the
+  one-row-per-`(kind, appointment_id)` key; the domain has a single trainer.
 - `public.notify_credit_change() returns trigger` — trigger
   `credit_transactions_notify_credit_change` (`after insert`, `type in ('topup',
   'adjustment')`): enqueues `credit_topup` or `credit_adjustment` for the customer with the
-  balance after the row.
+  balance after the row, read from `customer_balances`.
 
 Each trigger function, like `enqueue_notification` itself, catches every error and reports it
 with `raise warning`, so a notification problem never fails `book`, `cancel`, `top_up` or

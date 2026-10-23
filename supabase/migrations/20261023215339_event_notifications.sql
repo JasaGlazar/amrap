@@ -65,9 +65,15 @@ begin
     into v_data
   from public.customers c where c.id = new.customer_id;
 
-  for v_trainer in select c.id from public.customers c where c.role = 'trainer' order by c.created_at loop
+  -- One recipient, matching the (kind, appointment_id) key: the earliest trainer with a device.
+  select c.id into v_trainer from public.customers c
+  where c.role = 'trainer'
+  order by exists (select 1 from public.push_subscriptions s where s.user_id = c.auth_user_id) desc,
+           c.created_at, c.id
+  limit 1;
+  if v_trainer is not null then
     perform public.enqueue_notification(v_trainer, 'booking_created', v_data, new.id);
-  end loop;
+  end if;
   return null;
 exception when others then
   -- Best effort: a notification problem must never fail the booking.
@@ -92,9 +98,15 @@ begin
     into v_data
   from public.customers c where c.id = new.customer_id;
 
-  for v_trainer in select c.id from public.customers c where c.role = 'trainer' order by c.created_at loop
+  -- One recipient, matching the (kind, appointment_id) key: the earliest trainer with a device.
+  select c.id into v_trainer from public.customers c
+  where c.role = 'trainer'
+  order by exists (select 1 from public.push_subscriptions s where s.user_id = c.auth_user_id) desc,
+           c.created_at, c.id
+  limit 1;
+  if v_trainer is not null then
     perform public.enqueue_notification(v_trainer, 'booking_cancelled', v_data, new.id);
-  end loop;
+  end if;
   return null;
 exception when others then
   -- Best effort: a notification problem must never fail the cancel.
@@ -112,8 +124,7 @@ as $$
 declare
   v_balance bigint;
 begin
-  select coalesce(sum(t.amount), 0) into v_balance
-  from public.credit_transactions t where t.customer_id = new.customer_id;
+  select b.balance into v_balance from public.customer_balances b where b.customer_id = new.customer_id;
 
   perform public.enqueue_notification(
     new.customer_id,
@@ -176,5 +187,5 @@ revoke execute on function public.enqueue_notification(uuid, public.notification
 revoke execute on function public.notify_booking_created() from public, anon, authenticated, service_role;
 revoke execute on function public.notify_booking_cancelled() from public, anon, authenticated, service_role;
 revoke execute on function public.notify_credit_change() from public, anon, authenticated, service_role;
-revoke execute on function public.save_push_subscription(text, text, text) from public, anon;
-grant execute on function public.save_push_subscription(text, text, text) to authenticated, service_role;
+revoke execute on function public.save_push_subscription(text, text, text) from public, anon, service_role;
+grant execute on function public.save_push_subscription(text, text, text) to authenticated;

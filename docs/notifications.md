@@ -39,10 +39,10 @@ the customer's subscription appears while the cutoff is in the window.
 | Kind | Recipient | Written by | `data` |
 |---|---|---|---|
 | `cutoff_reminder` | the appointment's customer | `send_cutoff_reminders()` | `appointment_id`, `starts_at`, `cutoff_at` (ISO timestamps), `timezone` (`settings.timezone`) |
-| `booking_created` | every trainer | trigger on a customer's own booking | `appointment_id`, `customer_name`, `starts_at`, `timezone` |
-| `booking_cancelled` | every trainer | trigger on a customer's cancel | `appointment_id`, `customer_name`, `starts_at`, `late` (true for `cancelled_late`), `timezone` |
+| `booking_created` | the trainer | trigger on a customer's own booking | `appointment_id`, `customer_name`, `starts_at`, `timezone` |
+| `booking_cancelled` | the trainer | trigger on a customer's cancel | `appointment_id`, `customer_name`, `starts_at`, `late` (true for `cancelled_late`), `timezone` |
 | `credit_topup` | the customer | trigger on a `topup` row | `transaction_id`, `amount`, `note` (or null), `balance` (after the row) |
-| `credit_adjustment` | the customer | trigger on an `adjustment` row | `transaction_id`, `amount` (signed), `note`, `balance` (after the row) |
+| `credit_adjustment` | the customer | trigger on an `adjustment` row | `transaction_id`, `amount` (signed), `note` (or null), `balance` (after the row) |
 
 Appointment kinds set `notifications.appointment_id`; credit kinds set `transaction_id` and
 leave `appointment_id` null.
@@ -85,9 +85,10 @@ Nothing else notifies: trainer bookings (`source = 'trainer'`), materialization
 (`cancelled_by_trainer`, including `deactivate_rule`), the charge job (`booked` → `charged`),
 charges and refunds. A trainer cancel does not tell the customer (not in PLAN.md).
 
-The domain has one trainer; the triggers loop over every `role = 'trainer'` record in
-creation order. Because of the `(kind, appointment_id)` key only the first trainer with a
-device would get a booking notification if there were more than one.
+The domain has one trainer. The booking triggers pick a single recipient, matching the
+`(kind, appointment_id)` key: the earliest-created `role = 'trainer'` record with a push
+subscription (ties by id). The credit trigger reads the balance after the row from
+`customer_balances`.
 
 `enqueue_notification()` records nothing without push config or when the recipient has no
 linked user or no subscription, inserts the row and dispatches its id. It and each trigger

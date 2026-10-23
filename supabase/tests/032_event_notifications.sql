@@ -3,14 +3,15 @@
 -- late), a top-up or adjustment notifies the customer (credit_topup / credit_adjustment, with
 -- the new balance). Trainer bookings, materialization, trainer cancels, charges and refunds
 -- notify nobody; nor does anything for a recipient without a subscription or account, or
--- without push config. A failing notification never fails the action. save_push_subscription
+-- without push config. With two trainers only one (the earliest with a device) is notified. A
+-- failing notification never fails the action. save_push_subscription
 -- moves a device's endpoint to whoever saved it last.
 --
 -- Fixture starts are built from now() and today's date in settings.timezone; expected data is
 -- derived from the fixtures and the ledger.
 begin;
 
-select plan(29);
+select plan(37);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
@@ -20,6 +21,7 @@ create temp table fx (key text primary key, id uuid not null) on commit drop;
 
 insert into fx (key, id) values
   ('trainer_user', tests.create_user('event-trainer@test.local')),
+  ('trainer2_user', tests.create_user('event-trainer2@test.local')),
   ('user_a', tests.create_user('event-a@test.local')),
   ('user_b', tests.create_user('event-b@test.local')),
   ('user_nobody', tests.create_user('event-nobody@test.local'));
@@ -30,6 +32,11 @@ with c as (
   returning id
 ) insert into fx select 'trainer', id from c;
 with c as (
+  insert into public.customers (name, role, auth_user_id)
+  select 'Event trainer 2', 'trainer', id from fx where key = 'trainer2_user'
+  returning id
+) insert into fx select 'trainer2', id from c;
+with c as (
   insert into public.customers (name, auth_user_id)
   select 'Event ' || upper(right(key, 1)), id from fx where key in ('user_a', 'user_b')
   returning id, name
@@ -38,10 +45,17 @@ with c as (
   insert into public.customers (name) values ('Event C (no account)') returning id
 ) insert into fx select 'cust_c', id from c;
 
--- The trainer and customer A have a device; B has none.
+-- Both trainers and customer A have a device; B has none.
 insert into public.push_subscriptions (user_id, endpoint, p256dh, auth)
   select id, 'https://push.test.invalid/event-' || key, 'p256dh', 'auth'
-  from fx where key in ('trainer_user', 'user_a');
+  from fx where key in ('trainer_user', 'trainer2_user', 'user_a');
+
+create temp view trainer_recipient as
+  select c.id from public.customers c
+  where c.role = 'trainer'
+    and exists (select 1 from public.push_subscriptions s where s.user_id = c.auth_user_id)
+  order by c.created_at, c.id
+  limit 1;
 
 create temp table gym as
   select s.timezone as tz, (now() at time zone s.timezone)::date as today
@@ -107,8 +121,8 @@ select is_empty(
 select results_eq(
   $$select r, has_function_privilege(r, 'public.save_push_subscription(text, text, text)', 'EXECUTE')
     from unnest(array['anon', 'authenticated', 'service_role']) r order by r$$,
-  $$values ('anon', false), ('authenticated', true), ('service_role', true)$$,
-  'save_push_subscription is granted to authenticated and service_role, not anon');
+  $$values ('anon', false), ('authenticated', true), ('service_role', false)$$,
+  'save_push_subscription is granted to authenticated only');
 select set_eq(
   $$select tgrelid::regclass::text, tgname::text from pg_trigger
     where not tgisinternal and tgrelid in ('public.appointments'::regclass, 'public.credit_transactions'::regclass)$$,
@@ -127,7 +141,7 @@ select tests.clear_authentication();
 
 select set_eq(
   $$select customer_id, kind::text, data from mine where appointment_id = (select id from appts where key = 'self_booked')$$,
-  $$select (select id from fx where key = 'trainer'), 'booking_created',
+  $$select (select id from trainer_recipient), 'booking_created',
            jsonb_build_object('appointment_id', (select id from appts where key = 'self_booked'),
                               'customer_name', 'Event A', 'starts_at', (select ts from times where key = 'tomorrow'),
                               'timezone', (select tz from gym))$$,
@@ -137,6 +151,10 @@ select set_eq(
     from net.http_request_queue where url = 'http://event-test.invalid/functions/v1/send-push'$$,
   $$select id from mine where appointment_id = (select id from appts where key = 'self_booked')$$,
   'the booking queues one request with that notification');
+select is((select count(*) from net.http_request_queue where url = 'http://event-test.invalid/functions/v1/send-push'),
+  1::bigint, 'exactly one request is queued for the booking');
+select is((select count(*) from mine where appointment_id = (select id from appts where key = 'self_booked')),
+  1::bigint, 'with two trainers only one booking notification is recorded');
 
 select tests.authenticate_as((select id from fx where key = 'trainer_user'));
 insert into appts select 'trainer_booked',
@@ -164,7 +182,7 @@ select tests.clear_authentication();
 select set_eq(
   $$select a.key, n.customer_id, n.kind::text, n.data from mine n join appts a on a.id = n.appointment_id
     where a.key in ('free', 'late')$$,
-  $$select a.key, (select id from fx where key = 'trainer'), 'booking_cancelled',
+  $$select a.key, (select id from trainer_recipient), 'booking_cancelled',
            jsonb_build_object('appointment_id', a.id, 'customer_name', 'Event A', 'starts_at', ap.starts_at,
                               'late', a.key = 'late', 'timezone', (select tz from gym))
     from appts a join public.appointments ap on ap.id = a.id where a.key in ('free', 'late')$$,
@@ -237,6 +255,27 @@ select is_empty($$select 1 from mine where transaction_id = (select id from appt
   'without push config nothing is recorded');
 select vault.create_secret('test-push-secret', 'amrap_push_secret');
 
+-- A malformed functions URL makes the pg_net call fail inside dispatch_notifications.
+select vault.update_secret(id, 'not a url') from vault.secrets where name = 'amrap_functions_url';
+set local client_min_messages = error;
+select tests.authenticate_as((select id from fx where key = 'user_a'));
+select lives_ok(
+  $$insert into appts select 'booked_dispatch_failing',
+    public.book((select id from fx where key = 'cust_a'), (select ts from times where key = 'next_week') + interval '14 days',
+                (select id from fx where key = 't'))$$,
+  'a booking succeeds when its push request cannot be queued');
+select tests.clear_authentication();
+reset client_min_messages;
+select is((select status::text from public.appointments where id = (select id from appts where key = 'booked_dispatch_failing')),
+  'booked', 'the booking took effect');
+select results_eq(
+  $$select kind::text, dispatched_at from mine where appointment_id = (select id from appts where key = 'booked_dispatch_failing')$$,
+  $$values ('booking_created', null::timestamptz)$$,
+  'its booking_created row is kept, undispatched');
+select is_empty($$select 1 from net.http_request_queue where url like 'not a url%'$$,
+  'no request was queued for the failed dispatch');
+select vault.update_secret(id, 'http://event-test.invalid/functions/v1') from vault.secrets where name = 'amrap_functions_url';
+
 -- An unknown appointment id makes the insert inside enqueue_notification fail (foreign key).
 set local client_min_messages = error;
 select lives_ok(
@@ -262,11 +301,17 @@ select lives_ok(
 select lives_ok($$select public.cancel((select id from appts where key = 'booked_while_failing'))$$,
   'a cancel succeeds when its notification fails');
 select tests.clear_authentication();
+create temp table balance_before_failing as
+  select balance from public.customer_balances where customer_id = (select id from fx where key = 'cust_a');
 select tests.authenticate_as((select id from fx where key = 'trainer_user'));
 select lives_ok($$select public.top_up((select id from fx where key = 'cust_a'), 1)$$,
   'a top-up succeeds when its notification fails');
 select tests.clear_authentication();
 reset client_min_messages;
+select is((select status::text from public.appointments where id = (select id from appts where key = 'booked_while_failing')),
+  'cancelled', 'the booking and the cancel took effect');
+select is((select balance from public.customer_balances where customer_id = (select id from fx where key = 'cust_a')),
+  (select balance + 1 from balance_before_failing), 'the top-up took effect');
 
 -- save_push_subscription -------------------------------------------------------------------
 
