@@ -459,6 +459,16 @@ export type Database = {
       current_customer_id: { Args: never; Returns: string }
       deactivate_rule: { Args: { p_rule_id: string }; Returns: number }
       dispatch_notifications: { Args: { p_ids: string[] }; Returns: undefined }
+      enqueue_notification: {
+        Args: {
+          p_appointment_id?: string
+          p_customer_id: string
+          p_data: Json
+          p_kind: Database["public"]["Enums"]["notification_kind"]
+          p_transaction_id?: string
+        }
+        Returns: undefined
+      }
       is_trainer: { Args: never; Returns: boolean }
       materialize_recurring: { Args: { p_weeks?: number }; Returns: number }
       materialize_rule: {
@@ -471,6 +481,10 @@ export type Database = {
           functions_url: string
           push_secret: string
         }[]
+      }
+      save_push_subscription: {
+        Args: { p_auth: string; p_endpoint: string; p_p256dh: string }
+        Returns: undefined
       }
       send_cutoff_reminders: { Args: never; Returns: number }
       top_up: {

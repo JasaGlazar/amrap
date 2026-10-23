@@ -9,7 +9,9 @@ advisory lock on the slot occurrence so concurrent bookings are serialized, coun
 appointments occupying it (`booked` plus `charged`) against the template's capacity, and
 inserts only if there is room (ADR 0004). The trainer goes through the same RPC without the
 future check, and may also book ad hoc (no template, explicit end, no capacity). Every
-rejection is an `AMRAP_*` error token, listed in [rpcs.md](../rpcs.md#book).
+rejection is an `AMRAP_*` error token, listed in [rpcs.md](../rpcs.md#book). A customer's own
+booking fires the trigger that notifies the trainer (best effort, never fails the booking;
+[notifications.md](../notifications.md#event-notifications)).
 
 ```mermaid
 sequenceDiagram
@@ -35,6 +37,7 @@ sequenceDiagram
             A-->>B: unique_violation
             B-->>C: AMRAP_ALREADY_BOOKED
         else inserted
+            A->>A: trigger notify_booking_created (source self_booked), trainer push after commit
             B-->>C: appointment id
         end
     else slot full

@@ -9,8 +9,9 @@ and records it in a log; one edge function, `send-push`, delivers. The functions
 
 ## Flow
 
-1. A writer (the 15-minute job `send_cutoff_reminders()`) selects recipients and inserts
-   `notifications` rows `on conflict (kind, appointment_id) do nothing returning id`.
+1. A writer selects recipients and inserts `notifications` rows `on conflict (kind,
+   appointment_id) do nothing returning id`: the 15-minute job `send_cutoff_reminders()` for
+   reminders, `enqueue_notification()` (called by the triggers below) for events.
 2. It passes the ids it got back to `dispatch_notifications(ids)`, which queues one pg_net
    request `POST <functions_url>/send-push` with `{"ids": [...]}` and the header
    `x-amrap-push-secret`.
@@ -37,12 +38,47 @@ the customer's subscription appears while the cutoff is in the window.
 | Kind | Recipient | Written by | `data` |
 |---|---|---|---|
 | `cutoff_reminder` | the appointment's customer | `send_cutoff_reminders()` | `appointment_id`, `starts_at`, `cutoff_at` (ISO timestamps), `timezone` (`settings.timezone`) |
-| `booking_created` | the trainer | not written yet (event notifications) | - |
-| `booking_cancelled` | the trainer | not written yet (event notifications) | - |
-| `credit_topup` | the customer | not written yet (event notifications) | - |
-| `credit_adjustment` | the customer | not written yet (event notifications) | - |
+| `booking_created` | every trainer | trigger on a customer's own booking | `appointment_id`, `customer_name`, `starts_at`, `timezone` |
+| `booking_cancelled` | every trainer | trigger on a customer's cancel | `appointment_id`, `customer_name`, `starts_at`, `late` (true for `cancelled_late`), `timezone` |
+| `credit_topup` | the customer | trigger on a `topup` row | `transaction_id`, `amount`, `note` (or null), `balance` (after the row) |
+| `credit_adjustment` | the customer | trigger on an `adjustment` row | `transaction_id`, `amount` (signed), `note`, `balance` (after the row) |
+
+Appointment kinds set `notifications.appointment_id`; credit kinds set `transaction_id` and
+leave `appointment_id` null.
 
 `cutoff_at` is `starts_at − late_cancel_hours · 1 h`, the same cutoff `cancel()` uses.
+
+## Event notifications
+
+Three triggers ([schema.md](schema.md#triggers)) call `enqueue_notification()`; no RPC body
+knows about push:
+
+| Event | Trigger condition | Notifies |
+|---|---|---|
+| A customer books (`book()` by a customer) | `after insert on appointments`, `source = 'self_booked'` | the trainer, `booking_created` |
+| A customer cancels (`cancel()` by a customer) | `after update of status`, `booked` → `cancelled` or `cancelled_late` | the trainer, `booking_cancelled` |
+| The trainer tops up or adjusts | `after insert on credit_transactions`, `type in ('topup', 'adjustment')` | the customer, `credit_topup` / `credit_adjustment` |
+
+Nothing else notifies: trainer bookings (`source = 'trainer'`), materialization
+(`source = 'recurring'`, so the nightly run sends nothing), trainer cancels
+(`cancelled_by_trainer`, including `deactivate_rule`), the charge job (`booked` → `charged`),
+charges and refunds. A trainer cancel does not tell the customer (not in PLAN.md).
+
+The domain has one trainer; the triggers loop over every `role = 'trainer'` record in
+creation order. Because of the `(kind, appointment_id)` key only the first trainer with a
+device would get a booking notification if there were more than one.
+
+`enqueue_notification()` records nothing without push config or when the recipient has no
+linked user or no subscription, inserts the row and dispatches its id. Each trigger function
+catches every error (`raise warning`), so a failing notification never fails `book`, `cancel`,
+`top_up` or `adjust`.
+
+## Subscriptions
+
+The app saves a device's subscription with `save_push_subscription(endpoint, p256dh, auth)`
+([rpcs.md](rpcs.md#save_push_subscription)): an upsert on `endpoint` that moves an endpoint
+already saved by another account to the caller, so a shared device notifies whoever enabled
+push last. Deleting is a plain RLS delete of an own row.
 
 ## No duplicates
 
@@ -84,5 +120,9 @@ is in [runbook.md](runbook.md).
   notification and subscription.
 - `supabase/tests/031_reminders.sql`: the reminder job, see
   [jobs.md](jobs.md#send_cutoff_reminders-every-15-minutes).
+- `supabase/tests/032_event_notifications.sql`: which actions notify whom and with what data,
+  which do not (trainer booking, materialization, trainer cancel, charge, refund, no device, no
+  account, no config), actions succeeding when the notification fails,
+  `save_push_subscription`.
 - Requests in tests go to a test-only host and roll back with the transaction, so nothing is
   sent; CI runs without the edge runtime.

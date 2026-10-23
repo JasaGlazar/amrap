@@ -17,6 +17,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `20261023175948_core_rpcs.sql` | The RPCs in [rpcs.md](rpcs.md) and their execute grants. |
 | `20261023192556_recurring_and_jobs.sql` | `book()` replaced to check blocked periods by interval overlap; `appointments_rule_id_starts_at_idx`; `materialize_rule()`, `materialize_recurring()`, `activate_rule()`, `deactivate_rule()` and their grants; `slot_occupancy` view; the `pg_cron` extension and both job schedules ([jobs.md](jobs.md)). |
 | `20261023214654_notifications_and_reminders.sql` | The `pg_net` extension (schema `extensions`); `notification_kind` enum; `notifications` table; `push_config()`, `dispatch_notifications()`, `claim_notifications()`, `send_cutoff_reminders()` and their grants; the `send_cutoff_reminders` schedule ([jobs.md](jobs.md), [notifications.md](notifications.md)). |
+| `20261023215339_event_notifications.sql` | `enqueue_notification()`, the trigger functions `notify_booking_created()`, `notify_booking_cancelled()`, `notify_credit_change()` and their triggers on `appointments` and `credit_transactions`; `save_push_subscription()`; grants ([notifications.md](notifications.md#event-notifications)). |
 
 ## Enums
 
@@ -179,7 +180,10 @@ a customer only through `customers.auth_user_id`.
 | `auth` | text | not null, subscription auth secret |
 | `created_at` | timestamptz | |
 
-Index `push_subscriptions_user_id_idx` on `(user_id)`.
+Index `push_subscriptions_user_id_idx` on `(user_id)`. The app saves rows through
+`save_push_subscription()` ([rpcs.md](rpcs.md#save_push_subscription)), which moves an existing
+endpoint to the caller, and deletes its own rows directly (RLS). The `send-push` edge function
+deletes rows the push service reports gone.
 
 ### notifications
 
@@ -206,6 +210,17 @@ collide). Index `notifications_created_at_idx` on `(created_at)` for the 30-day 
 Foreign keys not listed with an `on delete` action use the default (no action): customers,
 slot templates, rules and appointments with dependent rows cannot be deleted, which keeps the
 ledger intact. Deactivate instead (`active = false`).
+
+## Triggers
+
+Notification triggers (ADR 0009, [notifications.md](notifications.md#event-notifications)), all
+`for each row`, executing `security definer` functions that never raise:
+
+| Trigger | Table | Fires | Function |
+|---|---|---|---|
+| `appointments_notify_booking_created` | `appointments` | `after insert` when `new.source = 'self_booked'` | `notify_booking_created()` |
+| `appointments_notify_booking_cancelled` | `appointments` | `after update of status` when `old.status = 'booked'` and `new.status in ('cancelled', 'cancelled_late')` | `notify_booking_cancelled()` |
+| `credit_transactions_notify_credit_change` | `credit_transactions` | `after insert` when `new.type in ('topup', 'adjustment')` | `notify_credit_change()` |
 
 ## Views
 

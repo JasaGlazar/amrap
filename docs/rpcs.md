@@ -21,8 +21,8 @@ app relies on.
   `claim_notifications()`, which have no grant to `authenticated` or `anon` (`service_role`
   only). The grant is not the protection: `materialize_recurring()` is granted to
   `authenticated` so the trainer can call it, and its role check inside rejects everyone else.
-  The private helpers `materialize_rule()`, `push_config()` and `dispatch_notifications()` are
-  granted to nobody.
+  The private helpers `materialize_rule()`, `push_config()`, `dispatch_notifications()` and
+  `enqueue_notification()` and the notification trigger functions are granted to nobody.
 - Times are `timestamptz`. Weekday and start time of a slot template are interpreted in
   `settings.timezone` (weekday 0 = Monday, see [schema.md](schema.md#slot_templates)).
 
@@ -30,8 +30,8 @@ app relies on.
 
 | Token | Meaning | Raised by |
 |---|---|---|
-| `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record, or (`accept_invite`) there is no signed-in user | all except `charge_due_appointments` |
-| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record) | `book`, `top_up`, `adjust`, `create_invite`, `materialize_recurring` |
+| `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record, or (`accept_invite`) there is no signed-in user | all except `charge_due_appointments`, `send_cutoff_reminders` and `claim_notifications` |
+| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record) | `book`, `top_up`, `adjust`, `create_invite`, `materialize_recurring`, `save_push_subscription` |
 | `AMRAP_NOT_FOUND` | The referenced customer, slot template, appointment or recurring rule does not exist | `book`, `cancel`, `top_up`, `adjust`, `create_invite`, `activate_rule`, `deactivate_rule` |
 | `AMRAP_SLOT_INACTIVE` | The slot template is deactivated | `book` |
 | `AMRAP_IN_PAST` | A customer tried to book a start that is not in the future | `book` |
@@ -321,6 +321,23 @@ public.claim_notifications(p_ids uuid[])
   notification is pushed at most once.
 - **Diagram:** [architecture/push-sequence.md](architecture/push-sequence.md).
 
+## save_push_subscription
+
+```sql
+public.save_push_subscription(p_endpoint text, p_p256dh text, p_auth text) returns void
+```
+
+- **Who may call:** a linked customer or the trainer (`current_customer_id()` is not null),
+  for their own auth user; an auth user without a customer record gets `AMRAP_FORBIDDEN`.
+  Granted to `authenticated` and `service_role`, not `anon` (`42501`).
+- **Rules:** all three arguments are required and non-empty (`AMRAP_INVALID_ARGUMENT`). They
+  are the browser's `PushSubscription` endpoint and its `p256dh` and `auth` keys.
+- **Side effects:** upserts `push_subscriptions` on `endpoint`: a new endpoint is inserted for
+  `auth.uid()`; an existing one is moved to the caller with the new keys and `created_at =
+  now()`. A device shared by two accounts therefore notifies whoever enabled push last
+  (ADR 0009). Removing a subscription stays a plain delete of an own row (RLS).
+- **Errors:** `AMRAP_FORBIDDEN`, `AMRAP_INVALID_ARGUMENT`.
+
 ## Helpers
 
 Role helpers used by RLS policies and by every RPC's role check. Both are `language sql
@@ -364,7 +381,8 @@ from `public`, `anon`, `authenticated` and `service_role`). It is only called by
 
 Push helpers, defined in `20261023214654_notifications_and_reminders.sql`: `security definer
 set search_path = ''`, executable by nobody but their owner (execute revoked from `public`,
-`anon`, `authenticated` and `service_role`). Called by `send_cutoff_reminders()`. See [notifications.md](notifications.md).
+`anon`, `authenticated` and `service_role`). Called by `send_cutoff_reminders()` and
+`enqueue_notification()`. See [notifications.md](notifications.md).
 
 - `public.push_config() returns table (functions_url text, push_secret text)` — `language sql
   stable`; one row with the Vault secrets `amrap_functions_url` and `amrap_push_secret`
@@ -376,3 +394,28 @@ set search_path = ''`, executable by nobody but their owner (execute revoked fro
   10 s timeout. pg_net sends it only after the calling transaction commits (a rolled-back
   caller sends nothing). Any error, including a pg_net failure, is caught and reported with
   `raise warning`, so it never aborts the caller.
+
+Event notification helpers, defined in `20261023215339_event_notifications.sql`: `language
+plpgsql security definer set search_path = ''`, executable by nobody but their owner (execute
+revoked from `public`, `anon`, `authenticated` and `service_role`; a trigger needs no execute
+grant for the role that fires it). See [notifications.md](notifications.md#event-notifications).
+
+- `public.enqueue_notification(p_customer_id uuid, p_kind notification_kind, p_data jsonb,
+  p_appointment_id uuid default null, p_transaction_id uuid default null) returns void` —
+  without push config logs (`raise log`) and returns; returns when the recipient has no linked
+  user or no push subscription; otherwise inserts the `notifications` row `on conflict (kind,
+  appointment_id) do nothing` and, when a row was inserted, calls
+  `dispatch_notifications(array[id])`.
+- `public.notify_booking_created() returns trigger` — trigger
+  `appointments_notify_booking_created` (`after insert`, `source = 'self_booked'`): enqueues
+  `booking_created` for every trainer.
+- `public.notify_booking_cancelled() returns trigger` — trigger
+  `appointments_notify_booking_cancelled` (`after update of status`, `booked` → `cancelled` or
+  `cancelled_late`): enqueues `booking_cancelled` for every trainer.
+- `public.notify_credit_change() returns trigger` — trigger
+  `credit_transactions_notify_credit_change` (`after insert`, `type in ('topup',
+  'adjustment')`): enqueues `credit_topup` or `credit_adjustment` for the customer with the
+  balance after the row.
+
+Each trigger function catches every error and reports it with `raise warning`, so a
+notification problem never fails `book`, `cancel`, `top_up` or `adjust`.
