@@ -22,9 +22,15 @@ for file in "${migrations[@]}"; do
 done
 
 # Function names come from the "create [or replace] function public.<name>" line only;
-# the argument list may continue on later lines.
-functions="$(grep -hiE '^[[:space:]]*create[[:space:]]+(or[[:space:]]+replace[[:space:]]+)?function[[:space:]]+public\.[a-z_0-9]+' "${migrations[@]}" \
-  | grep -ioE 'public\.[a-z_0-9]+' | sed 's/^[Pp][Uu][Bb][Ll][Ii][Cc]\.//' | tr 'A-Z' 'a-z' | sort -u)"
+# the argument list may continue on later lines. Schema and name may be double-quoted
+# (as in `supabase db diff` output); the quotes are stripped.
+q='"?'
+functions="$(grep -hiE "^[[:space:]]*create[[:space:]]+(or[[:space:]]+replace[[:space:]]+)?function[[:space:]]+${q}public${q}\.${q}[a-z_0-9]+" "${migrations[@]}" \
+  | grep -ioE "${q}public${q}\.${q}[a-z_0-9]+" | tr -d '"' | sed 's/^[Pp][Uu][Bb][Ll][Ii][Cc]\.//' | tr 'A-Z' 'a-z' | sort -u || true)"
+if [ -z "$functions" ]; then
+  echo "check-docs: no 'create function public.<name>' declarations found in migrations" >&2
+  exit 1
+fi
 
 # Documented means a "## name" heading, or the name in backticks (`name`, `public.name(`).
 for fn in $functions; do

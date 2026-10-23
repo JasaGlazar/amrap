@@ -59,6 +59,9 @@ only (not tests or seeds):
   `` `public.name(` ``). The role helpers `current_customer_id` and `is_trainer` live in its
   "Helpers" section.
 
+The Supabase CLI is pinned in `ci.yml` (`version: 2.117.0`, the version the committed types were
+generated with); bumping it means regenerating `database.types.ts` in the same PR.
+
 A stale generated-types failure is fixed by running
 `supabase gen types typescript --local > app/src/lib/database.types.ts` and committing the result.
 
