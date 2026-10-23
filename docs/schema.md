@@ -15,7 +15,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 |---|---|
 | `20261023173423_initial_schema.sql` | Enums, all tables, indexes, constraints, `customer_balances` view, `current_customer_id()` / `is_trainer()` helpers, RLS policies and grants. |
 | `20261023175948_core_rpcs.sql` | The RPCs in [rpcs.md](rpcs.md) and their execute grants. |
-| `20261023192556_recurring_and_jobs.sql` | `book()` replaced to check blocked periods by interval overlap. |
+| `20261023192556_recurring_and_jobs.sql` | `book()` replaced to check blocked periods by interval overlap; `appointments_rule_id_starts_at_idx`; `materialize_rule()` and `materialize_recurring()` and their grants. |
 
 ## Enums
 
@@ -103,6 +103,9 @@ Indexes:
 - `appointments_slot_template_id_starts_at_idx` — `(slot_template_id, starts_at)`, slot
   occupancy for the capacity check.
 - `appointments_status_starts_at_idx` — `(status, starts_at)`, the charge job's scan.
+- `appointments_rule_id_starts_at_idx` — unique `(rule_id, starts_at) where rule_id is not
+  null`, any status: one instance per recurring rule per start, so materialization is
+  idempotent and never recreates an instance that was cancelled.
 
 ### credit_transactions
 
@@ -240,7 +243,9 @@ sign-up without an invite) can neither read nor write any row.
   `PUBLIC` execute default is revoked for `postgres`, and so is the per-schema `authenticated`
   default. Each new RPC must `grant execute on function … to authenticated` explicitly;
   cron-only functions get no grant to `authenticated` (`charge_due_appointments` is
-  explicitly granted to `service_role` only).
+  explicitly granted to `service_role` only). `materialize_recurring` runs from cron too but
+  is also the trainer's, so it is granted to `authenticated` and checks the role inside;
+  the helper `materialize_rule` has execute revoked from everyone but its owner.
 
 ## Test helpers and seeds (local only)
 

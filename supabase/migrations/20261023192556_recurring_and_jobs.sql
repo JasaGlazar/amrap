@@ -127,3 +127,148 @@ begin
   return v_id;
 end;
 $$;
+
+-- Materialization --------------------------------------------------------------------------
+
+-- One instance per rule and start, whatever its status: a cancelled instance is never
+-- recreated by a later run.
+create unique index appointments_rule_id_starts_at_idx
+  on public.appointments (rule_id, starts_at)
+  where rule_id is not null;
+
+-- Private helper (no grant): materializes one rule for every occurrence of its template from
+-- today through today + p_weeks * 7 days, in settings.timezone. Returns the number inserted.
+-- An inactive rule or template materializes nothing. The rule row is locked for share, so a
+-- concurrent deactivate_rule() either runs first (the rule is then inactive here) or waits and
+-- then cancels what this inserted. Skips, per occurrence: a start in the past, a start_time
+-- that does not exist that day (spring-forward gap; book() could not match it either), an
+-- overlap with a blocked period, an existing instance of the rule (any status), a live
+-- booking of the customer at that start, and a full slot. The existence and capacity checks
+-- run under the same advisory lock as book(), so concurrent bookings and runs are serialized;
+-- dates are walked in ascending order so the lock order is deterministic. on conflict do
+-- nothing covers a booking at the same start that took a different template's lock.
+create function public.materialize_rule(p_rule_id uuid, p_weeks int)
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_rule public.recurring_rules%rowtype;
+  v_template public.slot_templates%rowtype;
+  v_tz text;
+  v_today date;
+  v_day date;
+  v_starts_at timestamptz;
+  v_ends_at timestamptz;
+  v_occupied int;
+  v_inserted int := 0;
+begin
+  select s.timezone into v_tz from public.settings s where s.id = 1;
+  if not found then
+    raise exception 'AMRAP_SETTINGS_MISSING: the settings row (id = 1) is missing' using errcode = 'P0001';
+  end if;
+
+  select * into v_rule from public.recurring_rules r where r.id = p_rule_id for share;
+  if not found or not v_rule.active then
+    return 0;
+  end if;
+  select * into v_template from public.slot_templates t where t.id = v_rule.slot_template_id;
+  if not v_template.active then
+    return 0;
+  end if;
+
+  v_today := (now() at time zone v_tz)::date;
+
+  for v_day in
+    select v_today + n from generate_series(0, p_weeks * 7) n
+    where extract(isodow from v_today + n) - 1 = v_template.weekday
+    order by n
+  loop
+    -- Local date + time to an instant in the gym's timezone; Postgres applies the right
+    -- UTC offset for that date, so the wall-clock time survives DST changes.
+    v_starts_at := (v_day + v_template.start_time) at time zone v_tz;
+    v_ends_at := v_starts_at + v_template.duration_minutes * interval '1 minute';
+
+    continue when v_starts_at <= now();
+    continue when (v_starts_at at time zone v_tz)::time <> v_template.start_time;
+    continue when exists (
+      select 1 from public.blocked_periods b
+      where tstzrange(v_starts_at, v_ends_at) && tstzrange(b.starts_at, b.ends_at)
+    );
+
+    -- The same key as book(): template || '@' || epoch of the start.
+    perform pg_advisory_xact_lock(
+      hashtext(v_template.id::text || '@' || extract(epoch from v_starts_at)::text));
+
+    continue when exists (
+      select 1 from public.appointments a
+      where a.rule_id = p_rule_id and a.starts_at = v_starts_at
+    );
+    continue when exists (
+      select 1 from public.appointments a
+      where a.customer_id = v_rule.customer_id and a.starts_at = v_starts_at
+        and a.status in ('booked', 'charged')
+    );
+
+    select count(*) into v_occupied
+    from public.appointments a
+    where a.slot_template_id = v_template.id
+      and a.starts_at = v_starts_at
+      and a.status in ('booked', 'charged');
+    continue when v_occupied >= v_template.capacity;
+
+    insert into public.appointments
+      (customer_id, slot_template_id, starts_at, ends_at, status, source, rule_id)
+    values
+      (v_rule.customer_id, v_template.id, v_starts_at, v_ends_at, 'booked', 'recurring', p_rule_id)
+    on conflict do nothing;
+    if found then
+      v_inserted := v_inserted + 1;
+    end if;
+  end loop;
+
+  return v_inserted;
+end;
+$$;
+
+-- The nightly job (pg_cron, as postgres) and the trainer's "materialize now". Runs
+-- materialize_rule() for every active rule of an active template, in rule id order. Allowed
+-- without a signed-in user (cron, service role: auth.uid() is null) or for the trainer; a
+-- customer or an unlinked user gets AMRAP_FORBIDDEN. Idempotent: a second run returns 0.
+create function public.materialize_recurring(p_weeks int default 4)
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_rule_id uuid;
+  v_inserted int := 0;
+begin
+  if auth.uid() is not null and not public.is_trainer() then
+    raise exception 'AMRAP_FORBIDDEN: only the trainer or the scheduled job can materialize rules'
+      using errcode = 'P0001';
+  end if;
+  if p_weeks is null or p_weeks < 0 then
+    raise exception 'AMRAP_INVALID_ARGUMENT: p_weeks must be zero or more' using errcode = 'P0001';
+  end if;
+
+  for v_rule_id in
+    select r.id from public.recurring_rules r
+    join public.slot_templates t on t.id = r.slot_template_id
+    where r.active and t.active
+    order by r.id
+  loop
+    v_inserted := v_inserted + public.materialize_rule(v_rule_id, p_weeks);
+  end loop;
+
+  return v_inserted;
+end;
+$$;
+
+revoke execute on function public.materialize_rule(uuid, int)
+  from public, anon, authenticated, service_role;
+revoke execute on function public.materialize_recurring(int) from public, anon;
+-- authenticated for the trainer path (the role check inside rejects everyone else).
+grant execute on function public.materialize_recurring(int) to authenticated, service_role;

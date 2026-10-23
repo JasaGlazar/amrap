@@ -18,7 +18,8 @@ Slovenian, but identifiers and docs use the English terms below.
 - **slot** — a concrete dated occurrence of a slot template; derived from the template and the date, with capacity counted over its `booked` and `charged` appointments.
 - **appointment** — one customer's reservation of a slot or an ad-hoc time; table `appointments`, with status `booked`, `charged`, `cancelled`, `cancelled_late` or `cancelled_by_trainer`.
 - **recurring rule** — the trainer's standing assignment of a customer to a slot template; table `recurring_rules`.
-- **materialization** — the nightly, idempotent job that turns active recurring rules into concrete `appointments` about four weeks ahead (`source = 'recurring'`).
+- **materialization** — turning active recurring rules into concrete `booked` appointments (`source = 'recurring'`) for every occurrence from today through four weeks ahead; done nightly by `materialize_recurring` (pg_cron) and on demand by the trainer. Idempotent: one instance per rule and start, ever, so a cancelled instance is not recreated. Past starts, blocked periods, full slots and starts where the customer is already booked are skipped.
+- **instance** — an appointment created by materialization; it carries its rule's `rule_id`.
 - **ad-hoc appointment** — a trainer-created appointment with no slot template (`slot_template_id` is null, `source = 'trainer'`).
 - **blocked period** — a trainer-defined time range (holiday, closure) in which booking is not allowed; table `blocked_periods`.
 - **debtor** — a customer whose `customer_balances` row has balance < 0; shown in red and listed on the trainer dashboard, never blocked.

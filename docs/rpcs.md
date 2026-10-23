@@ -17,7 +17,10 @@ app relies on.
   copy in `app/src/i18n/sl.ts`; the detail after it is for logs only and may change.
 - **Grants.** The initial migration revoked default execute, so each RPC below is granted
   explicitly to `authenticated` and `service_role` (never `anon`), except
-  `charge_due_appointments()`, which has no grant to `authenticated` or `anon`.
+  `charge_due_appointments()`, which has no grant to `authenticated` or `anon`. The grant is
+  not the protection: `materialize_recurring()` is granted to `authenticated` so the trainer
+  can call it, and its role check inside rejects everyone else. The private helper
+  `materialize_rule()` is granted to nobody.
 - Times are `timestamptz`. Weekday and start time of a slot template are interpreted in
   `settings.timezone` (weekday 0 = Monday, see [schema.md](schema.md#slot_templates)).
 
@@ -26,7 +29,7 @@ app relies on.
 | Token | Meaning | Raised by |
 |---|---|---|
 | `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record, or (`accept_invite`) there is no signed-in user | all except `charge_due_appointments` |
-| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record) | `book`, `top_up`, `adjust`, `create_invite` |
+| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record) | `book`, `top_up`, `adjust`, `create_invite`, `materialize_recurring` |
 | `AMRAP_NOT_FOUND` | The referenced customer, slot template or appointment does not exist | `book`, `cancel`, `top_up`, `adjust`, `create_invite` |
 | `AMRAP_SLOT_INACTIVE` | The slot template is deactivated | `book` |
 | `AMRAP_IN_PAST` | A customer tried to book a start that is not in the future | `book` |
@@ -37,7 +40,7 @@ app relies on.
 | `AMRAP_INVITE_INVALID` | The invite token is unknown, empty, replaced by a newer invite, already redeemed (redeeming clears it) or expired | `accept_invite` |
 | `AMRAP_INVITE_USED` | The token belongs to a customer record that is already linked | `accept_invite` |
 | `AMRAP_ALREADY_LINKED` | The customer record already has an account (`create_invite`), or the caller is already linked to a customer (`accept_invite`) | `create_invite`, `accept_invite` |
-| `AMRAP_SETTINGS_MISSING` | The `settings` row (`id = 1`) is missing, so the timezone or cutoff is unknown; the call fails closed | `book` (with a template), `cancel` (customer) |
+| `AMRAP_SETTINGS_MISSING` | The `settings` row (`id = 1`) is missing, so the timezone or cutoff is unknown; the call fails closed | `book` (with a template), `cancel` (customer), `materialize_recurring` (when there is an active rule) |
 | `AMRAP_NOT_CANCELLABLE` | The appointment is not in a state the caller may cancel (customer: not `booked` or already started; anyone: already cancelled) | `cancel` |
 
 ## book
@@ -210,6 +213,30 @@ public.charge_due_appointments() returns int
   Described as a job in [jobs.md](jobs.md).
 - **Diagram:** [architecture/charging-sequence.md](architecture/charging-sequence.md).
 
+## materialize_recurring
+
+```sql
+public.materialize_recurring(p_weeks int default 4) returns int
+```
+
+- **Who may call:** pg_cron and the service role (no signed-in user: `auth.uid() is null`), or
+  the trainer (`is_trainer()`), so a new rule can be materialized from the UI right away.
+  Anyone else with a JWT (a customer, an auth user without a customer record) gets
+  `AMRAP_FORBIDDEN`; `anon` has no execute (`42501`). Granted to `authenticated` and
+  `service_role`; the role check inside is the protection.
+- **Rules:** `p_weeks` must be `>= 0` (`AMRAP_INVALID_ARGUMENT`). Runs `materialize_rule(rule,
+  p_weeks)` (see [Helpers](#helpers)) for every rule with `active = true` whose slot template
+  is active, in rule id order, and adds up what each inserted. Fails closed without the
+  `settings` row (`AMRAP_SETTINGS_MISSING`).
+- **Side effects:** inserts `appointments` rows `status = 'booked'`, `source = 'recurring'`,
+  `rule_id` set (details under `materialize_rule`). No credit transaction: the charge job
+  charges them at start like any booking. Returns the number inserted.
+- **Idempotent:** an instance that exists for a rule and start, in any status, is never
+  inserted again (`appointments_rule_id_starts_at_idx`), so a second run returns 0 and an
+  instance the customer or trainer cancelled is not recreated.
+- Scheduled nightly, see [jobs.md](jobs.md).
+- **Diagram:** [architecture/materialization-sequence.md](architecture/materialization-sequence.md).
+
 ## Helpers
 
 Role helpers used by RLS policies and by every RPC's role check. Both are `language sql
@@ -221,3 +248,31 @@ stable security definer set search_path = ''`, executable by `authenticated` and
   null when the caller has no customer record.
 - `public.is_trainer() returns boolean` — true when the caller's customer record has
   `role = 'trainer'`.
+
+Materialization helper, defined in `20261023192556_recurring_and_jobs.sql`: `language plpgsql
+security definer set search_path = ''`, executable by nobody but its owner (execute revoked
+from `public`, `anon`, `authenticated` and `service_role`). It is only called by
+`materialize_recurring()` and `activate_rule()`, which do the role check.
+
+- `public.materialize_rule(p_rule_id uuid, p_weeks int) returns int` — materializes one rule
+  and returns the number of appointments inserted. Returns 0 when the rule is missing or
+  inactive or its template is inactive. Fails closed without the `settings` row
+  (`AMRAP_SETTINGS_MISSING`). Locks the rule row `for share`, so a concurrent
+  `deactivate_rule()` is serialized with it. For each date from today through `today + p_weeks *
+  7` days (local dates in `settings.timezone`, both ends included) on the template's weekday,
+  in ascending order:
+  1. `starts_at = (date + start_time) at time zone settings.timezone`, so Postgres picks the
+     UTC offset of that date and the wall-clock time survives DST changes;
+     `ends_at = starts_at + duration_minutes`.
+  2. Skip when `starts_at <= now()`; when the local time of `starts_at` is not `start_time`
+     (a `start_time` inside the spring-forward gap does not exist that day; `book()` cannot
+     match it either); or when `[starts_at, ends_at)` overlaps a blocked period (as in
+     `book()`).
+  3. Take the same advisory lock as `book()`:
+     `pg_advisory_xact_lock(hashtext(template_id || '@' || epoch(starts_at)))`.
+  4. Skip when the rule already has an appointment at `starts_at` (any status); when the
+     customer already has a live (`booked`/`charged`) appointment at `starts_at`; or when the
+     slot occurrence already has `capacity` live appointments.
+  5. Insert `status = 'booked'`, `source = 'recurring'`, `rule_id`, `slot_template_id`;
+     `on conflict do nothing` covers a concurrent booking of the same customer at the same
+     start through another template (another lock).

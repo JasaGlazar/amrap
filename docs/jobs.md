@@ -38,3 +38,31 @@ Charges sessions at their start (ADR 0002). Defined in `20261023175948_core_rpcs
   by `authenticated`).
 - **Manual run (local):** `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c
   'select public.charge_due_appointments()'`.
+
+## materialize_recurring (nightly)
+
+```sql
+public.materialize_recurring(p_weeks int default 4) returns int
+```
+
+Turns recurring rules into appointments about four weeks ahead. Defined in
+`20261023192556_recurring_and_jobs.sql`; the full rules are in
+[rpcs.md](rpcs.md#materialize_recurring).
+
+- **Selects:** every rule with `active = true` whose slot template is active; for each, every
+  occurrence date from today through `today + p_weeks * 7` days in `settings.timezone`.
+- **Writes:** one `appointments` row per occurrence that is in the future, does not overlap a
+  blocked period, has no instance of the rule yet (any status), where the customer is not
+  already booked and the slot is not full: `status = 'booked'`, `source = 'recurring'`,
+  `rule_id` set. Capacity is counted under `book()`'s advisory lock.
+- **Returns:** the number inserted.
+- **Idempotent:** the unique index `appointments_rule_id_starts_at_idx` allows one instance
+  per rule and start, ever, so a second run returns 0 and a cancelled instance is not
+  recreated.
+- **Who may run it:** no signed-in user (`auth.uid() is null`: pg_cron as `postgres`, the
+  service role) or the trainer. Granted to `authenticated` for the trainer path; a customer or
+  an unlinked user gets `AMRAP_FORBIDDEN`.
+- **Tests:** `supabase/tests/020_materialize.sql`.
+- **Manual run (local):** `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c
+  'select public.materialize_recurring()'`.
+- **Diagram:** [architecture/materialization-sequence.md](architecture/materialization-sequence.md).

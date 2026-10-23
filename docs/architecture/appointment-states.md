@@ -12,7 +12,7 @@ can cancel from `booked` or `charged` without charge (`cancelled_by_trainer`); f
 
 ```mermaid
 stateDiagram-v2
-    [*] --> booked : book() by customer or trainer / materialization
+    [*] --> booked : book() by customer or trainer / materialize_recurring()
     booked --> charged : charge_due_appointments() after start time (session -1)
     booked --> cancelled : customer cancel before cutoff (free)
     booked --> cancelled_late : customer cancel after cutoff, before start (late_cancel -1)

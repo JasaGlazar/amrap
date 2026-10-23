@@ -6,7 +6,8 @@ column; a customer's balance is `SUM(credit_transactions.amount)`, exposed by th
 `auth_user_id` is not null, pending when `invite_token` is not null and `invite_expires_at > now()`,
 otherwise none. `push_subscriptions.user_id` and `credit_transactions.created_by` reference
 `auth.users` (not drawn), so they reach a customer only indirectly through
-`customers.auth_user_id`. All tables are under RLS and all credit and capacity changes go
+`customers.auth_user_id`. A recurring rule materializes at most one appointment per start
+(unique `appointments(rule_id, starts_at)` where `rule_id` is set, any status). All tables are under RLS and all credit and capacity changes go
 through RPCs. Column lists show the main fields; the migration is the exact definition and
 `docs/schema.md` is the reference.
 
@@ -47,7 +48,7 @@ erDiagram
         timestamptz ends_at "after starts_at"
         appointment_status status "booked, charged, cancelled, cancelled_late, cancelled_by_trainer"
         appointment_source source "recurring, self_booked, trainer"
-        uuid rule_id FK "nullable"
+        uuid rule_id FK "nullable, unique with starts_at"
         timestamptz cancelled_at "nullable"
         timestamptz created_at
     }

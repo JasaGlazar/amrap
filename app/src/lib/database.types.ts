@@ -368,6 +368,11 @@ export type Database = {
       create_invite: { Args: { p_customer_id: string }; Returns: string }
       current_customer_id: { Args: never; Returns: string }
       is_trainer: { Args: never; Returns: boolean }
+      materialize_recurring: { Args: { p_weeks?: number }; Returns: number }
+      materialize_rule: {
+        Args: { p_rule_id: string; p_weeks: number }
+        Returns: number
+      }
       top_up: {
         Args: { p_amount: number; p_customer_id: string; p_note?: string }
         Returns: string
