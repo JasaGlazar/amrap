@@ -362,6 +362,7 @@ export type Database = {
         }
         Returns: string
       }
+      cancel: { Args: { p_appointment_id: string }; Returns: undefined }
       current_customer_id: { Args: never; Returns: string }
       is_trainer: { Args: never; Returns: boolean }
       top_up: {

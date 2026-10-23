@@ -89,6 +89,7 @@ run, so test files do not create it.
 | `001_schema.sql` | tables, enums, keys, indexes, check constraints, the one-charge index, default privileges, `customer_balances` |
 | `002_rls.sql` | what a customer, the trainer, an unlinked auth user, `anon` and `service_role` can read and write directly |
 | `010_book.sql` | `book`: own-only for customers, template/weekday/time/future rules, blocked periods, capacity at the boundary, duplicates, trainer and ad-hoc bookings |
+| `011_cancel.sql` | `cancel`: the cutoff boundary ±1 min, started/charged/cancelled rejections, negative balance, trainer cancel and refund, a cancel freeing a full slot |
 | `012_credits.sql` | `top_up` and `adjust`: trainer only, amount rules, ledger rows and balances |
 
 Helpers in `supabase/seeds/test_helpers.sql` (schema `tests`, local only):

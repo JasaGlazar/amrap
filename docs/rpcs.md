@@ -27,13 +27,14 @@ app relies on.
 |---|---|---|
 | `AMRAP_FORBIDDEN` | The caller's role does not allow this call, or a customer acts on someone else's record | all except `charge_due_appointments` |
 | `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination | `book`, `top_up`, `adjust` |
-| `AMRAP_NOT_FOUND` | The referenced customer or slot template does not exist | `book`, `top_up`, `adjust` |
+| `AMRAP_NOT_FOUND` | The referenced customer, slot template or appointment does not exist | `book`, `cancel`, `top_up`, `adjust` |
 | `AMRAP_SLOT_INACTIVE` | The slot template is deactivated | `book` |
 | `AMRAP_IN_PAST` | A customer tried to book a start that is not in the future | `book` |
 | `AMRAP_SLOT_MISMATCH` | The start is not on the template's weekday and start time (in `settings.timezone`) | `book` |
 | `AMRAP_BLOCKED` | The start falls inside a blocked period | `book` |
 | `AMRAP_CAPACITY_FULL` | The slot occurrence already has `capacity` live appointments | `book` |
 | `AMRAP_ALREADY_BOOKED` | The customer already has a live (`booked`/`charged`) appointment at that start | `book` |
+| `AMRAP_NOT_CANCELLABLE` | The appointment is not in a state the caller may cancel (customer: not `booked` or already started; anyone: already cancelled) | `cancel` |
 
 ## book
 
@@ -71,6 +72,37 @@ public.book(p_customer_id uuid, p_starts_at timestamptz,
   transaction (the charge happens at session start, see [jobs.md](jobs.md)). Returns the
   appointment id.
 - **Diagram:** [architecture/booking-sequence.md](architecture/booking-sequence.md).
+
+## cancel
+
+```sql
+public.cancel(p_appointment_id uuid) returns void
+```
+
+- **Who may call:** a customer for their own appointment, or the trainer for any.
+- **Locking:** reads the appointment with `select ... for update` before looking at its
+  status, so a cancel and `charge_due_appointments()` on the same row are serialized: exactly
+  one of them wins (ADR 0002). The partial unique index on `credit_transactions` is the final
+  guard (ADR 0003).
+- **Rules:**
+  - The appointment must exist (`AMRAP_NOT_FOUND`); an auth user without a customer record is
+    rejected first (`AMRAP_FORBIDDEN`).
+  - **Customer:** must own it (`AMRAP_FORBIDDEN`). Status must be `booked` and `starts_at`
+    must still be in the future, else `AMRAP_NOT_CANCELLABLE` (covers charged, started but not
+    yet charged, and every cancelled status). With `cutoff = settings.late_cancel_hours`:
+    - `now() < starts_at - cutoff` → status `cancelled`, no transaction (free);
+    - otherwise → status `cancelled_late` and one `late_cancel` transaction (−1,
+      `created_by = auth.uid()`). The balance may go negative; that is allowed and shown.
+  - **Trainer:** status `booked` → `cancelled_by_trainer`, no transaction. Status `charged` →
+    `cancelled_by_trainer` plus one `refund` transaction (+1, `appointment_id` set,
+    `created_by = auth.uid()`), so the appointment nets to zero. Any cancelled status
+    (`cancelled`, `cancelled_late`, `cancelled_by_trainer`) → `AMRAP_NOT_CANCELLABLE`. To waive
+    a late-cancel charge the trainer calls `adjust(customer, 1, note)` instead.
+- **Side effects:** updates the appointment's `status` and sets `cancelled_at = now()`;
+  inserts at most one transaction as described. A cancelled appointment no longer counts
+  toward the slot's capacity, so `book()` can fill its place.
+- **Diagrams:** [architecture/appointment-states.md](architecture/appointment-states.md),
+  [architecture/charging-sequence.md](architecture/charging-sequence.md).
 
 ## top_up
 

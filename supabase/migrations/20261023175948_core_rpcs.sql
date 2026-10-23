@@ -185,6 +185,80 @@ begin
 end;
 $$;
 
+-- Cancelling -------------------------------------------------------------------------------
+
+-- Cancels one appointment. The row is locked first (select ... for update), so a cancel racing
+-- the charge job sees either booked (and wins) or charged (and the customer is rejected): one
+-- charge per appointment under any interleaving (ADR 0002). Customer: only their own, only
+-- while booked and not started; free before the cutoff (cancelled), else cancelled_late with a
+-- late_cancel -1 charged now. Trainer: booked -> cancelled_by_trainer, charged ->
+-- cancelled_by_trainer plus a refund +1. A cancelled appointment of any kind is final; the
+-- trainer waives a late-cancel charge with adjust(+1, note).
+create function public.cancel(p_appointment_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_is_trainer boolean := public.is_trainer();
+  v_caller uuid := public.current_customer_id();
+  v_appt public.appointments%rowtype;
+  v_cutoff interval;
+begin
+  if not v_is_trainer and v_caller is null then
+    raise exception 'AMRAP_FORBIDDEN: only a customer or the trainer can cancel' using errcode = 'P0001';
+  end if;
+
+  select * into v_appt from public.appointments a where a.id = p_appointment_id for update;
+  if not found then
+    raise exception 'AMRAP_NOT_FOUND: appointment % does not exist', p_appointment_id
+      using errcode = 'P0001';
+  end if;
+
+  if v_is_trainer then
+    if v_appt.status = 'booked' then
+      update public.appointments
+        set status = 'cancelled_by_trainer', cancelled_at = now()
+        where id = v_appt.id;
+    elsif v_appt.status = 'charged' then
+      update public.appointments
+        set status = 'cancelled_by_trainer', cancelled_at = now()
+        where id = v_appt.id;
+      insert into public.credit_transactions (customer_id, amount, type, appointment_id, created_by)
+      values (v_appt.customer_id, 1, 'refund', v_appt.id, auth.uid());
+    else
+      raise exception 'AMRAP_NOT_CANCELLABLE: appointment % is already %', v_appt.id, v_appt.status
+        using errcode = 'P0001';
+    end if;
+    return;
+  end if;
+
+  if v_appt.customer_id <> v_caller then
+    raise exception 'AMRAP_FORBIDDEN: a customer can only cancel their own appointments'
+      using errcode = 'P0001';
+  end if;
+  if v_appt.status <> 'booked' or v_appt.starts_at <= now() then
+    raise exception 'AMRAP_NOT_CANCELLABLE: appointment % is % and starts at %',
+      v_appt.id, v_appt.status, v_appt.starts_at using errcode = 'P0001';
+  end if;
+
+  select s.late_cancel_hours * interval '1 hour' into v_cutoff from public.settings s where s.id = 1;
+
+  if now() < v_appt.starts_at - v_cutoff then
+    update public.appointments
+      set status = 'cancelled', cancelled_at = now()
+      where id = v_appt.id;
+  else
+    update public.appointments
+      set status = 'cancelled_late', cancelled_at = now()
+      where id = v_appt.id;
+    insert into public.credit_transactions (customer_id, amount, type, appointment_id, created_by)
+    values (v_appt.customer_id, -1, 'late_cancel', v_appt.id, auth.uid());
+  end if;
+end;
+$$;
+
 -- Grants -----------------------------------------------------------------------------------
 
 revoke execute on function public.top_up(uuid, int, text) from public, anon;
@@ -193,3 +267,5 @@ grant execute on function public.top_up(uuid, int, text) to authenticated, servi
 grant execute on function public.adjust(uuid, int, text) to authenticated, service_role;
 revoke execute on function public.book(uuid, timestamptz, uuid, timestamptz) from public, anon;
 grant execute on function public.book(uuid, timestamptz, uuid, timestamptz) to authenticated, service_role;
+revoke execute on function public.cancel(uuid) from public, anon;
+grant execute on function public.cancel(uuid) to authenticated, service_role;
