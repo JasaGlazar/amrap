@@ -63,7 +63,7 @@ harness allows it.
 The customer calendar must show remaining capacity per slot while RLS hides other customers'
 appointments: add a `SECURITY DEFINER` counting RPC or view (e.g. `slot_occupancy`). Route the
 not-linked and lookup-failed sign-out buttons through `/logout` so failures surface.
-**Status**: Not Started
+**Status**: In Progress
 
 ## Stage 3: Automation & notifications
 **Goal**: Web push (VAPID) via edge function + pg_net, `push_subscriptions` UI, pre-cutoff
@@ -383,3 +383,145 @@ flow`, or similar small steps. Do not implement calendar, booking or ledger UI (
   `"check:docs": "bash ../scripts/check-docs.sh"` is NOT needed; keep the script standalone.
 
 Commit: `ci: pgTAP, app and docs checks`.
+
+---
+
+## Stage 2 tasks
+
+Branch `stage-2-core` off `stage-1-foundation`; PR base `stage-1-foundation` (stacked on #1).
+Rulings for this stage (recorded in the ledger):
+- Blocked periods are checked by **interval overlap** (`appointment [starts_at, ends_at)` vs
+  `blocked [starts_at, ends_at)`), for `book()` and materialization alike.
+- `materialize_recurring()` may be called by cron/service role (no JWT: `auth.uid() is null`)
+  or by the trainer (`is_trainer()`), so a new rule can be materialized immediately from the UI.
+- Deactivating a rule cancels its future `booked` instances as `cancelled_by_trainer` (no
+  charge) through `deactivate_rule()`; past/charged instances are untouched.
+- Remaining capacity is exposed to customers through the owner-executed view
+  `slot_occupancy` (counts only, no customer identity), gated on a linked caller.
+- Cron runs as the migration owner; `charge_due_appointments` and `materialize_recurring`
+  get no grant to `authenticated`/`anon` for the cron path.
+
+### Task 6: Recurring rules, materialization, occupancy view, pg_cron
+
+New migration (`supabase migration new recurring_and_jobs`; follow the `new-migration`
+skill), TDD with pgTAP (`supabase/tests/020_materialize.sql`, `021_rules_and_jobs.sql`,
+and extend `010_book.sql` for overlap):
+
+1. Partial unique index `appointments(rule_id, starts_at) where rule_id is not null`
+   (any status, so a cancelled instance is never recreated).
+2. `book()`: replace the start-only blocked check with interval overlap
+   (`tstzrange(starts_at, ends_at) && tstzrange(b.starts_at, b.ends_at)`); keep the
+   `AMRAP_BLOCKED` token; adjust existing tests and add an overlap test (appointment that
+   starts before the block but ends inside it is rejected).
+3. `materialize_recurring(p_weeks int default 4) returns int` — security definer, callable
+   when `auth.uid() is null` or `is_trainer()`, else `AMRAP_FORBIDDEN`. For every active rule
+   whose template is active, for each occurrence date from today (gym timezone) through
+   `today + p_weeks*7 days`: compute `starts_at` = date + `start_time` in `settings.timezone`
+   (DST-safe), `ends_at = starts_at + duration`; skip if `starts_at <= now()`; skip if any
+   appointment with that `rule_id` and `starts_at` exists; skip if overlapping a blocked
+   period; skip if the customer already has a live booking at that start (unique index
+   `(customer_id, starts_at)`); take `pg_advisory_xact_lock(hashtext(template_id::text ||
+   extract(epoch from starts_at)::text))` exactly as `book()` does, count live appointments
+   for that template+start, skip if `>= capacity`; insert `source = 'recurring'`, `status =
+   'booked'`, `rule_id`. Return the number inserted. Running twice inserts 0 the second time.
+4. `deactivate_rule(p_rule_id uuid) returns int` — trainer only; sets `active = false`;
+   cancels future (`starts_at > now()`) `booked` instances of the rule as
+   `cancelled_by_trainer` with `cancelled_at = now()`; returns the number cancelled. Also
+   `activate_rule(p_rule_id uuid) returns int` — trainer only; sets active and materializes
+   that one rule (same loop, factor the per-rule body into a private helper
+   `materialize_rule(p_rule_id, p_weeks)` that is NOT granted to anyone and is documented
+   under Helpers).
+5. View `public.slot_occupancy(slot_template_id, starts_at, booked_count)` — default
+   `security_invoker = false` (runs as owner, so it sees all rows), counting appointments in
+   (`booked`,`charged`) grouped by template and start, with `where (select
+   public.current_customer_id()) is not null or (select public.is_trainer())`; grant select to
+   `authenticated`. Test: a customer sees counts that include other customers' bookings but
+   no identities; an unlinked user sees nothing.
+6. pg_cron: `create extension if not exists pg_cron with schema pg_catalog;` (the hosted
+   project needs the extension enabled; if `create extension` fails locally, document the
+   dashboard step in the runbook instead and keep the schedules in the migration guarded by
+   `if exists (select 1 from pg_extension where extname = 'pg_cron')`),
+   `cron.schedule('charge_due_appointments', '*/15 * * * *', $$select
+   public.charge_due_appointments()$$)` and `cron.schedule('materialize_recurring', '0 2 * *
+   *', $$select public.materialize_recurring()$$)` — `cron.schedule` with a name is
+   idempotent. Test: both jobs exist in `cron.job` with the expected schedules.
+7. Tests cover: materialization creates exactly the expected number of instances for a rule
+   over the window (derive from the generated dates), idempotency (second run → 0), blocked
+   overlap skipped, capacity-full skipped, cancelled instance not recreated, inactive
+   rule/template skipped, deactivate cancels only future booked instances and leaves charged
+   ones, trainer-only on activate/deactivate, `authenticated` cannot execute
+   `materialize_recurring` directly (test as a linked customer → `AMRAP_FORBIDDEN`; the
+   trainer path succeeds), DST: a rule on a date across the 2026-10-25 change keeps the
+   same wall-clock time.
+8. Docs in the same commits: `docs/rpcs.md` (new RPCs + helper), `docs/schema.md`
+   (migration list, new index, view), `docs/jobs.md` (both schedules, how cron
+   authenticates, how to run the jobs by hand locally and on the hosted project),
+   `docs/architecture/booking-sequence.md` (overlap), new
+   `docs/architecture/materialization-sequence.md`, `data-model.md` (view + index),
+   `CONTEXT.md` (materialization, rule activation). Regenerate `database.types.ts`.
+   `scripts/check-docs.sh` must pass.
+
+### Task 7: Customer screens — Home, Calendar, History
+
+In `app/` (Stage 1 shell exists; see `docs/screens.md`, `app/src/routes.tsx`,
+`app/src/test/fakeSupabase.ts`). All copy in `sl.ts`. Phone-first, plain CSS.
+
+1. Data layer `app/src/data/`: typed query helpers over the Supabase client — slot templates
+   (active), `slot_occupancy` for a date range, my appointments (upcoming / past), my ledger
+   (`credit_transactions` ordered desc), `customer_balances` for me, `settings`
+   (`late_cancel_hours`, `timezone`); RPC wrappers `book`, `cancel` with `fromError`. Keep
+   these pure functions (client passed in) so tests use the fake.
+2. `app/src/lib/time.ts`: helpers using `Intl`/`Temporal`-free date math for the gym
+   timezone: week start (Monday), occurrences of a template in a week, formatting
+   (`sl-SI`), cutoff time = `starts_at - late_cancel_hours h`.
+3. Home `/c`: balance (red + "dolg" label when negative), next appointment (date, time,
+   remaining time), upcoming list with per-item cancel (opens the cancel dialog).
+4. Calendar `/c/koledar`: week view (prev/next week), each template occurrence shows start,
+   duration, remaining capacity (`capacity - booked_count`), "Rezerviraj" when free capacity
+   and in the future, "Polno" when full, blocked occurrences greyed out, my own booking marked
+   with "Odpovej". Booking calls `book(my id, starts_at, template_id)`; errors via
+   `fromError`.
+5. Cancel dialog: shows the cutoff time and whether the cancel is free ("brezplačno") or
+   late ("zaračunan 1 kredit") computed client-side from `settings.late_cancel_hours`; confirm
+   calls `cancel`. Shows the server error if the state changed meanwhile.
+6. History `/c/zgodovina`: past appointments with status labels (Slovenian), and the
+   ledger as a readable list (type label, amount with sign, note, date).
+7. Bottom nav already exists; wire the three routes.
+8. Vitest with the fake client (extend `fakeSupabase.ts` with occupancy, templates,
+   settings, ledger, rpc `book`/`cancel`): remaining capacity rendering, book button
+   disabled when full/past/blocked, cancel dialog free vs late copy at ±1 min around the
+   cutoff, negative balance styling, history ordering. Derive expectations from the fixture
+   data.
+9. Docs: `docs/screens.md` customer section (routes, data used, states), `README.md` if run
+   steps change. Manual check against the local stack with `ana@amrap.local`.
+
+### Task 8: Trainer screens — Today, Calendar, Customers, Settings; runbook update
+
+In `app/`; reuse Task 7's data layer and calendar components (extend, don't duplicate).
+
+1. Today `/t`: today's occurrences with booked customers (names), remaining capacity; a
+   debtors strip (customers with negative balance, from `customer_balances` joined to
+   `customers`).
+2. Calendar `/t/koledar`: week view of all templates with occupancy and the list of booked
+   customers per occurrence; actions: book a customer into an occurrence (`book` with the
+   customer id), create an ad-hoc appointment (customer, start, end → `book` without a
+   template), cancel any appointment (`cancel`; shows "s povračilom" when the appointment
+   is charged).
+3. Customers `/t/stranke`: list with balance (negative red) and invite status (derived:
+   linked / pending / none); create customer (insert via RLS: name, phone, email); detail
+   `/t/stranke/:id`: edit fields, ledger, top-up (`top_up`), adjustment (`adjust`, ± with
+   note), upcoming appointments with cancel, "Ustvari povabilo" → `create_invite` → shows the
+   full link `${location.origin}/invite/${token}` with a copy button, re-link hint pointing
+   to the runbook. Recurring rules for this customer: list, add (pick a template) →
+   `activate_rule` after insert, deactivate → `deactivate_rule`.
+4. Settings `/t/nastavitve`: slot templates CRUD (weekday, start, duration, capacity,
+   active); cutoff hours (`settings.late_cancel_hours`); blocked periods CRUD (start, end,
+   reason). Inserts/updates/deletes go through RLS (trainer `for all`).
+5. Tests with the fake: debtors strip derived from fixture balances, book-for-customer
+   calls `book` with the chosen customer, cancel of a charged appointment shows the refund
+   copy, invite link rendering, rule activate/deactivate calling the RPCs, template form
+   validation (duration > 0, capacity > 0).
+6. Docs in the same commits: `docs/screens.md` trainer section; `docs/runbook.md`: the
+   "Invite a customer (Stage 1)" SQL recipe becomes a fallback note and the primary path is
+   the Customers screen; `docs/architecture/auth-invite-flow.md` back to the UI step;
+   `CONTEXT.md` if new terms appear. Manual check with `trainer@amrap.local`.
