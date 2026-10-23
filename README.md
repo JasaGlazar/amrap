@@ -29,8 +29,27 @@ supabase start        # local Postgres, Auth, Studio
 supabase db reset     # apply migrations and seeds
 supabase test db      # run pgTAP tests
 supabase gen types typescript --local > app/src/lib/database.types.ts   # after a schema change
-cd app && npm i && npm run dev
 ```
+
+### The app (`app/`)
+
+Requires Node.js 22 or newer. The app reads the Supabase URL and anon key from
+`app/.env.local` and refuses to start without them; `app/.env.example` holds the values of the
+local stack (`supabase status -o env` prints them again).
+
+```sh
+cd app
+cp .env.example .env.local
+npm ci
+npm run dev           # http://localhost:5173
+npm run lint          # eslint + prettier --check
+npm run typecheck
+npm test              # vitest
+npm run build         # type-check and production build into app/dist
+```
+
+After `supabase start`, restart the stack once (`supabase stop && supabase start`) when
+`supabase/config.toml` changed so Auth picks up the `site_url` of the dev server.
 
 The local seed (`supabase/seeds/dev.sql`) signs in as `trainer@amrap.local` or
 `ana@amrap.local`, both with password `password`. Writing tests: see the "Testing" section of

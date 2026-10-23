@@ -9,3 +9,4 @@ supabase/.branches/
 .superpowers/
 .DS_Store
 coverage/
+dev-dist/

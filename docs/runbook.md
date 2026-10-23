@@ -74,3 +74,20 @@ Migrations reach the remote project only after the PR is merged. Never from a fe
 | Environment variables | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` |
 
 Production branch is `main`. Pull request branches get preview deployments.
+
+Set `VITE_SUPABASE_URL` (the project URL, `https://etzkbwqgjuipihypokjp.supabase.co`) and
+`VITE_SUPABASE_ANON_KEY` (the project's anon key from the Supabase dashboard, Project Settings,
+API) for both Production and Preview. Both are public by design; access is controlled by RLS.
+The app throws a descriptive error at start-up if either is missing, so a misconfigured deploy
+fails visibly instead of rendering a blank page. Vite inlines the variables at build time, so
+changing them needs a new deployment.
+
+`app/public/_redirects` (`/* /index.html 200`) makes every path, such as `/invite/<token>`,
+serve the single-page app.
+
+### Auth URL configuration (dashboard action for the owner)
+
+The remote Supabase project does not read `supabase/config.toml`. After the first Pages
+deployment, open the dashboard, Authentication, URL Configuration, and set Site URL to the
+Pages production URL; add the Pages URL (and `https://*.<project>.pages.dev` if preview
+deployments should work) to Redirect URLs. Email confirmations stay disabled (ADR 0006).
