@@ -5,9 +5,18 @@ customer record with `create_invite(customer_id)`, which returns a single-use to
 bytes, hex) valid for 7 days; re-issuing replaces the previous token. The customer opens the
 link, signs up with email and password (no confirmation email), and the app calls
 `accept_invite(token)`, which locks the record by token, checks it, links the new auth user
-(`customers.auth_user_id`) and clears the token. After that the app routes by role: the trainer
-sees the trainer shell, a customer sees the customer home. A user with no `customers` row has
-no data access. Error tokens are listed in [rpcs.md](../rpcs.md#accept_invite).
+(`customers.auth_user_id`) and clears the token. The app then reloads the user's own
+`customers` row (the role comes from that row) and routes by role: the trainer sees the trainer
+shell, a customer sees the customer home. A user with no `customers` row has no data access and
+sees an "account not linked" page with a sign-out button.
+
+If the sign-up already succeeded earlier but `accept_invite` did not run or was rejected (a
+dropped request, or an invite replaced by a newer one), the auth user exists but is unlinked.
+Opening the invite link again and entering the same email and password makes the page sign in
+instead (sign-up answers `user_already_exists`) and then call `accept_invite`; a wrong password
+shows the "account exists" message. If `accept_invite` itself rejects the token, the page shows
+the mapped error ([rpcs.md](../rpcs.md#accept_invite)) and a continue link that ends on the
+not-linked page; the trainer issues a new invite (`create_invite` replaces the token).
 
 `create_invite` refuses a record that is already linked. To re-link a customer who lost access
 (ADR 0007), the trainer first deletes the customer's auth user in the Supabase dashboard; the
@@ -35,16 +44,17 @@ sequenceDiagram
     C->>App: open link with token
     App->>Auth: sign up (email, password)
     Auth-->>App: session (no email confirmation)
+    Note over App,Auth: user_already_exists: sign in with the same email and password instead
     App->>DB: accept_invite(token)
     DB->>DB: lock customers row where invite_token = token
     alt token valid, record unlinked, caller not linked
         DB->>DB: set auth_user_id = auth.uid(), clear invite_token and invite_expires_at
         DB-->>App: customer id
-        App->>DB: read role via is_trainer()
+        App->>DB: reload own customers row (role)
         App-->>C: role-gated home
     else unknown, used (token cleared) or expired
         DB-->>App: AMRAP_INVITE_INVALID
-        App-->>C: invite rejected
+        App-->>C: invite rejected, signed in but not linked
     else record already linked
         DB-->>App: AMRAP_INVITE_USED
         App-->>C: invite rejected

@@ -1,0 +1,341 @@
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { createMemoryRouter } from 'react-router';
+import { RouterProvider } from 'react-router';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { t } from './i18n';
+import { routes } from './routes';
+import {
+  authError,
+  db,
+  emitAuth,
+  fakeSupabase,
+  makeCustomer,
+  makeSession,
+  resetFake,
+} from './test/fakeSupabase';
+
+vi.mock('./lib/supabase', async () => ({
+  supabase: (await import('./test/fakeSupabase')).fakeSupabase,
+}));
+
+const trainer = makeCustomer({ id: 'trainer-1', role: 'trainer', auth_user_id: 'user-t' });
+const customer = makeCustomer({ id: 'customer-1', role: 'customer', auth_user_id: 'user-c' });
+
+function renderAt(path: string) {
+  const router = createMemoryRouter(routes, { initialEntries: [path] });
+  render(<RouterProvider router={router} />);
+  return router;
+}
+
+function signedInAs(row: typeof trainer) {
+  resetFake({ session: makeSession(row.auth_user_id!), customer: row });
+}
+
+beforeEach(() => resetFake());
+
+describe('unauthenticated visitor', () => {
+  it.each(['/', '/c', '/t', '/t/settings'])('is sent from %s to /login', async (path) => {
+    const router = renderAt(path);
+    await screen.findByRole('heading', { name: t.login.title });
+    expect(router.state.location.pathname).toBe('/login');
+  });
+
+  it('can open the invite page without signing in', async () => {
+    const router = renderAt('/invite/abc');
+    await screen.findByRole('heading', { name: t.invite.title });
+    expect(router.state.location.pathname).toBe('/invite/abc');
+  });
+});
+
+describe('role gating', () => {
+  it('sends a trainer from / to /t', async () => {
+    signedInAs(trainer);
+    const router = renderAt('/');
+    await screen.findByRole('heading', { name: t.trainer.todayTitle });
+    expect(router.state.location.pathname).toBe('/t');
+  });
+
+  it('sends a customer from / to /c', async () => {
+    signedInAs(customer);
+    const router = renderAt('/');
+    await screen.findByRole('heading', { name: t.nav.home });
+    expect(router.state.location.pathname).toBe('/c');
+  });
+
+  it('sends a customer away from /t to /c', async () => {
+    signedInAs(customer);
+    const router = renderAt('/t/customers');
+    await screen.findByRole('heading', { name: t.nav.home });
+    expect(router.state.location.pathname).toBe('/c');
+  });
+
+  it('sends a trainer away from /c to /t', async () => {
+    signedInAs(trainer);
+    const router = renderAt('/c/history');
+    await screen.findByRole('heading', { name: t.trainer.todayTitle });
+    expect(router.state.location.pathname).toBe('/t');
+  });
+
+  it('sends a signed-in user away from /login', async () => {
+    signedInAs(customer);
+    const router = renderAt('/login');
+    await screen.findByRole('heading', { name: t.nav.home });
+    expect(router.state.location.pathname).toBe('/c');
+  });
+
+  it('does not redirect to /login while the session is still loading', async () => {
+    signedInAs(customer);
+    const router = renderAt('/c');
+    expect(screen.getByText(t.common.loading)).toBeInTheDocument();
+    await screen.findByRole('heading', { name: t.nav.home });
+    expect(router.state.location.pathname).toBe('/c');
+  });
+
+  it('looks up the customers row of the signed-in user', async () => {
+    signedInAs(customer);
+    renderAt('/c');
+    await screen.findByRole('heading', { name: t.nav.home });
+    expect(fakeSupabase.from).toHaveBeenCalledWith('customers');
+  });
+});
+
+describe('signed-in user without a customers row', () => {
+  beforeEach(() => resetFake({ session: makeSession('user-x') }));
+
+  it.each(['/', '/c', '/t'])('sees the not-linked page at %s', async (path) => {
+    const router = renderAt(path);
+    await screen.findByRole('heading', { name: t.notLinked.title });
+    expect(router.state.location.pathname).toBe(path);
+  });
+
+  it('can sign out from the not-linked page', async () => {
+    const router = renderAt('/');
+    await userEvent.click(await screen.findByRole('button', { name: t.common.signOut }));
+    await screen.findByRole('heading', { name: t.login.title });
+    expect(router.state.location.pathname).toBe('/login');
+  });
+});
+
+describe('shells', () => {
+  it('shows the trainer navigation', async () => {
+    signedInAs(trainer);
+    renderAt('/t');
+    const nav = await screen.findByRole('navigation', { name: t.nav.trainerLabel });
+    const labels = within(nav)
+      .getAllByRole('link')
+      .map((link) => link.textContent);
+    expect(labels).toEqual([t.nav.today, t.nav.calendar, t.nav.customers, t.nav.settings]);
+  });
+
+  it('shows the customer navigation', async () => {
+    signedInAs(customer);
+    renderAt('/c');
+    const nav = await screen.findByRole('navigation', { name: t.nav.customerLabel });
+    const labels = within(nav)
+      .getAllByRole('link')
+      .map((link) => link.textContent);
+    expect(labels).toEqual([t.nav.home, t.nav.calendar, t.nav.history]);
+  });
+
+  it('navigates between customer placeholder pages', async () => {
+    signedInAs(customer);
+    renderAt('/c');
+    await userEvent.click(await screen.findByRole('link', { name: t.nav.history }));
+    expect(await screen.findByRole('heading', { name: t.customer.historyTitle })).toBeVisible();
+  });
+
+  it('shows the balance from customer_balances and no upcoming appointments', async () => {
+    signedInAs(customer);
+    db.balance = 6;
+    renderAt('/c');
+    expect(await screen.findByText('6')).toBeInTheDocument();
+    expect(screen.getByText(t.customer.noUpcoming)).toBeInTheDocument();
+  });
+
+  it('marks a negative balance', async () => {
+    signedInAs(customer);
+    db.balance = -2;
+    renderAt('/c');
+    expect(await screen.findByText('-2')).toHaveClass('negative');
+  });
+});
+
+describe('keep-alive', () => {
+  const settingsReads = () =>
+    fakeSupabase.from.mock.calls.filter(([table]) => table === 'settings').length;
+
+  it('reads settings once after sign-in, not again on token refresh', async () => {
+    signedInAs(customer);
+    renderAt('/c');
+    await screen.findByRole('heading', { name: t.nav.home });
+    emitAuth('TOKEN_REFRESHED', makeSession('user-c'));
+    await userEvent.click(screen.getByRole('link', { name: t.nav.history }));
+    await waitFor(() => expect(settingsReads()).toBe(1));
+  });
+
+  it('does not read settings while signed out', async () => {
+    renderAt('/login');
+    await screen.findByRole('heading', { name: t.login.title });
+    expect(settingsReads()).toBe(0);
+  });
+
+  it('still shows the app when the keep-alive read fails', async () => {
+    signedInAs(customer);
+    db.settingsError = { message: 'paused' };
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    renderAt('/c');
+    await screen.findByRole('heading', { name: t.nav.home });
+    await waitFor(() => expect(warn).toHaveBeenCalled());
+    warn.mockRestore();
+  });
+});
+
+describe('login', () => {
+  it('signs in and lands on the role home', async () => {
+    db.customer = trainer;
+    fakeSupabase.auth.signInWithPassword.mockImplementation(async () => {
+      emitAuth('SIGNED_IN', makeSession('user-t'));
+      return { data: {}, error: null };
+    });
+    const router = renderAt('/login');
+    await userEvent.type(await screen.findByLabelText(t.login.email), 'trainer@amrap.local');
+    await userEvent.type(screen.getByLabelText(t.login.password), 'password');
+    await userEvent.click(screen.getByRole('button', { name: t.login.submit }));
+    await screen.findByRole('heading', { name: t.trainer.todayTitle });
+    expect(fakeSupabase.auth.signInWithPassword).toHaveBeenCalledWith({
+      email: 'trainer@amrap.local',
+      password: 'password',
+    });
+    expect(router.state.location.pathname).toBe('/t');
+  });
+
+  it('shows a Slovenian message for wrong credentials and stays on /login', async () => {
+    fakeSupabase.auth.signInWithPassword.mockResolvedValue({
+      data: {},
+      error: authError('invalid_credentials', 'Invalid login credentials'),
+    });
+    const router = renderAt('/login');
+    await userEvent.type(await screen.findByLabelText(t.login.email), 'a@b.c');
+    await userEvent.type(screen.getByLabelText(t.login.password), 'wrong');
+    await userEvent.click(screen.getByRole('button', { name: t.login.submit }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(t.authErrors.invalid_credentials);
+    expect(router.state.location.pathname).toBe('/login');
+  });
+});
+
+describe('logout', () => {
+  it('signs out and redirects to /login', async () => {
+    signedInAs(customer);
+    const router = renderAt('/logout');
+    await screen.findByRole('heading', { name: t.login.title });
+    expect(fakeSupabase.auth.signOut).toHaveBeenCalledOnce();
+    expect(router.state.location.pathname).toBe('/login');
+  });
+});
+
+describe('invite flow', () => {
+  async function fillAndSubmit(password: string, confirm: string) {
+    await userEvent.type(await screen.findByLabelText(t.invite.email), 'new@amrap.local');
+    await userEvent.type(screen.getByLabelText(t.invite.password), password);
+    await userEvent.type(screen.getByLabelText(t.invite.confirmPassword), confirm);
+    await userEvent.click(screen.getByRole('button', { name: t.invite.submit }));
+  }
+
+  function signUpCreatesSession() {
+    fakeSupabase.auth.signUp.mockImplementation(async () => {
+      const session = makeSession('user-c');
+      emitAuth('SIGNED_IN', session);
+      return { data: { session }, error: null };
+    });
+  }
+
+  it('signs up, accepts the invite with the URL token and lands on the customer home', async () => {
+    signUpCreatesSession();
+    fakeSupabase.rpc.mockImplementation(async () => {
+      db.customer = customer; // what accept_invite does: link the auth user
+      return { data: customer.id, error: null };
+    });
+    const router = renderAt('/invite/tok-123');
+    await fillAndSubmit('secret1', 'secret1');
+    await screen.findByRole('heading', { name: t.nav.home });
+    expect(fakeSupabase.auth.signUp).toHaveBeenCalledWith({
+      email: 'new@amrap.local',
+      password: 'secret1',
+    });
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('accept_invite', { p_token: 'tok-123' });
+    expect(router.state.location.pathname).toBe('/c');
+  });
+
+  it('shows the Slovenian message for a rejected invite and does not enter the app', async () => {
+    signUpCreatesSession();
+    fakeSupabase.rpc.mockResolvedValue({
+      data: null,
+      error: { message: 'AMRAP_INVITE_INVALID: unknown token' },
+    });
+    const router = renderAt('/invite/bad');
+    await fillAndSubmit('secret1', 'secret1');
+    expect(await screen.findByRole('alert')).toHaveTextContent(t.errors.AMRAP_INVITE_INVALID);
+    expect(router.state.location.pathname).toBe('/invite/bad');
+  });
+
+  it('rejects mismatching passwords without calling Supabase', async () => {
+    renderAt('/invite/tok');
+    await fillAndSubmit('secret1', 'secret2');
+    expect(await screen.findByRole('alert')).toHaveTextContent(t.invite.passwordMismatch);
+    expect(fakeSupabase.auth.signUp).not.toHaveBeenCalled();
+  });
+
+  it('rejects a too short password without calling Supabase', async () => {
+    renderAt('/invite/tok');
+    await fillAndSubmit('abc', 'abc');
+    expect(await screen.findByRole('alert')).toHaveTextContent(t.invite.passwordTooShort);
+    expect(fakeSupabase.auth.signUp).not.toHaveBeenCalled();
+  });
+
+  it('shows the sign-up error when the existing account does not accept the password', async () => {
+    fakeSupabase.auth.signUp.mockResolvedValue({
+      data: { session: null },
+      error: authError('user_already_exists', 'User already registered'),
+    });
+    fakeSupabase.auth.signInWithPassword.mockResolvedValue({
+      data: {},
+      error: authError('invalid_credentials', 'Invalid login credentials'),
+    });
+    renderAt('/invite/tok');
+    await fillAndSubmit('secret1', 'secret1');
+    expect(await screen.findByRole('alert')).toHaveTextContent(t.authErrors.user_already_exists);
+    expect(fakeSupabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it('shows other sign-up errors without trying to sign in', async () => {
+    fakeSupabase.auth.signUp.mockResolvedValue({
+      data: { session: null },
+      error: authError('weak_password', 'Password is too weak'),
+    });
+    renderAt('/invite/tok');
+    await fillAndSubmit('secret1', 'secret1');
+    expect(await screen.findByRole('alert')).toHaveTextContent(t.authErrors.weak_password);
+    expect(fakeSupabase.auth.signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it('continues as the existing unlinked account and accepts the invite', async () => {
+    fakeSupabase.auth.signUp.mockResolvedValue({
+      data: { session: null },
+      error: authError('user_already_exists', 'User already registered'),
+    });
+    fakeSupabase.auth.signInWithPassword.mockImplementation(async () => {
+      emitAuth('SIGNED_IN', makeSession('user-c'));
+      return { data: {}, error: null };
+    });
+    fakeSupabase.rpc.mockImplementation(async () => {
+      db.customer = customer;
+      return { data: customer.id, error: null };
+    });
+    const router = renderAt('/invite/tok-2');
+    await fillAndSubmit('secret1', 'secret1');
+    await screen.findByRole('heading', { name: t.nav.home });
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('accept_invite', { p_token: 'tok-2' });
+    expect(router.state.location.pathname).toBe('/c');
+  });
+});

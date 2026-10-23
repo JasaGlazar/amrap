@@ -9,7 +9,7 @@
 | [schema.md](schema.md) | Tables, columns, constraints, indexes, RLS, grants, view `customer_balances`, helpers, migrations list |
 | [rpcs.md](rpcs.md) | RPC reference: `book`, `cancel`, `top_up`, `adjust`, `create_invite`, `accept_invite`, `charge_due_appointments`, error tokens, helpers |
 | [jobs.md](jobs.md) | Scheduled jobs: `charge_due_appointments()` (every 15 min, scheduled in Stage 2) |
-| [screens.md](screens.md) | Customer and trainer screens (filled in Task 4) |
+| [screens.md](screens.md) | Routes, role gating and strings of the customer and trainer screens |
 
 ## Architecture diagrams
 
