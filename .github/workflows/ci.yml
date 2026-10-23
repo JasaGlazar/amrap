@@ -23,6 +23,7 @@ jobs:
       # start applies the migrations and the seeds listed in supabase/config.toml
       - run: supabase start -x studio,imgproxy,logflare,vector,edge-runtime
       - run: supabase test db
+      - run: supabase db lint
       - name: Generated types are current
         run: |
           supabase gen types typescript --local > /tmp/database.types.ts

@@ -332,6 +332,12 @@ begin
     raise exception 'AMRAP_ALREADY_LINKED: customer % already has an account', p_customer_id
       using errcode = 'P0001';
   end if;
+  -- An unlinked trainer record must not become invitable: whoever redeemed the token would be
+  -- the trainer, with full access to every table.
+  if v_customer.role <> 'customer' then
+    raise exception 'AMRAP_INVALID_ARGUMENT: record % is not a customer record', p_customer_id
+      using errcode = 'P0001';
+  end if;
 
   update public.customers
     set invite_token = v_token, invite_expires_at = now() + interval '7 days'

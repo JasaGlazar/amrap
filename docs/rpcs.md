@@ -26,7 +26,7 @@ app relies on.
 | Token | Meaning | Raised by |
 |---|---|---|
 | `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record, or (`accept_invite`) there is no signed-in user | all except `charge_due_appointments` |
-| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination | `book`, `top_up`, `adjust` |
+| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record) | `book`, `top_up`, `adjust`, `create_invite` |
 | `AMRAP_NOT_FOUND` | The referenced customer, slot template or appointment does not exist | `book`, `cancel`, `top_up`, `adjust`, `create_invite` |
 | `AMRAP_SLOT_INACTIVE` | The slot template is deactivated | `book` |
 | `AMRAP_IN_PAST` | A customer tried to book a start that is not in the future | `book` |
@@ -149,11 +149,13 @@ public.create_invite(p_customer_id uuid) returns text
 ```
 
 - **Who may call:** the trainer only.
-- **Rules:** the customer must exist and must not be linked (`auth_user_id is null`). Locks the
-  customer row. Calling it again for a pending invite issues a new token and the old one stops
-  working.
+- **Rules:** the customer must exist, must not be linked (`auth_user_id is null`) and must have
+  `role = 'customer'` (an unlinked trainer record cannot be invited, because redeeming the token
+  would hand out trainer access). Locks the customer row. Calling it again for a pending
+  invite issues a new token and the old one stops working.
 - **Errors:** `AMRAP_FORBIDDEN` (not the trainer), `AMRAP_NOT_FOUND` (no such customer),
-  `AMRAP_ALREADY_LINKED` (the customer already has an account).
+  `AMRAP_ALREADY_LINKED` (the customer already has an account), `AMRAP_INVALID_ARGUMENT` (the
+  record's role is not `customer`).
 - **Side effects:** sets `invite_token = encode(extensions.gen_random_bytes(24), 'hex')` (48 hex
   characters) and `invite_expires_at = now() + interval '7 days'`. Returns the token, which the
   app turns into the invite link.

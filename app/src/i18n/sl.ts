@@ -72,6 +72,7 @@ export const sl = {
     invalid_credentials: 'Napačen e-poštni naslov ali geslo.',
     user_already_exists: 'Račun s tem e-poštnim naslovom že obstaja.',
     weak_password: 'Geslo je prešibko.',
+    email_not_confirmed: 'E-poštni naslov ni potrjen. Obrnite se na trenerja.',
     over_request_rate_limit: 'Preveč poskusov. Poskusite znova čez nekaj minut.',
   },
   genericError: 'Nekaj je šlo narobe. Poskusite znova.',

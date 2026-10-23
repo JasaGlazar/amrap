@@ -3,7 +3,7 @@
 -- (ADR 0006). Reuse, expiry, superseded tokens and already-linked users are rejected.
 begin;
 
-select plan(24);
+select plan(25);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
@@ -37,6 +37,10 @@ with c as (
 with c as (
   insert into public.customers (name) values ('Invite O (other)') returning id
 ) insert into fx select 'cust_other', id from c;
+-- An unlinked record with the trainer role: invites are for customer records only.
+with c as (
+  insert into public.customers (name, role) values ('Invite T (unlinked trainer)', 'trainer') returning id
+) insert into fx select 'trainer_unlinked', id from c;
 -- A linked record that still carries a token (only possible through a direct trainer edit).
 with c as (
   insert into public.customers (name, auth_user_id, invite_token, invite_expires_at)
@@ -96,6 +100,8 @@ select throws_matching($$select public.create_invite((select id from fx where ke
   '^AMRAP_ALREADY_LINKED:', 'an invite cannot be created for an already linked customer');
 select throws_matching($$select public.create_invite(gen_random_uuid())$$,
   '^AMRAP_NOT_FOUND:', 'an invite cannot be created for an unknown customer');
+select throws_matching($$select public.create_invite((select id from fx where key = 'trainer_unlinked'))$$,
+  '^AMRAP_INVALID_ARGUMENT:', 'an invite cannot be created for a trainer record');
 
 select tests.clear_authentication();
 
