@@ -31,7 +31,7 @@ app relies on.
 | `AMRAP_SLOT_INACTIVE` | The slot template is deactivated | `book` |
 | `AMRAP_IN_PAST` | A customer tried to book a start that is not in the future | `book` |
 | `AMRAP_SLOT_MISMATCH` | The start is not on the template's weekday and start time (in `settings.timezone`) | `book` |
-| `AMRAP_BLOCKED` | The start falls inside a blocked period | `book` |
+| `AMRAP_BLOCKED` | The appointment `[starts_at, ends_at)` overlaps a blocked period | `book` |
 | `AMRAP_CAPACITY_FULL` | The slot occurrence already has `capacity` live appointments | `book` |
 | `AMRAP_ALREADY_BOOKED` | The customer already has a live (`booked`/`charged`) appointment at that start | `book` |
 | `AMRAP_INVITE_INVALID` | The invite token is unknown, empty, replaced by a newer invite, already redeemed (redeeming clears it) or expired | `accept_invite` |
@@ -65,8 +65,12 @@ public.book(p_customer_id uuid, p_starts_at timestamptz,
      it maps to two instants and both match; a `start_time` inside the spring-forward gap does
      not exist that day, so no instant matches and that occurrence cannot be booked from the
      template (the trainer can book it ad hoc).
-  5. `p_starts_at` must not fall inside a blocked period, `starts_at <= p_starts_at < ends_at`
-     (`AMRAP_BLOCKED`). Applies to the trainer and to ad-hoc bookings too.
+  5. The appointment must not overlap a blocked period: `tstzrange(p_starts_at, ends_at) &&
+     tstzrange(b.starts_at, b.ends_at)`, both half-open, where `ends_at` is the start plus the
+     template's duration or `p_ends_at` (`AMRAP_BLOCKED`). An appointment that starts before a
+     blocked period but runs into it is rejected; one that ends exactly when the period starts
+     is allowed. Applies to the trainer and to ad-hoc bookings too. (Since
+     `20261023192556_recurring_and_jobs.sql`; before, only the start was checked.)
   6. With a template: takes `pg_advisory_xact_lock(hashtext(template_id || '@' ||
      epoch(p_starts_at)))`, so concurrent bookings of one occurrence are serialized, then counts
      appointments of that template at that start with status `booked` or `charged`. If the

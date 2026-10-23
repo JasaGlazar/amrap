@@ -15,6 +15,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 |---|---|
 | `20261023173423_initial_schema.sql` | Enums, all tables, indexes, constraints, `customer_balances` view, `current_customer_id()` / `is_trainer()` helpers, RLS policies and grants. |
 | `20261023175948_core_rpcs.sql` | The RPCs in [rpcs.md](rpcs.md) and their execute grants. |
+| `20261023192556_recurring_and_jobs.sql` | `book()` replaced to check blocked periods by interval overlap. |
 
 ## Enums
 
