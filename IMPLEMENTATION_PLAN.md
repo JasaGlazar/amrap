@@ -85,7 +85,7 @@ cutoff; no duplicate reminders.
 checklist skill. Branch `stage-4-pilot`.
 **Success Criteria**: Trainer runs one full week on AMRAP without the paper sheet.
 **Tests**: manual E2E on both roles on real phones.
-**Status**: Not Started
+**Status**: In Progress (plan written, see "Stage 4 tasks"; Tasks 15-19 not started)
 
 ## Workflow (from 2026-10-23 evening)
 
@@ -268,6 +268,11 @@ the two Stage 3 migrations (Workflow); exact steps in `docs/runbook.md`.
 9. Decide: should a trainer cancel notify the customer? (Not in PLAN.md, not built.)
 10. Before the pilot, keep in mind the runbook's unpause notes: sessions that pass during a pause
     are charged on restore and need a trainer review.
+
+### Handoff state (2026-10-24, Stage 4)
+- Stage 3: PR #4 merged to `main` (e305f91).
+- Stage 4: branch `stage-4-pilot` off `main`. Item 0 done: "Stage 4 tasks" below (Tasks 15-19),
+  waiting for the orchestrator's approval before Task 15 starts. No DB change is planned.
 
 ---
 
@@ -958,3 +963,233 @@ New migration (`supabase migration new event_notifications`), TDD
    results in the task report.
 4. Stage 3 status, Handoff state, `docs/README.md` index. Owner actions consolidated
    (hosted secrets, deploy, Vault rows, Pages variable, real phones).
+
+## Stage 4 tasks
+
+Branch `stage-4-pilot` off `main` (Stage 3 merged as #4). Rulings proposed for this stage
+(the orchestrator approves or corrects them before Task 15):
+- **No DB change.** Nothing below needs a migration. If one turns out to be needed, stop and
+  report before writing it (then the `new-migration` skill applies). Pre-commit gate for an app
+  commit: `npm run lint && npm run typecheck && npm test -- --run && npm run build` in `app/`,
+  plus `bash scripts/check-docs.sh`; a docs-only commit runs `check-docs.sh`. The DB gate
+  (`supabase test db`, `supabase db lint`, types diff, `scripts/test-functions.sh`) runs once
+  per task anyway, since the local stack is up for the browser check.
+- **Form of address: formal "vi".** Every existing message already uses it ("boste",
+  "Preverite", "Obrnite se", "Vpišite"). Buttons keep the short imperative/infinitive style they
+  have now ("Rezerviraj", "Kopiraj", "Poskusi znova"); whether buttons should be formal too
+  ("Poskusite znova") goes into the copy review as a question, not a change.
+- **Plurals.** A `Plural = { one, two, few, other }` type and `plural(forms, n)` in
+  `i18n/fill.ts` using `Intl.PluralRules('sl')` (`one` 1, 101; `two` 2, 102; `few` 3-4, 103-104;
+  `other` 0, 5-100), each form a `fill` template with `{count}`. Only strings that put a noun
+  after a count need it. Today that is `settings.templateLine` (`{capacity} mest` is wrong for
+  1-4: "1 mesto, 2 mesti, 3 mesta, 5 mest"); the others sidestep it with a label and colon
+  ("Novih terminov: {count}", "Prosta mesta: {free} od {capacity}"), abbreviations
+  (`{minutes} min`, `time.*`) or fixed numbers ("1 kredit", "zadnjih 30 dni"). New strings that
+  count something (install card, starting balances) use `plural`.
+- **Install card is one shared component in `AppShell`,** so both roles see it on every screen
+  until it is dismissed or the app runs standalone, including the first screen after
+  `accept_invite` (which navigates to `/`, then `/c`). It reuses `PushEnvironment` (`ios`,
+  `standalone`) from `push/browser.ts` and adds only an `android` flag beside them. On iOS, `PushToggle`'s
+  `needs-install` state points at the card while it is showing instead of repeating the steps
+  (Task 15 item 3).
+- **Dismissal is per device in `localStorage`** (key `amrap.install.dismissed`), every access in
+  try/catch; storage that throws or is empty means "not dismissed" and the card still works.
+  This is a per-device convenience, not state that must survive.
+- **Starting balances from the paper sheet** are ledger rows with a fixed note
+  (`sl.customerDetail.startingNote`, "Začetno stanje (papir)"): a positive balance is a top-up,
+  a negative one an adjustment (`top_up` rejects ≤ 0), zero needs nothing. No bulk import: the
+  gym has a few dozen customers at most.
+- **Owner actions known up front** (the orchestrator files them): the trainer signs off
+  `docs/copy-review.md`; real-phone install checks (Android Chrome prompt, iPhone Safari Add to
+  Home Screen, then push from the installed app); the trial week itself. The pilot also depends
+  on Stage 3 owner actions 1-8 (hosted push turned on and checked on a phone): without them
+  there are no reminders, and the reminder is the customer's only warning before a charge.
+- Browser checks use `agent-browser` with headless Google Chrome at 360×800 against the local
+  stack and a production build (`npm run build && npm run preview`), as in Stage 3. Headless
+  Chrome will probably never fire `beforeinstallprompt` (it needs an engagement heuristic and a
+  real install surface), so the prompt path is covered by unit tests and an injected event, and
+  the real prompt is an owner action. This worktree is the only one running the local stack;
+  `supabase stop` at the end of each task that started it.
+
+### Task 15: Install onboarding
+
+1. `src/install/`:
+   - `capture.ts`: `listenForInstallPrompt(win)` registers `beforeinstallprompt`
+     (`preventDefault()`, keep the event) and `appinstalled` (drop the event, remember
+     "installed") at module load, called from `main.tsx` before React mounts, because Chrome can
+     fire the event before the first render. A tiny store with `subscribe` / `snapshot` so the
+     card re-renders when the event arrives (`useSyncExternalStore`). `BeforeInstallPromptEvent`
+     is not in `lib.dom`: declare the type locally (`prompt()`, `userChoice`).
+   - `mode.ts`: pure `installMode({ standalone, ios, installed, hasPrompt, android })` →
+     `hidden` (standalone or installed) `| prompt` (a captured event) `| ios` (iOS, not
+     standalone) `| android-manual` (Android, no event: browser menu instructions) `| none`
+     (desktop or other browsers without an event: show nothing).
+   - `dismissed.ts`: `isInstallDismissed(storage)` / `dismissInstall(storage)`, try/catch around
+     every `localStorage` access.
+   - `installPlatform` object (environment, prompt store, storage) with a fake in
+     `src/test/fakeInstall.ts`, injected like `fakePush.ts`.
+2. `pages/shared/InstallCard.tsx` in `AppShell` above `<Outlet />`: title, one line on why
+   (reminders arrive only with notifications on; on iPhone only from the installed app), then
+   per mode: **Namesti aplikacijo** (calls `prompt()`, then hides on `accepted`, keeps the card
+   on `dismissed` but drops the used event), the iOS steps (Safari: **Deli** → **Dodaj na
+   začetni zaslon** → open AMRAP from the home screen, with a note that other iOS browsers use
+   the same Share menu), or the Android menu steps (⋮ → **Namesti aplikacijo** / **Dodaj na
+   začetni zaslon**). **Ne zdaj** dismisses it on this device. A `region` with a heading so screen
+   readers can find and skip it.
+3. `PushToggle` `needs-install`: while the install card is showing, the toggle says only that
+   notifications need the installed app and that the steps are in the card
+   (`pushToggle.needsInstallSeeCard`); once the card is dismissed, the toggle shows the current
+   one-sentence steps (`pushToggle.needsInstall`), so iOS users always have the steps exactly
+   once on screen. Both paths tested.
+4. `sl.ts`: `install.*` (title, why, button, not now, iOS steps, Android steps, installed).
+5. Vitest: `installMode` matrix (standalone, installed, event present/absent, iOS, Android,
+   desktop); `capture` keeps the event, calls `preventDefault`, clears it on `appinstalled`;
+   `dismissed` with working, empty and throwing storage; the card: hidden when standalone or
+   dismissed, **Namesti aplikacijo** calls `prompt()` and hides on `accepted`, **Ne zdaj**
+   persists and hides, an event arriving after mount shows the button; routes test: the card
+   is on `/c` right after an invite sign-up and on `/t`; `PushToggle` `needs-install` copy in both
+   cases.
+6. Docs: `docs/screens.md` (new "Install card" section, `install` in the Strings column of `/c`
+   and `/t`, shared behaviour), `docs/app-structure.md` (`src/install/`, `fakeInstall.ts`),
+   `docs/notifications.md` (iOS: install first, link to the card), `docs/auth.md` if the invite
+   section mentions the first screen.
+7. Browser check at 360×800 (production build): the card on `/c` after a fresh invite sign-up
+   and on `/t`; **Ne zdaj** survives a reload; an iOS user agent (`agent-browser` UA override)
+   shows the iOS steps and the shortened toggle line; a dispatched synthetic
+   `beforeinstallprompt` (DevTools `Runtime.evaluate` before load) shows the button. Not
+   verifiable here: the real Chrome prompt and real iOS standalone mode (owner action).
+
+### Task 16: Slovenian copy pass and plurals
+
+1. `plural(forms, n)` and the `Plural` type (ruling above); `settings.templateLine` split so
+   the capacity uses `settings.places` (`{count} mesto / mesti / mesta / mest`). Any other
+   string the pass rewrites to put a noun after a count uses `plural` too (for example the push
+   top-up body "Dodani so 3 krediti", if the pass changes it; the service worker shares
+   `sl.ts`, so `push/render.ts` uses the same helper).
+2. Review every key in `sl.ts` against `CONTEXT.md` and fix what is clearly wrong: grammar,
+   case after prepositions, formal "vi" in messages, one term per concept (termin vs vadba vs
+   rezervacija, kredit, polnitev vs nakup, odpoved, rok za brezplačno odpoved, stalni termin,
+   zaprto obdobje), punctuation (`…` with a space, en dash ranges, `»«` quotes), and no English
+   in user-visible copy (`customerDetail.relinkHint` names `docs/runbook.md` and an English
+   section title: replace with plain Slovenian, the runbook link stays in the docs).
+3. Dates and times: confirm `formatDay` / `formatLongDay` / `formatDate` output against
+   Slovenian conventions (`pon., 26. 10.`, `ponedeljek, 26. oktober`, `26. 10. 2026`, 24-hour
+   `07:00`) and the "{day} ob {time}" pattern; fix only clear errors (tests in `time.test.ts`
+   already pin the outputs, update them with the change).
+4. `docs/copy-review.md` (new, English frame, Slovenian copy): screen by screen (login, invite,
+   state pages, customer Home / Calendar / History / cancel dialog, trainer Today / Calendar /
+   Customers / detail / Settings, notifications and their toggle, install card, errors), a table
+   per screen `key → current text → question` (empty when there is none), the changes this task
+   made (old → new), and an open-questions list for the trainer: formal "vi" vs informal "ti";
+   gendered `customers.inviteStatus` (`Povezan račun` / `Povabljen` for women); `Vadba` vs
+   `Termin` for the session ledger row; `Opravljeno` for a charged appointment the customer did
+   not attend; `Pozna odpoved` wording; whether buttons stay infinitive-style. How to answer
+   (comment per row or a marked-up copy) and that sign-off is the trainer's (owner action).
+5. Tests: `sl.test.ts` checks every `Plural` object has four non-empty forms and that each
+   form contains `{count}`; `fill.test.ts` `plural` for 1, 2, 3, 4, 5, 0, 101, 102, 103, 105
+   (expected forms derived from `Intl.PluralRules`, not hardcoded categories); screen tests that
+   assert on changed copy read it from `t`, so only tests with literal strings change.
+6. Docs: `docs/app-structure.md` i18n rule (plurals, form of address), `docs/time.md` if the
+   formats change, `docs/screens.md` for renamed keys or changed quoted copy, `docs/README.md`
+   index entry for `copy-review.md`.
+
+### Task 17: UI polish and accessibility at phone width
+
+1. Run the `web-design-guidelines` skill over `app/src/pages/**`, `AppShell`, `styles.css` and
+   `index.html`; write the findings into the task report with a fix / won't-fix decision each.
+2. Accessibility basics on every customer and trainer screen, including login, invite and the
+   state pages: every input has a visible label; visible `:focus-visible` outlines; colour
+   contrast ≥ 4.5:1 for text (check the teal, the red debt colour and greyed rows against their
+   backgrounds, numbers in the report); tap targets ≥ 44 × 44 px (bottom nav links, **Odpovej**,
+   `‹` / `›`, inline **Uredi** / **Izbriši**, the copy button, the card's buttons); errors in
+   `role="alert"`, results in `role="status"`; dialog focus return; `prefers-reduced-motion` if
+   anything animates; safe-area insets for the fixed bottom bar (`viewport-fit=cover` is set).
+3. Layout at 360 × 800: no horizontal scroll on any screen (long names, long notes, the
+   invite link field, week range, settings forms); the fixed bottom nav never covers the last
+   item; inputs at least 16 px so iOS does not zoom on focus; numeric inputs use
+   `inputmode="numeric"`.
+4. Fix the findings that matter for a phone-first pilot, plain CSS only, no new dependency. A
+   change to markup that tests assert on updates those tests; no new copy outside `sl.ts`.
+5. Browser check at 360 × 800 on every route as ana and as the trainer (screenshots kept in
+   the scratchpad, not committed): `document.documentElement.scrollWidth <= 360` per route,
+   keyboard tab order through each screen, tap-target sizes measured with
+   `getBoundingClientRect`. Record verified vs not.
+6. Docs: `docs/screens.md` "Behaviour shared by all screens" gains the accessibility and layout
+   rules the app now follows (so later screens keep them); `docs/harness.md` reviewer checklist
+   item if a rule is worth enforcing (for example "tap targets ≥ 44 px, no horizontal scroll at
+   360 px"); `.claude/agents/reviewer.md` likewise.
+
+### Task 18: Pilot guide, starting balances, release checklist skill
+
+1. Starting balance on **Nova stranka** (`/t/stranke`): an optional whole-number field
+   `customers.startingBalance` ("Začetno stanje kreditov (s papirja)"). After `createCustomer`
+   succeeds: a positive value calls `top_up`, a negative one `adjust`, both with
+   `customerDetail.startingNote`; empty or 0 does nothing. If the credit call fails, the detail
+   page opens anyway and shows the error, so nothing is created twice (the trainer enters it in
+   **Krediti** there). Also prefill the note field on the customer detail with `startingNote`
+   while the customer's ledger is empty. Vitest: positive → one `topup` row with the note,
+   negative → one `adjustment`, 0 / empty → none, invalid input → `customers.startingInvalid`,
+   credit failure → detail page with the error and the customer created once. Docs:
+   `docs/screens.md` (Customers and detail), `docs/data-layer.md` if a wrapper is added.
+   If the orchestrator prefers no UI change here, drop this item and keep only the note
+   convention in the pilot guide.
+2. `docs/pilot.md` (English frame, trainer-facing steps in Slovenian):
+   - **Before day one (owner):** Stage 3 owner actions 1-8 done (push on, checked on a phone),
+     Pages deploy of `main`, trainer account bootstrapped (runbook), the trainer's phone has the
+     app installed with notifications on.
+   - **First-day setup (trainer, Slovenian):** cutoff hours, slot templates (weekday, time,
+     duration, capacity), blocked periods already known, each customer from the paper sheet
+     (name, phone, starting balance with the note convention: top-up for positive, adjustment
+     for negative, nothing for zero), recurring rules per customer (and how many instances that
+     created), an invite per customer who will use the app (copy the link, send it by text, it
+     expires in 7 days and a new one replaces the old), customers without the app stay on
+     trainer-managed bookings.
+   - **What customers do (Slovenian, forwardable text):** open the invite link, create the
+     account, install on the home screen (install card), turn on notifications, book / cancel,
+     the cutoff rule and the reminder.
+   - **During the trial week:** daily checklist (Today's debtors strip, today's roster vs who
+     came, late cancels, any "Termini zunaj urnika"), what to watch on the owner side (charges
+     appearing at session start: `cron.job_run_details` for `charge_due_appointments`; reminders
+     and pushes: `notifications` and `net._http_response`; the keep-alive and the pause risk),
+     how to fix mistakes (trainer cancel with refund, adjustment with a note, waiving a late
+     cancel with +1), and the paper sheet kept in parallel for the first days only as a backup.
+   - **Reporting problems:** what to send (screen, time, customer, what was expected,
+     screenshot) and to whom; the owner's triage pointers into the runbook.
+   - **End of the week:** the success criterion (a full week without the paper sheet), the
+     questions to answer (copy sign-off, open product questions), and where the results are
+     recorded.
+3. `.claude/skills/release-checklist/SKILL.md` (frontmatter `name: release-checklist`,
+   `description`): the post-merge release from `main` only: confirm the merge and CI on `main`
+   (`git fetch`, `git checkout main && git pull`); `supabase db push` (list the migrations it
+   will apply first, `supabase migration list`); verify in the SQL editor: migrations listed,
+   `cron.job` schedules, pg_net in `extensions`, any objects the release added; `supabase
+   functions deploy send-push --no-verify-jwt` only when `supabase/functions/` changed in the
+   range; Cloudflare Pages production deploy of the merge commit finished and serving (the
+   built `sw.js` changed, the app loads); smoke test both roles on a phone or at phone width
+   (sign in, a booking and a cancel as a test customer, a top-up of +1 and an adjustment of -1
+   by the trainer, notifications received); record the release (date, merge commit, migrations,
+   function deployed or not, smoke result) in the stage's PR or issue. It repeats per stage
+   (three post-merge `db push` runs so far), which satisfies the "second time" rule. No separate
+   `deploy-functions` skill: deploying `send-push` is one step of this checklist and of the
+   runbook, not a task on its own.
+4. Docs: `docs/harness.md` Skills table (`release-checklist`) and the skill rule's candidate
+   list; `docs/runbook.md` "Deploy migrations after merge" points to the skill; `docs/README.md`
+   index gains `pilot.md`.
+
+### Task 19: Stage 4 close: end-to-end check, handoff, owner actions
+
+1. Browser end-to-end at 360 × 800 on a fresh `supabase db reset` and a production build,
+   following `docs/pilot.md` literally: the trainer sets up a template, a customer with a
+   starting balance, a recurring rule and an invite; the customer signs up from the link, sees
+   the install card, enables notifications, books and cancels (free and late); the trainer sees
+   the booking, tops up, cancels with refund; the charge job and the reminder job run by hand
+   (`select public.charge_due_appointments();`, `select public.send_cutoff_reminders();`) with
+   fixture times. Record verified vs not; anything the guide gets wrong is fixed in the guide.
+2. `IMPLEMENTATION_PLAN.md`: Handoff state, Stage 4 status "Complete (PR open; trial week
+   pending)"; the file stays (the trial week is open).
+3. Consolidated "Stage 4 owner actions": copy sign-off; Android and iPhone install and push from
+   the installed app; the trial week with the pilot guide; Stage 3 owner actions still open.
+4. Open product questions for the owner (not decided here): should a trainer cancel notify the
+   customer; does the trainer want a veto over self-bookings (`PLAN.md` open question 1); any
+   copy question the trainer leaves open.
+5. `supabase stop`.
