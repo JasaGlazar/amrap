@@ -56,6 +56,10 @@ screens. Pilot-ready. Branch `stage-2-core`.
 customers, credits; customers book/cancel and see balance and history.
 **Tests**: materialization idempotency and blocked-period skipping; booking rejected in a
 blocked period; screen-level Vitest for calendar/capacity rendering and cancel warning copy.
+**Carry-over from Stage 1 review**: materialization must take the same
+`pg_advisory_xact_lock` key as `book()` (template id + start epoch) or it can overfill a slot;
+add a sign-out link to both shells; add an automated two-session test for `accept_invite` if a
+harness allows it.
 **Status**: Not Started
 
 ## Stage 3: Automation & notifications
