@@ -85,7 +85,7 @@ cutoff; no duplicate reminders.
 checklist skill. Branch `stage-4-pilot`.
 **Success Criteria**: Trainer runs one full week on AMRAP without the paper sheet.
 **Tests**: manual E2E on both roles on real phones.
-**Status**: In Progress (plan approved; Tasks 15-16 done, Tasks 17-19 not started)
+**Status**: In Progress (plan approved; Tasks 15-17 done, Tasks 18-19 not started)
 
 ## Workflow (from 2026-10-23 evening)
 
@@ -297,6 +297,42 @@ the two Stage 3 migrations (Workflow); exact steps in `docs/runbook.md`.
   the trainer, all 259 strings by screen), `CONTEXT.md` term "install", i18n conventions in
   `app-structure.md`. Date and time formats checked, no change (the hour style is a trainer
   question). Trainer sign-off of the copy is an owner action.
+
+- Task 16 review fixes: screens.md re-link hint, copy-review lifecycle (term list moved to
+  app-structure.md; the file is deleted at sign-off), retry wrapper without the `Request`
+  branch and a wiring test without a real wait, Auth note in auth.md, »Koledar« quoted,
+  "Rezervacija za ta termin že obstaja.".
+- Task 17 done (UI polish and accessibility). `web-design-guidelines` findings and decisions:
+  - fixed: no `:focus-visible` style (3 px accent ring added); tap targets under 44 px
+    (`.button.small` 33 px, top-bar **Odjava**, customer list links, debtor chips, selects
+    36 px, the checkbox row, **Nazaj na stranke** 18 px; all now `--tap` 44 px); muted text on
+    cards 4.39:1 (`--muted` #6b7280 → #4b5563: 7.56 on white, 6.87 on cards); greyed slot rows
+    by opacity 0.5 (3.38:1 time, 1.98:1 info; now the muted colour); input and select borders
+    1.47:1 (`--control-border` #6b7280, 4.83:1); the credits amount used `inputMode="numeric"`,
+    so an iPhone had no minus key for a negative adjustment (removed); trainer forms about
+    other people autofilled the trainer's own details (`autoComplete="off"`); the cancel
+    dialog let Tab leave it and dropped focus on close (trap and focus return); overscroll
+    under the dialog (`overscroll-behavior: contain`); no tabular numbers on balances, amounts
+    and times; safe-area insets missing on the top bar and page sides; no hover/active
+    feedback on buttons; long text in rows could overflow (wraps anywhere now, buttons and
+    amounts never wrap).
+  - won't fix: Title Case for headings and buttons (Slovenian uses sentence case); skip link
+    (the bottom nav comes after `main` in the DOM, so Tab reaches content first); `name`
+    attributes on inputs (no native form posts); confirmation before deleting a blocked period
+    (it is recreated in seconds; the pilot can say otherwise); `prefers-reduced-motion` (no
+    animation); the install card's `h2` before the page `h1` (accepted in the Task 15 review).
+  - Browser check (headless Chrome 155, 360×800, production build, local stack; script
+    measurements over DevTools): `/login`, `/invite/dev-invite-token`, `/c`, `/c/koledar` (this
+    and next week), `/c/zgodovina`, `/t`, `/t/koledar`, `/t/stranke`, two customer detail
+    pages (a 54-character name with a 66-character email, a 103-character top-up note) and
+    `/t/nastavitve`: `scrollWidth` 360 on every page, no target under 44 px, the last content
+    48-277 px above the bottom navigation. The cancel dialog fits (buttons 148×48 and 74×48)
+    and takes focus. Screenshots showed and then confirmed the fix for a wrapping **Odpovej**
+    and a split `+8`.
+  - Not verified in a browser: keyboard Tab order (input events do not reach the page in these
+    headless sessions, see Task 15); it is the DOM order (no positive `tabindex` anywhere) and
+    the dialog's trap is unit-tested. The state pages (not linked, lookup failed, start-up
+    error) were not measured; they reuse the same button and link styles.
 
 ### Stage 4 Task 15 browser check (2026-10-24, local stack, production build)
 
