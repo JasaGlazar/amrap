@@ -1,19 +1,10 @@
--- pgTAP test helpers. Loaded by `supabase db reset` before dev.sql (see config.toml
--- [db.seed] sql_paths). Local only: seeds are never pushed to the remote project.
---
--- Usage inside a test (each test file runs in one transaction that is rolled back):
---   select tests.create_user('a@test.local')                -- new auth user, returns its id
---   select tests.authenticate_as(<user id>)                 -- act as that user under RLS
---   select tests.authenticate_as_service_role()             -- act as service_role (bypasses RLS)
---   select tests.clear_authentication()                     -- back to the test superuser
+-- pgTAP test helpers, local only. Usage: docs/harness.md "Testing".
 
 create schema if not exists tests;
 
 grant usage on schema tests to anon, authenticated, service_role;
 
--- Creates a confirmed email/password auth user the way Supabase CLI seeds do, so the user can
--- also sign in through GoTrue. The token columns must be '' (not null) or GoTrue fails to scan
--- the row on sign-in.
+-- The token columns must be '' (not null) or GoTrue fails to scan the row on sign-in.
 create or replace function tests.create_user(email text, password text default 'password')
 returns uuid
 language plpgsql
@@ -46,8 +37,6 @@ begin
 end;
 $$;
 
--- Acts as the given auth user until the end of the transaction: role `authenticated` and JWT
--- claims with `sub`, so auth.uid() and RLS behave as for a real request.
 create or replace function tests.authenticate_as(user_id uuid)
 returns void
 language plpgsql
@@ -61,7 +50,6 @@ begin
 end;
 $$;
 
--- Acts as the service role (bypasses RLS) until the end of the transaction.
 create or replace function tests.authenticate_as_service_role()
 returns void
 language plpgsql
@@ -73,7 +61,6 @@ begin
 end;
 $$;
 
--- Drops the JWT claims and returns to the session role (the test superuser `postgres`).
 create or replace function tests.clear_authentication()
 returns void
 language plpgsql
@@ -85,8 +72,7 @@ begin
 end;
 $$;
 
--- The role-switching helpers must stay callable after switching roles; create_user is only
--- for the test superuser.
+-- The role-switching helpers must stay callable after switching roles.
 revoke execute on all functions in schema tests from public;
 grant execute on function tests.authenticate_as(uuid), tests.authenticate_as_service_role(),
   tests.clear_authentication() to anon, authenticated, service_role;

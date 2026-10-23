@@ -8,7 +8,6 @@ export function homePath(role: Role): string {
   return role === 'trainer' ? '/t' : '/c';
 }
 
-// Layout route: everything below needs a signed-in user linked to a customers row.
 export function RequireAuth() {
   const { loading, session, customer, lookupFailed } = useAuth();
   if (loading) return <p className="status">{t.common.loading}</p>;
@@ -18,7 +17,6 @@ export function RequireAuth() {
   return <Outlet />;
 }
 
-// Layout route inside RequireAuth: sends the other role to its own home.
 export function RequireRole({ role }: { role: Role }) {
   const { customer } = useAuth();
   if (customer === null) return <NotLinkedPage />; // RequireAuth already handles this
@@ -26,7 +24,6 @@ export function RequireRole({ role }: { role: Role }) {
   return <Outlet />;
 }
 
-// The "/" route inside RequireAuth.
 export function RoleRedirect() {
   const { customer } = useAuth();
   if (customer === null) return <NotLinkedPage />; // RequireAuth already handles this

@@ -271,5 +271,7 @@ sign-up without an invite) can neither read nor write any row.
 `tests.authenticate_as`, `tests.authenticate_as_service_role` and `tests.clear_authentication`
 (see [harness.md](harness.md#testing)). `supabase/seeds/dev.sql` adds the local trainer
 (`trainer@amrap.local` / `password`), a linked customer (`ana@amrap.local` / `password`, one
-8-credit top-up), an invited customer (token `dev-invite-token`) and two slot templates. Seeds
+8-credit top-up), an invited customer (token `dev-invite-token`, valid 7 days from the reset)
+and two slot templates (Monday 07:00 with the defaults, Wednesday 18:00 for 90 minutes with
+capacity 4). `test_helpers.sql` loads first because `dev.sql` uses `tests.create_user`. Seeds
 run only on `supabase db reset`; they are never pushed to the remote project.

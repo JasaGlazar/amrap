@@ -6,17 +6,12 @@ import { AuthContext, type AuthState, type CustomerRow } from './AuthContext';
 
 type Loaded = { userId: string; customer: CustomerRow | null; failed: boolean };
 
-// Session comes from Supabase Auth; the customers row (and with it the role) from the database.
-// RLS lets a customer read only their own row and the trainer read all, so the row is selected
-// by auth_user_id.
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // undefined: the stored session has not been read yet.
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const latestLoad = useRef(0);
   const keptAliveFor = useRef<string | null>(null);
-  // The signed-in user as of the latest auth event, so refresh() stays correct for callers that
-  // captured it before the user signed in (the invite page signs up, then refreshes).
+  // refresh() reads this, not a captured session: the invite page signs up, then refreshes.
   const currentUserId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -41,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('auth_user_id', id)
         .maybeSingle();
       if (error) console.warn('customer lookup failed', error.message);
-      // A failed lookup is not "no customer row": it must not look like an unlinked account.
+      // A failed lookup must not look like an unlinked account.
       result = { userId: id, customer: data ?? null, failed: error !== null };
     } catch (error) {
       console.warn('customer lookup failed', error);

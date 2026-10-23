@@ -135,7 +135,7 @@ Helpers in `supabase/seeds/test_helpers.sql` (schema `tests`, local only):
 
 - `tests.create_user(email text, password text default 'password') returns uuid` — a confirmed
   email/password auth user (rows in `auth.users` and `auth.identities`) that can also sign in
-  through the API.
+  through the API. Executable by the test superuser only.
 - `tests.authenticate_as(user_id uuid)` — until the end of the transaction, act as that user:
   role `authenticated` and `request.jwt.claims` with `sub` and `role`, so `auth.uid()` and
   RLS behave as for a real request.

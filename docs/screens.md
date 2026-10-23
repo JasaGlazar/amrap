@@ -27,6 +27,8 @@ stubs and are built out in Stage 2 (see `PLAN.md`, "Screens").
 
 ## Access rules
 
+How the guards and the auth state work is in [auth.md](auth.md).
+
 - `RequireAuth` wraps every route except `/login`, `/invite/:token` and `/logout`. While the
   stored session and the customer record are loading it shows a loading line, so a reload never
   flashes the login page. No session redirects to `/login`; a session without a `customers` row

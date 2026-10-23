@@ -6,8 +6,6 @@ import { supabase } from '../lib/supabase';
 
 const MIN_PASSWORD_LENGTH = 6; // matches minimum_password_length in supabase/config.toml
 
-// Sign-up with the token from the invite link (ADR 0006): create the auth user, then link it to
-// the customer record with accept_invite.
 export function InvitePage() {
   const { token = '' } = useParams();
   const { refresh } = useAuth();
@@ -30,8 +28,7 @@ export function InvitePage() {
       const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
       if (signUpError) {
         if (signUpError.code !== 'user_already_exists') return setError(fromError(signUpError));
-        // An earlier attempt may have created the account without linking it (a dropped
-        // request, or an invite that was replaced). Continue as that user if the password fits.
+        // An earlier attempt may have created the account without linking it.
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) {
           // A wrong password means the account is someone else's (or has another password).

@@ -1,5 +1,3 @@
-// Every user-visible string of the app lives here (Slovenian). Components import `t` from
-// './i18n'. Identifiers stay English; see docs/screens.md for where each group is used.
 export const sl = {
   app: {
     name: 'AMRAP',

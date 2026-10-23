@@ -2,10 +2,6 @@ import type { AuthError, Session } from '@supabase/supabase-js';
 import { vi } from 'vitest';
 import type { CustomerRow } from '../auth/AuthContext';
 
-// In-memory stand-in for the Supabase client, used through vi.mock('../lib/supabase').
-// It answers only what the app asks for, and applies the same filters the real query would, so a
-// test fails if the app selects the wrong row.
-
 type AuthListener = (event: string, session: Session | null) => void;
 type Result = { data: unknown; error: { message: string } | null };
 
@@ -45,7 +41,6 @@ export function makeCustomer(overrides: Partial<CustomerRow>): CustomerRow {
   };
 }
 
-/** Simulates Supabase Auth announcing a session change (sign-in, token refresh, sign-out). */
 export function emitAuth(event: string, session: Session | null) {
   db.session = session;
   listeners.forEach((listener) => listener(event, session));
@@ -101,7 +96,6 @@ export function authError(code: string, message: string): AuthError {
   return Object.assign(new Error(message), { code }) as unknown as AuthError;
 }
 
-/** Call in beforeEach: clears state and mocks, then optionally starts signed in. */
 export function resetFake(initial: { session?: Session; customer?: CustomerRow | null } = {}) {
   db.session = initial.session ?? null;
   db.customer = initial.customer ?? null;

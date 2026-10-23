@@ -9,6 +9,8 @@
 | [schema.md](schema.md) | Tables, columns, constraints, indexes, RLS, grants, views `customer_balances` and `slot_occupancy`, helpers, migrations list |
 | [rpcs.md](rpcs.md) | RPC reference: `book`, `cancel`, `top_up`, `adjust`, `create_invite`, `accept_invite`, `charge_due_appointments`, `materialize_recurring`, `activate_rule`, `deactivate_rule`, error tokens, helpers |
 | [jobs.md](jobs.md) | Scheduled jobs: pg_cron schedules for `charge_due_appointments()` (every 15 min) and `materialize_recurring()` (nightly) |
+| [auth.md](auth.md) | App auth: session loading, customer-row lookup, role gating, lookup failed vs not linked, sign-out, invite acceptance, keep-alive, start-up error |
+| [app-structure.md](app-structure.md) | App folders, i18n rule, data layer contract, testing with the fake Supabase client |
 | [screens.md](screens.md) | Routes, role gating and strings of the customer and trainer screens |
 
 ## Architecture diagrams

@@ -1,18 +1,7 @@
--- Core RPCs: every credit and capacity mutation (book, cancel, top_up, adjust), the charge
--- job and the invite flow. See docs/rpcs.md for the reference and docs/jobs.md for the job.
---
--- Conventions for every function here:
---   - security definer, set search_path = '' (all names schema-qualified), language plpgsql.
---   - The role is decided by public.is_trainer(); a customer acts only on
---     public.current_customer_id(). Anything else raises AMRAP_FORBIDDEN.
---   - Errors are raised with SQLSTATE P0001 and a message that starts with a stable token
---     ('AMRAP_<CODE>: <english detail>'), which the UI maps to Slovenian copy.
---   - The initial migration revoked default execute, so each user-facing RPC is granted to
---     authenticated (and service_role) explicitly; the charge job is granted to service_role only.
+-- Core RPCs and the charge job. Reference and conventions: docs/rpcs.md, docs/jobs.md.
 
 -- Credits ----------------------------------------------------------------------------------
 
--- Trainer-only top-up: a positive topup transaction.
 create function public.top_up(p_customer_id uuid, p_amount int, p_note text default null)
 returns uuid
 language plpgsql
@@ -40,8 +29,6 @@ begin
 end;
 $$;
 
--- Trainer-only correction: a signed, non-zero adjustment transaction. Also how the trainer
--- waives a late-cancel charge (adjust(+1, note)).
 create function public.adjust(p_customer_id uuid, p_amount int, p_note text default null)
 returns uuid
 language plpgsql
@@ -71,11 +58,6 @@ $$;
 
 -- Booking ----------------------------------------------------------------------------------
 
--- Books one appointment. A customer books only themselves, into a future occurrence of an
--- active slot template. The trainer books anyone: from a template (any time, past included)
--- or ad hoc with an explicit end (no template, no capacity). Capacity counts booked + charged
--- appointments of the template at that start (ADR 0004); concurrent bookings of the same
--- occurrence are serialized by a transaction-scoped advisory lock.
 create function public.book(
   p_customer_id uuid,
   p_starts_at timestamptz,
@@ -134,7 +116,6 @@ begin
       raise exception 'AMRAP_IN_PAST: % is not in the future', p_starts_at using errcode = 'P0001';
     end if;
 
-    -- weekday 0 = Monday (isodow - 1), both compared in the gym's timezone.
     select p_starts_at at time zone s.timezone into v_local from public.settings s where s.id = 1;
     if not found then
       raise exception 'AMRAP_SETTINGS_MISSING: the settings row (id = 1) is missing' using errcode = 'P0001';
@@ -157,8 +138,7 @@ begin
   end if;
 
   if p_slot_template_id is not null then
-    -- Key on the epoch, not p_starts_at::text, so the key does not depend on the session's
-    -- TimeZone setting.
+    -- Epoch, not p_starts_at::text, so the key does not depend on the session TimeZone.
     perform pg_advisory_xact_lock(
       hashtext(p_slot_template_id::text || '@' || extract(epoch from p_starts_at)::text));
 
@@ -190,13 +170,6 @@ $$;
 
 -- Cancelling -------------------------------------------------------------------------------
 
--- Cancels one appointment. The row is locked first (select ... for update), so a cancel racing
--- the charge job sees either booked (and wins) or charged (and the customer is rejected): one
--- charge per appointment under any interleaving (ADR 0002). Customer: only their own, only
--- while booked and not started; free before the cutoff (cancelled), else cancelled_late with a
--- late_cancel -1 charged now. Trainer: booked -> cancelled_by_trainer, charged ->
--- cancelled_by_trainer plus a refund +1. A cancelled appointment of any kind is final; the
--- trainer waives a late-cancel charge with adjust(+1, note).
 create function public.cancel(p_appointment_id uuid)
 returns void
 language plpgsql
@@ -267,13 +240,6 @@ $$;
 
 -- Charge job -------------------------------------------------------------------------------
 
--- The 15-minute job (ADR 0002, docs/jobs.md): every booked appointment that has started
--- becomes charged with one session -1 transaction (created_by null: no acting user). Rows a
--- concurrent cancel() holds are skipped (for update skip locked) and picked up by the next run
--- if still booked. Only booked rows are selected and each becomes charged in the same
--- statement, so a second run charges nothing; the partial unique index on credit_transactions
--- is the database-level guard. No role check: it is not granted to authenticated or anon and
--- runs from pg_cron (as postgres) or with the service role.
 create function public.charge_due_appointments()
 returns int
 language plpgsql
@@ -307,9 +273,6 @@ $$;
 
 -- Invites ----------------------------------------------------------------------------------
 
--- Trainer-only: issues a single-use invite token valid for 7 days for a customer record that
--- has no app account yet (ADR 0006). Re-issuing replaces the previous token. The token is the
--- proof of identity (email is not confirmed), so it is 24 random bytes.
 create function public.create_invite(p_customer_id uuid)
 returns text
 language plpgsql
@@ -332,8 +295,7 @@ begin
     raise exception 'AMRAP_ALREADY_LINKED: customer % already has an account', p_customer_id
       using errcode = 'P0001';
   end if;
-  -- An unlinked trainer record must not become invitable: whoever redeemed the token would be
-  -- the trainer, with full access to every table.
+  -- Redeeming an invite for an unlinked trainer record would hand out trainer access.
   if v_customer.role <> 'customer' then
     raise exception 'AMRAP_INVALID_ARGUMENT: record % is not a customer record', p_customer_id
       using errcode = 'P0001';
@@ -347,9 +309,6 @@ begin
 end;
 $$;
 
--- Any signed-in user: redeems an invite token, linking the caller's auth user to the invited
--- customer record. The record is locked by token so two concurrent redemptions cannot both
--- succeed.
 create function public.accept_invite(p_token text)
 returns uuid
 language plpgsql
@@ -374,8 +333,7 @@ begin
     raise exception 'AMRAP_ALREADY_LINKED: this user is already linked to a customer' using errcode = 'P0001';
   end if;
 
-  -- A concurrent accept_invite by the same user on another token can link first; the
-  -- unique auth_user_id then surfaces here instead of in the check above.
+  -- The same user redeeming another token concurrently can link first and pass the check above.
   begin
     update public.customers
       set auth_user_id = auth.uid(), invite_token = null, invite_expires_at = null
@@ -402,6 +360,5 @@ revoke execute on function public.create_invite(uuid) from public, anon;
 revoke execute on function public.accept_invite(text) from public, anon;
 grant execute on function public.create_invite(uuid) to authenticated, service_role;
 grant execute on function public.accept_invite(text) to authenticated, service_role;
--- Cron / service role only.
 revoke execute on function public.charge_due_appointments() from public, anon, authenticated;
 grant execute on function public.charge_due_appointments() to service_role;

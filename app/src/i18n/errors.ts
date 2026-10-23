@@ -1,6 +1,5 @@
 import { sl } from './sl';
 
-// Maps the AMRAP_* error tokens raised by the database RPCs (docs/rpcs.md) to Slovenian copy.
 export const errorMessages: Record<string, string> = sl.errors;
 
 const authErrorMessages: Record<string, string> = sl.authErrors;
@@ -13,8 +12,6 @@ function stringField(value: unknown, field: 'message' | 'code'): string | undefi
   return typeof found === 'string' ? found : undefined;
 }
 
-// PostgREST puts the RPC's 'AMRAP_<TOKEN>: detail' text in error.message; Supabase Auth errors
-// carry a machine-readable error.code. Anything unknown gets the generic message.
 export function fromError(error: unknown): string {
   const message = typeof error === 'string' ? error : stringField(error, 'message');
   const token = message === undefined ? undefined : tokenPattern.exec(message)?.[1];

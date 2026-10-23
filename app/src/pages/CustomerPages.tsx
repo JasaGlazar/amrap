@@ -16,7 +16,6 @@ export function CustomerShell() {
 
 type BalanceState = { status: 'loading' } | { status: 'error' } | { status: 'ok'; balance: number };
 
-// Stage 1 placeholder: shows the balance from the ledger view; booking comes in Stage 2.
 export function CustomerHome() {
   const { customer } = useAuth();
   const customerId = customer?.id;

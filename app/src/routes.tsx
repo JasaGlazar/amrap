@@ -28,7 +28,6 @@ function Root() {
   );
 }
 
-// Redirects to /login once signed out; if signing out fails the page stays and says so.
 async function logout() {
   const { error } = await supabase.auth.signOut();
   if (error) {

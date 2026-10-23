@@ -292,9 +292,10 @@ from `public`, `anon`, `authenticated` and `service_role`). It is only called by
   and returns the number of appointments inserted. Returns 0 when the rule is missing or
   inactive or its template is inactive. Fails closed without the `settings` row
   (`AMRAP_SETTINGS_MISSING`). Locks the rule row `for share`, so a concurrent
-  `deactivate_rule()` is serialized with it. For each date from today through `today + p_weeks *
+  `deactivate_rule()` either runs first (the rule is then inactive here) or waits and then
+  cancels what this run inserted. For each date from today through `today + p_weeks *
   7` days (local dates in `settings.timezone`, both ends included) on the template's weekday,
-  in ascending order:
+  in ascending order, so concurrent runs take the advisory locks below in the same order:
   1. `starts_at = (date + start_time) at time zone settings.timezone`, so Postgres picks the
      UTC offset of that date and the wall-clock time survives DST changes;
      `ends_at = starts_at + duration_minutes`.

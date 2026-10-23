@@ -1,7 +1,6 @@
 import { Link, useLoaderData } from 'react-router';
 import { t } from '../i18n';
 
-// Only rendered when the /logout loader did not redirect, i.e. signing out failed.
 export function LogoutFailedPage() {
   const { message } = useLoaderData() as { message: string };
   return (

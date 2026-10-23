@@ -1,17 +1,9 @@
--- Recurring rules and jobs: book() checks blocked periods by interval overlap; recurring rules
--- are materialized into appointments by materialize_recurring() (nightly, pg_cron) and by
--- activate_rule(); deactivate_rule() cancels a rule's future instances; slot_occupancy exposes
--- per-slot counts to customers; pg_cron schedules both jobs. See docs/rpcs.md, docs/jobs.md
--- and docs/schema.md.
---
--- Same conventions as 20261023175948_core_rpcs.sql: security definer, search_path = '',
--- explicit role checks, 'AMRAP_<CODE>: detail' errors with SQLSTATE P0001, explicit grants.
+-- Recurring rules, occupancy view and pg_cron jobs. Reference: docs/rpcs.md, docs/schema.md,
+-- docs/jobs.md; decisions: docs/adr/0008-recurrence-and-occupancy.md.
 
 -- Booking: blocked periods by overlap ------------------------------------------------------
 
--- Unchanged from 20261023175948_core_rpcs.sql except the blocked-period check, which now
--- compares the whole appointment [starts_at, ends_at) with each blocked period instead of
--- only the start. create or replace keeps the existing grants.
+-- create or replace keeps the existing grants; only the blocked-period check changed.
 create or replace function public.book(
   p_customer_id uuid,
   p_starts_at timestamptz,
@@ -70,7 +62,6 @@ begin
       raise exception 'AMRAP_IN_PAST: % is not in the future', p_starts_at using errcode = 'P0001';
     end if;
 
-    -- weekday 0 = Monday (isodow - 1), both compared in the gym's timezone.
     select p_starts_at at time zone s.timezone into v_local from public.settings s where s.id = 1;
     if not found then
       raise exception 'AMRAP_SETTINGS_MISSING: the settings row (id = 1) is missing' using errcode = 'P0001';
@@ -85,9 +76,6 @@ begin
     v_ends_at := p_ends_at;
   end if;
 
-  -- Interval overlap, both ranges half-open [starts_at, ends_at): an appointment that starts
-  -- before a blocked period but runs into it is rejected; one that ends exactly when the
-  -- period starts is not.
   if exists (
     select 1 from public.blocked_periods b
     where tstzrange(p_starts_at, v_ends_at) && tstzrange(b.starts_at, b.ends_at)
@@ -97,8 +85,7 @@ begin
   end if;
 
   if p_slot_template_id is not null then
-    -- Key on the epoch, not p_starts_at::text, so the key does not depend on the session's
-    -- TimeZone setting.
+    -- Epoch, not p_starts_at::text, so the key does not depend on the session TimeZone.
     perform pg_advisory_xact_lock(
       hashtext(p_slot_template_id::text || '@' || extract(epoch from p_starts_at)::text));
 
@@ -130,23 +117,11 @@ $$;
 
 -- Materialization --------------------------------------------------------------------------
 
--- One instance per rule and start, whatever its status: a cancelled instance is never
--- recreated by a later run.
+-- Any status, so a cancelled instance is never recreated by a later run.
 create unique index appointments_rule_id_starts_at_idx
   on public.appointments (rule_id, starts_at)
   where rule_id is not null;
 
--- Private helper (no grant): materializes one rule for every occurrence of its template from
--- today through today + p_weeks * 7 days, in settings.timezone. Returns the number inserted.
--- An inactive rule or template materializes nothing. The rule row is locked for share, so a
--- concurrent deactivate_rule() either runs first (the rule is then inactive here) or waits and
--- then cancels what this inserted. Skips, per occurrence: a start in the past, a start_time
--- that does not exist that day (spring-forward gap; book() could not match it either), an
--- overlap with a blocked period, an existing instance of the rule (any status), a live
--- booking of the customer at that start, and a full slot. The existence and capacity checks
--- run under the same advisory lock as book(), so concurrent bookings and runs are serialized;
--- dates are walked in ascending order so the lock order is deterministic. on conflict do
--- nothing covers a booking at the same start that took a different template's lock.
 create function public.materialize_rule(p_rule_id uuid, p_weeks int)
 returns int
 language plpgsql
@@ -185,8 +160,6 @@ begin
     where extract(isodow from v_today + n) - 1 = v_template.weekday
     order by n
   loop
-    -- Local date + time to an instant in the gym's timezone; Postgres applies the right
-    -- UTC offset for that date, so the wall-clock time survives DST changes.
     v_starts_at := (v_day + v_template.start_time) at time zone v_tz;
     v_ends_at := v_starts_at + v_template.duration_minutes * interval '1 minute';
 
@@ -197,7 +170,7 @@ begin
       where tstzrange(v_starts_at, v_ends_at) && tstzrange(b.starts_at, b.ends_at)
     );
 
-    -- The same key as book(): template || '@' || epoch of the start.
+    -- The same key as book(), so a run and a booking of one occurrence are serialized.
     perform pg_advisory_xact_lock(
       hashtext(v_template.id::text || '@' || extract(epoch from v_starts_at)::text));
 
@@ -232,10 +205,6 @@ begin
 end;
 $$;
 
--- The nightly job (pg_cron, as postgres) and the trainer's "materialize now". Runs
--- materialize_rule() for every active rule of an active template, in rule id order. Allowed
--- without a signed-in user (cron, service role: auth.uid() is null) or for the trainer; a
--- customer or an unlinked user gets AMRAP_FORBIDDEN. Idempotent: a second run returns 0.
 create function public.materialize_recurring(p_weeks int default 4)
 returns int
 language plpgsql
@@ -270,15 +239,11 @@ $$;
 revoke execute on function public.materialize_rule(uuid, int)
   from public, anon, authenticated, service_role;
 revoke execute on function public.materialize_recurring(int) from public, anon;
--- authenticated for the trainer path (the role check inside rejects everyone else).
+-- authenticated for the trainer path; the role check inside rejects everyone else.
 grant execute on function public.materialize_recurring(int) to authenticated, service_role;
 
 -- Rule activation --------------------------------------------------------------------------
 
--- Trainer-only: deactivates a rule and cancels its future booked instances as
--- cancelled_by_trainer (never charged). Past, charged and already cancelled instances are
--- left alone. Returns the number cancelled. Reactivating does not bring the cancelled
--- instances back (one instance per rule and start, any status).
 create function public.deactivate_rule(p_rule_id uuid)
 returns int
 language plpgsql
@@ -306,9 +271,6 @@ begin
 end;
 $$;
 
--- Trainer-only: activates a rule and materializes it at once over the default four-week
--- window, so the customer sees the instances without waiting for the nightly run. Returns the
--- number inserted (0 when the template is inactive).
 create function public.activate_rule(p_rule_id uuid)
 returns int
 language plpgsql
@@ -336,11 +298,7 @@ grant execute on function public.activate_rule(uuid) to authenticated, service_r
 
 -- Occupancy view ---------------------------------------------------------------------------
 
--- Live (booked + charged) appointments per slot occurrence, so a customer can see remaining
--- capacity without reading other customers' appointments. Not security_invoker: it runs as
--- its owner and counts every row, and exposes counts only, no customer identity. Gated on a
--- linked caller (a customer or the trainer); an auth user without a customer record sees no
--- rows. Ad-hoc appointments (no template) have no capacity and are not counted.
+-- Not security_invoker, so it counts every customer's rows; it exposes counts only (ADR 0008).
 create view public.slot_occupancy as
   select a.slot_template_id, a.starts_at, count(*) as booked_count
   from public.appointments a
@@ -354,11 +312,7 @@ grant select on public.slot_occupancy to authenticated, service_role;
 
 -- Schedules (pg_cron) ----------------------------------------------------------------------
 
--- pg_cron must live in pg_catalog on Supabase; the grants are the ones Supabase documents for
--- scheduling as postgres. Jobs run as the role that scheduled them (postgres, the owner of the
--- job functions) with no JWT, so auth.uid() is null. cron.schedule with a job name updates
--- the job if it exists, so re-running this is harmless. Schedules are in the server's
--- timezone (UTC on the hosted project): 02:00 UTC is 03:00 or 04:00 in Ljubljana.
+-- Supabase requires pg_cron in pg_catalog.
 create extension if not exists pg_cron with schema pg_catalog;
 
 grant usage on schema cron to postgres;
