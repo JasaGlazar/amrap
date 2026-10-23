@@ -161,6 +161,16 @@ checklist skill. Branch `stage-4-pilot`.
   empty or null id list (the plan said `raise log`); nothing is lost and the job would log on
   every quiet run. The Task 12 local end-to-end used an `http://` fake push service; with the
   https rule a repeat needs an https fake endpoint.
+- Task 12 review fixes done: guarded `serviceKey(env)` with Deno tests (Important), response
+  table, runbook check steps, harness notes, per-test console stub, comments removed.
+- Task 13 done: `src/sw.ts` (injectManifest, `skipWaiting` + `clientsClaim`, push and click
+  handlers), `src/push/` (`render`, `support`, `browser`, `subscribe`), `PushToggle` on customer
+  Home and trainer Settings, `/logout` removes the device first, `save_push_subscription` /
+  delete wrappers in `src/data/push.ts`, `tsconfig.sw.json` (WebWorker lib), workbox-core and
+  workbox-precaching 7.4.1 pinned. Vitest 199 (46 new). Browser check not done: the Claude in
+  Chrome extension timed out injecting into the local preview page three times; the build, the
+  emitted `sw.js` (no imports, push handler present) and the dev server were checked instead.
+  The local VAPID public key is in the gitignored `app/.env.local`.
 
 ---
 
