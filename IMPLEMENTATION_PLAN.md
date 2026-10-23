@@ -66,7 +66,7 @@ The customer calendar must show remaining capacity per slot while RLS hides othe
 appointments: add a `SECURITY DEFINER` counting RPC or view (e.g. `slot_occupancy`). Route the
 not-linked and lookup-failed sign-out buttons through `/logout` so failures surface (done,
 Task 7).
-**Status**: In Progress
+**Status**: Complete (PR open)
 
 ## Stage 3: Automation & notifications
 **Goal**: Web push (VAPID) via edge function + pg_net, `push_subscriptions` UI, pre-cutoff
@@ -113,8 +113,9 @@ checklist skill. Branch `stage-4-pilot`.
   `time.md`, `screens.md`. Manually checked in a browser as ana. Review fixes done.
 - Task 8 done: trainer Today, Calendar (`/t/koledar`), Customers (`/t/stranke`, `/:id`),
   Settings (`/t/nastavitve`) on the shared week loader and calendar parts; runbook invite path
-  is the Customers screen. Manually checked as trainer. Stage 2 tasks 6–9 are done; the PR to
-  `main` is the orchestrator's to open.
+  is the Customers screen. Manually checked as trainer. Review fixes done (off-grid bookings
+  listed, stranded-booking warning, recent charges with refund). Stage 2 complete; the
+  orchestrator opens the PR to `main`.
 
 ---
 
