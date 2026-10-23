@@ -1,4 +1,4 @@
-import { dismissInstall, isInstallDismissed, type StorageAccess } from './dismissed';
+import { isFlagSet, setFlag, type StorageAccess } from './flags';
 
 // Chromium only; not in lib.dom.
 export type InstallPromptEvent = Event & {
@@ -26,8 +26,8 @@ export type InstallStore = {
 export function createInstallStore(storage: StorageAccess): InstallStore {
   let state: InstallState = {
     prompt: null,
-    installed: false,
-    dismissed: isInstallDismissed(storage),
+    installed: isFlagSet(storage, 'installed'),
+    dismissed: isFlagSet(storage, 'dismissed'),
   };
   const listeners = new Set<() => void>();
   let prompting = false;
@@ -44,9 +44,12 @@ export function createInstallStore(storage: StorageAccess): InstallStore {
       return () => listeners.delete(listener);
     },
     capture: (event) => update({ prompt: event }),
-    markInstalled: () => update({ prompt: null, installed: true }),
+    markInstalled() {
+      setFlag(storage, 'installed');
+      update({ prompt: null, installed: true });
+    },
     dismiss() {
-      dismissInstall(storage);
+      setFlag(storage, 'dismissed');
       update({ dismissed: true });
     },
     async install() {
@@ -56,6 +59,7 @@ export function createInstallStore(storage: StorageAccess): InstallStore {
       try {
         await event.prompt();
         const { outcome } = await event.userChoice;
+        if (outcome === 'accepted') setFlag(storage, 'installed');
         update(outcome === 'accepted' ? { prompt: null, installed: true } : { prompt: null });
         return outcome;
       } catch (error) {

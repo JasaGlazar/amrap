@@ -224,7 +224,7 @@ push needs the home-screen app) and then, by mode:
 
 | Mode | When | Shows |
 |---|---|---|
-| hidden | the app runs standalone (opened from the home screen), or it was installed during this visit (`appinstalled`, or an accepted prompt) | nothing |
+| hidden | the app runs standalone (opened from the home screen), or it was installed on this device (`appinstalled` or an accepted prompt, remembered in `amrap.install.installed`, so a browser tab opened later does not offer it again) | nothing |
 | prompt | the browser fired `beforeinstallprompt` (Chromium: Android Chrome, desktop Chrome and Edge) | **Namesti aplikacijo**, which opens the browser's install dialog |
 | ios | iOS, not standalone | the Share steps (`install.iosShare`, `install.iosAdd`, `install.openFromHome`) and `install.iosOtherBrowsers` |
 | android-manual | Android without a prompt (another browser, or the prompt was declined) | the browser menu steps (`install.androidMenu`, `install.androidAdd`, `install.openFromHome`) |
@@ -232,7 +232,9 @@ push needs the home-screen app) and then, by mode:
 
 - **Ne zdaj** hides the card on this device for good (`localStorage` key
   `amrap.install.dismissed`). Storage that cannot be read counts as not dismissed and a failed
-  write is logged (`console.warn`); either way the card hides until the next load.
+  write is logged (`console.warn`); either way the card hides until the next load. The same
+  applies to the installed flag. An app removed from the home screen later stays "installed"
+  for the card on that device until its site data is cleared.
 - The browser's prompt can be shown once. While its dialog is open the card stays as it is (a
   second tap does nothing). Accepted, the card hides; declined, the prompt is dropped and the
   card falls back to the Android menu steps (Android) or disappears (desktop)

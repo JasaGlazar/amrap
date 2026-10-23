@@ -31,8 +31,8 @@ What the install card shows is in [screens.md](screens.md#install-card). The cod
 `src/install/`:
 
 - `capture.ts`: `createInstallStore(storage)` holds the captured prompt event, whether the app
-  was installed during this visit and whether the card was dismissed, with `subscribe` /
-  `getState` for `useSyncExternalStore`; `install()` calls `prompt()` synchronously inside the
+  was installed on this device and whether the card was dismissed (both read from storage at
+  start), with `subscribe` / `getState` for `useSyncExternalStore`; `install()` calls `prompt()` synchronously inside the
   tap (Chrome needs the user gesture), keeps the event while the dialog is open (a second call
   meanwhile returns `unavailable`) and drops it once the browser answers, since it cannot be
   reused. `listenForInstallPrompt(target, store)` handles `beforeinstallprompt`
@@ -40,7 +40,8 @@ What the install card shows is in [screens.md](screens.md#install-card). The cod
   `start()`, because Chrome can fire the event before React has rendered anything. The event
   type is declared locally (Chromium only, not in `lib.dom`).
 - `mode.ts`: `installMode({ standalone, ios, android, installed, hasPrompt })`, pure.
-- `dismissed.ts`: read and write `amrap.install.dismissed`, every access in try/catch.
+- `flags.ts`: the per-device flags `amrap.install.dismissed` and `amrap.install.installed`
+  (`isFlagSet` / `setFlag`), every access in try/catch.
 - `platform.ts`: `installPlatform` (`lib/device.ts` detection and the app's one store over
   `window.localStorage`) and `InstallContext`, whose default is `installPlatform`.
 - `useInstall.ts`: `useInstall()` → `{ mode, cardShown, install, dismiss }`, used by

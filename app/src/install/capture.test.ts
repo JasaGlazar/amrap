@@ -36,6 +36,29 @@ describe('createInstallStore', () => {
     expect(createInstallStore(() => storage).getState().dismissed).toBe(true);
   });
 
+  it.each([
+    ['appinstalled', (store: ReturnType<typeof createInstallStore>) => store.markInstalled()],
+    [
+      'an accepted prompt',
+      async (store: ReturnType<typeof createInstallStore>) => {
+        store.capture(fakePromptEvent('accepted'));
+        await store.install();
+      },
+    ],
+  ])('remembers an install on this device after %s', async (_name, install) => {
+    const storage = memoryStorage();
+    await install(createInstallStore(() => storage));
+    expect(createInstallStore(() => storage).getState().installed).toBe(true);
+  });
+
+  it('does not remember a declined prompt as an install', async () => {
+    const storage = memoryStorage();
+    const store = createInstallStore(() => storage);
+    store.capture(fakePromptEvent('dismissed'));
+    await store.install();
+    expect(createInstallStore(() => storage).getState().installed).toBe(false);
+  });
+
   it('notifies subscribers with a new state on every change', () => {
     const store = createInstallStore(() => memoryStorage());
     const listener = vi.fn();
