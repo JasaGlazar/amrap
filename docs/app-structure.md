@@ -10,6 +10,7 @@ screens are in [screens.md](screens.md), sign-in and role gating in [auth.md](au
 |---|---|
 | `src/main.tsx`, `src/start.tsx` | Entry point. `start()` mounts the router or the start-up error page ([auth.md](auth.md#start-up-error)). |
 | `src/routes.tsx` | The route tree (React Router v7 data router). The tests render the same tree. |
+| `src/data/` | Typed reads and RPC wrappers ([data-layer.md](data-layer.md)). |
 | `src/auth/` | `AuthProvider`, `useAuth()`, the route guards ([auth.md](auth.md)). |
 | `src/pages/` | One component per screen or state page; the shells (`CustomerPages.tsx`, `TrainerPages.tsx`) use `AppShell`, a phone-first layout with a fixed bottom navigation bar. |
 | `src/i18n/` | `sl.ts` (all copy), `errors.ts` (`fromError`), `fill.ts` (`fill` for `{name}` placeholders, `formatTimeUntil`), `index.ts` (exports `t` and the helpers). |
@@ -42,12 +43,11 @@ hardcoded Slovenian).
 
 - One client, `supabase` from `src/lib/supabase.ts`, typed with `Database` from the generated
   `database.types.ts` (regenerate with `supabase gen types typescript --local`).
-- Reads go straight to tables and views and RLS decides which rows come back. A query for
-  "my" rows still filters by the caller's own id, because the trainer can read everyone's.
-- Writes that touch credits or capacity go only through RPCs (`supabase.rpc(...)`), never
-  direct table writes. A failed RPC is shown with `fromError`.
-- Stage 1 pages call `supabase` directly. From Stage 2, queries and RPC wrappers live in
-  `src/data/` as functions that take the client as a parameter, so tests pass the fake.
+- Pages read and write through `src/data/`: functions that take the client as their first
+  argument, so tests pass the fake. Reads go to tables and views (RLS decides the rows); writes
+  that touch credits or capacity go only through RPCs. Details: [data-layer.md](data-layer.md).
+- Auth calls (`supabase.auth.*`) and `accept_invite` stay in the auth and invite code
+  ([auth.md](auth.md)).
 
 ## Testing with the fake client
 
@@ -61,16 +61,26 @@ vi.mock('./lib/supabase', async () => ({
 
 `fakeSupabase.ts` is an in-memory stand-in that answers only what the app asks for:
 
-- `db` holds the state (session, the customer row, balance, injected errors). The query fake
-  applies the same filters the real query would (for example `auth_user_id` on `customers`),
-  so a test fails when the app selects the wrong row; an unexpected table throws.
-- `resetFake({ session?, customer? })` in `beforeEach` clears the state and the mocks and
-  optionally starts signed in. `onAuthStateChange` delivers `INITIAL_SESSION` on a microtask,
+- `db` holds the state: the session, the customer row (`customers`), the balance
+  (`customer_balances`), the `settings` row, injected errors, and `db.tables` with rows for
+  `slot_templates`, `slot_occupancy`, `appointments`, `credit_transactions` and
+  `blocked_periods`. The query fake supports `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `or`
+  (comma-separated `column.operator.value`), `order` and `limit`, and applies them the way
+  PostgREST would (timestamps compared as instants), so a test fails when the app selects the
+  wrong rows; an unexpected table throws.
+- `fakeSupabase.rpc` simulates `book` (inserts a booked appointment and counts it in
+  `slot_occupancy`) and `cancel` (marks it `cancelled` and uncounts it); any other RPC throws
+  unless a test mocks it. Tests mock a rejection with `mockResolvedValueOnce({ data: null,
+  error: { message: 'AMRAP_…: detail' } })`.
+- `resetFake({ session?, customer? })` in `beforeEach` clears the state (tables empty,
+  default settings) and the mocks and optionally starts signed in. `onAuthStateChange` delivers `INITIAL_SESSION` on a microtask,
   like the real client.
 - `emitAuth(event, session)` simulates Supabase Auth announcing a change (sign-in, token
   refresh, sign-out).
-- `makeSession`, `makeCustomer`, `authError` build fixtures; `fakeSupabase.rpc` and the
-  `auth.signUp` / `signInWithPassword` mocks are set per test.
+- `makeSession`, `makeCustomer`, `authError` build fixtures; the `auth.signUp` /
+  `signInWithPassword` mocks and any other RPC are set per test.
+- `src/data/data.test.ts` calls the data layer with the fake directly
+  (`fakeSupabase as unknown as Client`).
 
 `routes.test.tsx` renders the real route tree in a `createMemoryRouter` and asserts on what the
 user sees. Build-only plugins (the PWA service worker) are left out when `VITEST` is set.
