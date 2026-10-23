@@ -2,6 +2,7 @@
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
 import { handle } from './handler.ts';
+import { serviceKey } from './keys.ts';
 import type { BuiltPush, ClaimedRow } from './types.ts';
 
 const vapid = {
@@ -10,18 +11,9 @@ const vapid = {
   privateKey: Deno.env.get('VAPID_PRIVATE_KEY') ?? '',
 };
 
-const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', serviceKey(), {
+const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', serviceKey(Deno.env), {
   auth: { persistSession: false, autoRefreshToken: false },
 });
-
-function serviceKey(): string {
-  const secretKeys = Deno.env.get('SUPABASE_SECRET_KEYS');
-  if (secretKeys) {
-    const key = (JSON.parse(secretKeys) as Record<string, string>).default;
-    if (key) return key;
-  }
-  return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-}
 
 async function claim(ids: string[]): Promise<ClaimedRow[]> {
   const { data, error } = await supabase.rpc('claim_notifications', { p_ids: ids });
@@ -34,7 +26,6 @@ async function removeSubscriptions(endpoints: string[]): Promise<void> {
   if (error) throw error;
 }
 
-// web-push builds the encrypted request; fetch sends it, so no Node https in the runtime.
 async function send(row: ClaimedRow, push: BuiltPush): Promise<void> {
   const details = webpush.generateRequestDetails(
     { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },

@@ -171,8 +171,10 @@ writer commits ([notifications.md](notifications.md)); it is not scheduled itsel
 | 500 | `claim_notifications` failed (logged) | no |
 | 200 | `{"claimed", "sent", "failed", "removed"}`: claimed notifications, pushes delivered, pushes failed (kept), subscriptions deleted | yes |
 
-- **Work:** `claim_notifications(ids)` with the function's service key (the default
-  `SUPABASE_SECRET_KEYS` entry, else the legacy `SUPABASE_SERVICE_ROLE_KEY`), then one push per
+- **Work:** `claim_notifications(ids)` with the function's service key (`keys.ts`: the
+  non-empty string `default` entry of `SUPABASE_SECRET_KEYS` when that is a JSON object, else
+  the legacy `SUPABASE_SERVICE_ROLE_KEY`; with neither the function fails at start with an error
+  naming both), then one push per
   returned subscription with an `https://` endpoint, in parallel (any other endpoint is logged,
   never called and counted as failed; the table already refuses them): web-push 3.6.7 builds the encrypted (`aes128gcm`),
   VAPID-signed request and `fetch` sends it (8 s timeout each). A 404 or 410 deletes those
