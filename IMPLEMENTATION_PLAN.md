@@ -142,6 +142,16 @@ checklist skill. Branch `stage-4-pilot`.
   (the trigger's guard keeps book/cancel/top_up succeeding); the notification row is not kept in
   that case. Single-trainer assumption documented (the triggers loop over every trainer, the
   `(kind, appointment_id)` key lets only the first one with a device get it).
+- Task 12 done: `supabase/functions/send-push/` (handler with injected deps, payload per kind,
+  web-push `generateRequestDetails` + `fetch`), 14 Deno tests, `scripts/test-functions.sh`
+  (fmt, lint, check, test; Docker image when no local deno), CI job `functions`,
+  `[functions.send-push] verify_jwt = false`, `supabase/functions/.env.example`, runbook "Turn on
+  push notifications". `supabase start` serves the function without `functions serve`.
+  End-to-end locally: a credit trigger → pg_net → `send-push` → a fake push service container on
+  `supabase_network_amrap` received two encrypted (`aes128gcm`, VAPID-signed) pushes; its 410
+  device was deleted; summary `{"claimed":1,"sent":1,"failed":0,"removed":1}`. The Bash sandbox
+  blocks listening sockets on the host, hence the container. A local VAPID pair is in the
+  gitignored `supabase/functions/.env`.
 
 ---
 
