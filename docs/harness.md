@@ -55,6 +55,14 @@ sequenceDiagram. Quote labels that contain parentheses or special characters.
 A project skill in `.claude/skills/` is added the second time a task repeats, not before.
 Expected candidates: new-migration, deploy-functions, generate-types, release-checklist.
 
+## Skills
+
+Project skills live in `.claude/skills/<name>/SKILL.md`.
+
+| Skill | Use when |
+|---|---|
+| `new-migration` | Any change under `supabase/migrations/`: create the file with `supabase migration new`, failing pgTAP test first, `supabase db reset` + `supabase test db` + `supabase db lint`, update `docs/schema.md` / `docs/rpcs.md` / `docs/jobs.md` and the affected diagram, regenerate `app/src/lib/database.types.ts`, commit together. |
+
 ## Reviewer gate
 
 Every task is reviewed by the `reviewer` agent (`.claude/agents/reviewer.md`) against
