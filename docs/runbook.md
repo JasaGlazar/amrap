@@ -54,11 +54,12 @@ returning id;
 update public.customers
 set invite_token = encode(extensions.gen_random_bytes(24), 'hex'),
     invite_expires_at = now() + interval '7 days'
-where id = '<id>' and auth_user_id is null
+where id = '<id>' and auth_user_id is null and role = 'customer'
 returning invite_token;
 ```
 
-   No row returned means the record is already linked (see "Re-link a customer").
+   No row returned means the record is already linked (see "Re-link a customer") or is
+   not a customer record.
 3. Send the customer `https://<pages-domain>/invite/<token>`.
 
 `create_invite` itself cannot be called from the SQL editor: the editor runs without a JWT,
