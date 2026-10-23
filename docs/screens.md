@@ -19,10 +19,10 @@ built out later in Stage 2 (see `PLAN.md`, "Screens").
 | `/c` | customer | Customer shell: top bar with the app name and a sign-out link to `/logout`, bottom navigation (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel ([Customer screens](#customer-screens)). | `nav`, `customer`, `slot`, `time`, `cancelDialog` | Stage 2 |
 | `/c/koledar` | customer | Week calendar: book open slots, cancel own bookings. | `customer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
-| `/t` | trainer | Trainer shell: the same top bar with sign-out, bottom navigation (Today, Calendar, Customers, Settings). Index is Today. | `nav`, `trainer` | placeholder |
-| `/t/calendar` | trainer | Week view of all customers, capacity per slot. | `trainer.calendarTitle`, `common.comingSoon` | placeholder |
-| `/t/customers` | trainer | Balances, ledger, top-up, adjust, invite link. | `trainer.customersTitle`, `common.comingSoon` | placeholder |
-| `/t/settings` | trainer | Slot templates, cutoff hours, blocked periods. | `trainer.settingsTitle`, `common.comingSoon` | placeholder |
+| `/t` | trainer | Trainer shell: the same top bar with sign-out, bottom navigation (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `trainer`, `calendar`, `slot` | Stage 2 |
+| `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
+| `/t/stranke` | trainer | Balances, ledger, top-up, adjust, invite link. | `trainer.customersTitle`, `common.comingSoon` | placeholder |
+| `/t/nastavitve` | trainer | Slot templates, cutoff hours, blocked periods. | `trainer.settingsTitle`, `common.comingSoon` | placeholder |
 | anything else | anyone | Redirects to `/`. | none | Stage 1 |
 
 ## Customer screens
@@ -93,6 +93,45 @@ data.
   started one not charged yet, Opravljeno, Odpovedano, Pozna odpoved, Odpovedal trener).
 - **Krediti:** the ledger, newest first: type label (`transactionType`), the note if any, the
   date and time, and the amount with its sign (`+8`, `−1`; negative in red).
+
+## Trainer screens
+
+The trainer reads every customer's rows (RLS `for all`); names come from `listCustomers` and
+are matched to appointments by customer id. Load failures show `customer.loadFailed`.
+
+### Today (`/t`)
+
+- **Data:** `loadWeek` for the current week (all customers), `listCustomers`, `allBalances`.
+- **Debtors:** every customer with a negative balance, most negative first, each a link to
+  their detail page with the balance in red. None: `trainer.noDebtors`.
+- **Today's occurrences:** the week's occurrences on today's local date, each with remaining
+  capacity (as in the customer calendar) and the names of the customers booked (`booked` or
+  `charged`, the latter tagged `opravljeno`). Ad-hoc appointments today are listed below with
+  their time range and name. Nothing today: `trainer.noSlotsToday`. Read-only; changes are
+  made in the calendar.
+
+### Calendar (`/t/koledar`)
+
+- **Week:** like the customer calendar, but `‹` is never disabled: the trainer can open past
+  weeks (to record a session after the fact; `book()` lets the trainer book past occurrences).
+- **Data:** `loadWeek` without a customer id (all customers' live appointments) and
+  `listCustomers`.
+- **Occurrence row:** start, duration, remaining capacity, blocked state, then the booked
+  customers (names, `opravljeno` for charged), each with **Odpovej**, and an add control: a
+  customer select (named `Stranka za termin {when}`; customers already booked there are left
+  out) with **Dodaj**, disabled while the occurrence is full or blocked or another booking is in
+  flight. **Dodaj** calls `book(customer, startsAt, template)`; success shows `trainer.added`,
+  a rejection its `errors.AMRAP_*` copy.
+- **Termini po dogovoru:** the week's ad-hoc appointments (no template) with day, time range
+  and name, each with **Odpovej**; then the form **Nov termin po dogovoru**: customer, date
+  (defaults to the week's Monday), start and end time. The date and times are converted with
+  `zonedInstant` in the gym timezone ([time.md](time.md)); a time that does not exist that day
+  shows `trainer.invalidTime`, an end not after the start `trainer.invalidRange`, no customer
+  `trainer.missingCustomer`. Submit calls `book` without a template (`p_ends_at`); ad-hoc
+  appointments have no capacity.
+- **Cancel:** the cancel dialog in trainer mode: the customer's name, no cutoff, and
+  `cancelDialog.noCharge` for a booked appointment or `cancelDialog.refund` ("s povračilom",
+  +1 credit) for a charged one, matching what `cancel()` does for the trainer.
 
 ## Access rules
 

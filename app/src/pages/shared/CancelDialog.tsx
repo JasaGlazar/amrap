@@ -1,18 +1,27 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { cancel } from '../../data/appointments';
+import { cancel, type Appointment } from '../../data/appointments';
 import type { GymSettings } from '../../data/settings';
 import { fill, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { cutoffOf, formatDay, formatLongDay, formatTime, isFreeCancel } from '../../lib/time';
 
 type Props = {
-  appointment: { id: string; startsAt: Date };
+  appointment: Pick<Appointment, 'id' | 'startsAt' | 'status'>;
   settings: GymSettings;
+  customerName?: string;
+  asTrainer?: boolean;
   onClose: () => void;
   onCancelled: () => void;
 };
 
-export function CancelDialog({ appointment, settings, onClose, onCancelled }: Props) {
+export function CancelDialog({
+  appointment,
+  settings,
+  customerName,
+  asTrainer = false,
+  onClose,
+  onCancelled,
+}: Props) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const { startsAt } = appointment;
@@ -34,7 +43,7 @@ export function CancelDialog({ appointment, settings, onClose, onCancelled }: Pr
 
   async function confirm() {
     const freeNow = isFreeCancel(startsAt, lateCancelHours, new Date());
-    if (freeNow !== free) {
+    if (!asTrainer && freeNow !== free) {
       setFree(freeNow);
       return;
     }
@@ -62,15 +71,24 @@ export function CancelDialog({ appointment, settings, onClose, onCancelled }: Pr
             time: formatTime(startsAt, timeZone),
           })}
         </p>
-        <p>
-          {fill(t.cancelDialog.cutoff, {
-            day: formatDay(cutoff, timeZone),
-            time: formatTime(cutoff, timeZone),
-          })}
-        </p>
-        <p className={free ? 'notice' : 'notice late'}>
-          {free ? t.cancelDialog.free : t.cancelDialog.late}
-        </p>
+        {customerName !== undefined && <p className="dialog-name">{customerName}</p>}
+        {asTrainer ? (
+          <p className={appointment.status === 'charged' ? 'notice late' : 'notice'}>
+            {appointment.status === 'charged' ? t.cancelDialog.refund : t.cancelDialog.noCharge}
+          </p>
+        ) : (
+          <>
+            <p>
+              {fill(t.cancelDialog.cutoff, {
+                day: formatDay(cutoff, timeZone),
+                time: formatTime(cutoff, timeZone),
+              })}
+            </p>
+            <p className={free ? 'notice' : 'notice late'}>
+              {free ? t.cancelDialog.free : t.cancelDialog.late}
+            </p>
+          </>
+        )}
         {error !== null && (
           <p role="alert" className="error">
             {error}

@@ -10,13 +10,9 @@ import { CustomerHome } from './pages/customer/Home';
 import { InvitePage } from './pages/InvitePage';
 import { LoginPage } from './pages/LoginPage';
 import { LogoutFailedPage } from './pages/LogoutFailedPage';
-import {
-  TrainerCalendar,
-  TrainerCustomers,
-  TrainerSettings,
-  TrainerShell,
-  TrainerToday,
-} from './pages/TrainerPages';
+import { TrainerCustomers, TrainerSettings, TrainerShell } from './pages/TrainerPages';
+import { TrainerCalendar } from './pages/trainer/Calendar';
+import { TrainerToday } from './pages/trainer/Today';
 
 function Root() {
   return (
@@ -68,9 +64,9 @@ export const routes: RouteObject[] = [
                 element: <TrainerShell />,
                 children: [
                   { index: true, element: <TrainerToday /> },
-                  { path: 'calendar', element: <TrainerCalendar /> },
-                  { path: 'customers', element: <TrainerCustomers /> },
-                  { path: 'settings', element: <TrainerSettings /> },
+                  { path: 'koledar', element: <TrainerCalendar /> },
+                  { path: 'stranke', element: <TrainerCustomers /> },
+                  { path: 'nastavitve', element: <TrainerSettings /> },
                 ],
               },
             ],
