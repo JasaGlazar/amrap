@@ -447,7 +447,7 @@ section > .roster-add {
   margin-bottom: 1.5rem;
 }
 
-.install-card > * + * {
+.card.install-card > * + * {
   margin-top: 0.75rem;
 }
 
