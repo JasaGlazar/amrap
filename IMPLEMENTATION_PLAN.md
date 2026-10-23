@@ -94,6 +94,9 @@ checklist skill. Branch `stage-4-pilot`.
 - Code comments are kept to a minimum (a non-obvious *why* only). What a layer does lives in
   `docs/<layer>.md` (auth, data layer, time/calendar, RPCs, jobs). See Task 9.
 - The SDD ledger (`.superpowers/`) is gitignored; this file is the committed handoff.
+- The owner is not available during the run. Anything only the owner can do (hosted dashboard
+  clicks, secrets, phone testing) is recorded as a GitHub issue (`gh issue create --assignee @me`)
+  and the build continues past it. Issue #2 holds the Stage 1 owner actions.
 
 ### Handoff state (2026-10-23, end of Fable session)
 - Stage 1: PR #1 open, CI green. Not merged yet.
