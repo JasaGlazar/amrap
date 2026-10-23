@@ -23,10 +23,10 @@ that pg_net calls) is described in [notifications.md](notifications.md).
   occurrences it creates.
 - **How cron authenticates:** it does not go through PostgREST or a JWT. pg_cron runs each
   command in a new database session as the role that scheduled it, `postgres` (the owner of
-  both functions), so `request.jwt.claims` is empty and `auth.uid()` is null.
+  all three functions), so `request.jwt.claims` is empty and `auth.uid()` is null.
   `charge_due_appointments` and `send_cutoff_reminders` have no role check and are executable
   only by their owner and `service_role`; `materialize_recurring` admits callers with `auth.uid() is null` or the
-  trainer. Neither is executable by `anon`.
+  trainer. None is executable by `anon`.
 - **Inspect:** `select jobid, jobname, schedule, command, active from cron.job;` and the last
   runs `select jobid, status, return_message, start_time from cron.job_run_details order by
   start_time desc limit 20;`.
@@ -120,7 +120,9 @@ Pushes the pre-cutoff reminder, the customer's only warning before a booking bec
   `[now() + 45 min, now() + 75 min)`, of a linked customer with at least one push
   subscription. The window is 30 minutes wide, so each cutoff falls in two consecutive runs and
   one missed run still reminds; the customer gets the reminder 45 to 75 minutes before the
-  cutoff. With `late_cancel_hours = 0` the cutoff is the start itself.
+  cutoff. With `late_cancel_hours = 0` the cutoff is the start itself. A booking made when its
+  cutoff is already less than 45 minutes away, or after the last run that saw it inside the
+  window, gets no reminder; that is a deliberate choice (the customer has just booked).
 - **Writes:** one `notifications` row (`cutoff_reminder`) per selected appointment, inserted
   `on conflict (kind, appointment_id) do nothing`, then one pg_net request to `send-push` with
   the ids inserted by this run (`dispatch_notifications`). Deletes `notifications` rows older

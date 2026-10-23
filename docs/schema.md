@@ -320,5 +320,5 @@ capacity 4). It also creates the two Vault secrets push needs locally (ADR 0009)
 `amrap_functions_url` = `http://host.docker.internal:54321/functions/v1` (the host's API port as
 seen from the db container) and `amrap_push_secret` = `local-push-secret`, a placeholder the local
 edge function's `PUSH_SECRET` must equal. The hosted values are set by hand
-([runbook.md](runbook.md)). `test_helpers.sql` loads first because `dev.sql` uses `tests.create_user`. Seeds
+([runbook.md](runbook.md#turn-on-push-notifications)). `test_helpers.sql` loads first because `dev.sql` uses `tests.create_user`. Seeds
 run only on `supabase db reset`; they are never pushed to the remote project.

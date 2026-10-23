@@ -25,6 +25,6 @@ begin
 end;
 $$;
 
--- Local push config placeholders; the hosted values are set by hand (docs/runbook.md).
+-- Local push config placeholders; the hosted values are set by hand (docs/runbook.md, "Turn on push notifications").
 select vault.create_secret('http://host.docker.internal:54321/functions/v1', 'amrap_functions_url');
 select vault.create_secret('local-push-secret', 'amrap_push_secret');

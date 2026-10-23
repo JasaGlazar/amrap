@@ -126,7 +126,7 @@ them it answers 503 and claims nothing, so the rows stay undispatched.
 When either Vault row is missing or empty, `send_cutoff_reminders()` and `dispatch_notifications()` log
 with `raise log` and do nothing, so the hosted project runs unchanged until the owner sets
 them. The service-role key is never stored in the database. Setting them on the hosted project
-is in [runbook.md](runbook.md).
+is in [runbook.md](runbook.md#turn-on-push-notifications).
 
 ## Best effort
 
