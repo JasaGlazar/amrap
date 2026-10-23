@@ -183,7 +183,7 @@ select set_eq(
 select is(
   (select count(*) from public.notifications
    where id in (select id from fx where key in ('notif_a', 'notif_b')) and dispatched_at = now()),
-  2::bigint,
+  (select count(*) from fx where key in ('notif_a', 'notif_b')),
   'both claimed notifications are marked dispatched, also the one whose recipient has no device');
 
 select tests.authenticate_as_service_role();

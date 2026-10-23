@@ -9,7 +9,7 @@
 -- the fixtures and the rows this transaction created (created_at = now()).
 begin;
 
-select plan(24);
+select plan(26);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
@@ -176,17 +176,36 @@ select tests.authenticate_as_service_role();
 insert into runs select 4, public.send_cutoff_reminders();
 select tests.clear_authentication();
 
-select is((select inserted from runs where run = 4), 1, 'a customer who subscribes later still gets the reminder');
+select is((select inserted from runs where run = 4),
+  (select count(*)::int from appt_spec
+   where customer = 'cust_b' and status = 'booked' and cutoff_min between 45 and 74),
+  'a customer who subscribes later still gets the reminder');
 select ok(exists (select 1 from mine where appointment_id = (select id from appts where key = 'b60')),
   'the late subscriber''s appointment is reminded');
 
 -- Cutoff 0 hours ---------------------------------------------------------------------------
 
 update public.settings set late_cancel_hours = 0 where id = 1;
+create temp table before_5 as select id from public.notifications;
 
 select tests.authenticate_as_service_role();
 insert into runs select 5, public.send_cutoff_reminders();
 select tests.clear_authentication();
+
+select set_eq(
+  $$select appointment_id from public.notifications where id not in (select id from before_5)$$,
+  $$select a.id from public.appointments a
+    join public.customers c on c.id = a.customer_id
+    where a.status = 'booked'
+      and a.starts_at >= now() + interval '45 minutes' and a.starts_at < now() + interval '75 minutes'
+      and exists (select 1 from public.push_subscriptions s where s.user_id = c.auth_user_id)
+      and not exists (select 1 from public.notifications n
+                      where n.id in (select id from before_5) and n.kind = 'cutoff_reminder'
+                        and n.appointment_id = a.id)$$,
+  'with a 0-hour cutoff the run reminds exactly the subscribed booked starts 45 to 75 minutes away');
+select is((select inserted from runs where run = 5),
+  (select count(*)::int from public.notifications where id not in (select id from before_5)),
+  'the 0-hour run returns the number it inserted');
 
 select results_eq(
   $$select appointment_id, data ->> 'cutoff_at' = data ->> 'starts_at' from mine
