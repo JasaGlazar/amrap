@@ -83,6 +83,21 @@ sign-out control links to `/logout`: the top bar of both shells, `NotLinkedPage`
    navigate to `/`, which lands on the customer Home with the
    [install card](screens.md#install-card) on top on a device where the app is not installed.
 
+## Token issued in the same second
+
+PostgREST answers a request whose JWT `iat` is later than its own clock with HTTP 401 and the
+code `PGRST303` ("JWT issued at future"). Right after a sign-in or sign-up the first requests
+(the customer lookup, `accept_invite`, the keep-alive) can carry a token issued in that same
+second and be refused; it happened on the local stack (PostgREST v16.2, Auth v2.196.0) in the
+Stage 4 browser check.
+
+The one client in `lib/supabase.ts` therefore fetches through `retryIssuedAtFuture(fetch)`
+(`global.fetch` of `createClient`): a response with status 401 whose JSON body has
+`code: "PGRST303"` is retried exactly once, after one second, with the same request; the
+retry's answer is returned whatever it is. Any other response, including other 401s and bodies
+that are not JSON, is returned as it is without a retry. The body is read from a clone, so the
+original response stays readable.
+
 ## Keep-alive
 
 Once per signed-in user per page load (not on token refresh), the provider calls

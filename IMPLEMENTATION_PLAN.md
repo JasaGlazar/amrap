@@ -318,8 +318,8 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   right after sign-in (the "Podatkov ni mogoče naložiti" page), and the keep-alive (logged
   only). Captured with a fetch logger injected at document start. Each recovers on retry
   (the invite link again, **Poskusi znova**). Whether the hosted project shows it is unknown.
-  Proposed fix: a `global.fetch` wrapper in `lib/supabase.ts` that retries a request once,
-  after about a second, when PostgREST answers 401 with `PGRST303`, with Vitest coverage.
+  Fixed after Task 15 (orchestrator ruling): `retryIssuedAtFuture` in `lib/supabase.ts` retries
+  a 401 `PGRST303` once after one second, nothing else ([auth.md](docs/auth.md)).
 
 ---
 

@@ -12,4 +12,29 @@ if (!url || !anonKey) {
   );
 }
 
-export const supabase = createClient<Database>(url, anonKey);
+const RETRY_DELAY_MS = 1000;
+
+async function isIssuedAtFuture(response: Response): Promise<boolean> {
+  if (response.status !== 401) return false;
+  try {
+    const body: unknown = await response.clone().json();
+    return (body as { code?: unknown } | null)?.code === 'PGRST303';
+  } catch {
+    return false;
+  }
+}
+
+// PostgREST rejects a token used in the second it was issued (PGRST303); later it passes.
+export function retryIssuedAtFuture(fetchImpl: typeof fetch): typeof fetch {
+  return async (input, init) => {
+    const retryInput = input instanceof Request ? input.clone() : input;
+    const response = await fetchImpl(input, init);
+    if (!(await isIssuedAtFuture(response))) return response;
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+    return fetchImpl(retryInput, init);
+  };
+}
+
+export const supabase = createClient<Database>(url, anonKey, {
+  global: { fetch: retryIssuedAtFuture((input, init) => fetch(input, init)) },
+});
