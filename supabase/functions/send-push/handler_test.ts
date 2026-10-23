@@ -126,6 +126,19 @@ Deno.test('subscriptions the push service reports gone (404, 410) are deleted, o
   assertEquals(logged.filter(([message]) => message === 'send-push: push failed').length, 2);
 });
 
+Deno.test('a non-https endpoint is never called and counts as failed', async () => {
+  const rows = [
+    claimed('n1', 'http://push.test/plain'),
+    claimed('n1', 'ftp://push.test/odd'),
+    claimed('n1', 'https://push.test/ok'),
+  ];
+  const { deps, calls } = fakeDeps(rows);
+  const response = await handle(post({ ids: ['n1'] }), deps);
+  assertEquals(await response.json(), { claimed: 1, sent: 1, failed: 2, removed: 0 });
+  assertEquals(calls.sent, ['https://push.test/ok']);
+  assertEquals(calls.removed, []);
+});
+
 Deno.test('ids that are already claimed send nothing', async () => {
   const { deps, calls } = fakeDeps([]);
   const response = await handle(post({ ids: ['n1'] }), deps);

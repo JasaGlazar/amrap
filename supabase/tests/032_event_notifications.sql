@@ -11,7 +11,7 @@
 -- derived from the fixtures and the ledger.
 begin;
 
-select plan(37);
+select plan(39);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
@@ -341,7 +341,14 @@ select throws_matching($$select public.save_push_subscription('', 'k', 'a')$$,
   '^AMRAP_INVALID_ARGUMENT:', 'an empty endpoint is rejected');
 select throws_matching($$select public.save_push_subscription('https://push.test.invalid/x', null, 'a')$$,
   '^AMRAP_INVALID_ARGUMENT:', 'missing keys are rejected');
+select throws_matching($$select public.save_push_subscription('http://push.test.invalid/plain', 'k', 'a')$$,
+  '^AMRAP_INVALID_ARGUMENT:', 'a non-https endpoint is rejected');
 select tests.clear_authentication();
+
+select throws_ok(
+  $$insert into public.push_subscriptions (user_id, endpoint, p256dh, auth)
+    select id, 'http://push.test.invalid/direct', 'k', 'a' from fx where key = 'user_b'$$,
+  '23514', null, 'the table refuses a non-https endpoint');
 
 set local role anon;
 select throws_ok($$select public.save_push_subscription('https://push.test.invalid/anon', 'k', 'a')$$,

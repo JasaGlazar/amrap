@@ -100,7 +100,9 @@ function catch every error (`raise warning`), so a failing notification never fa
 The app saves a device's subscription with `save_push_subscription(endpoint, p256dh, auth)`
 ([rpcs.md](rpcs.md#save_push_subscription)): an upsert on `endpoint` that moves an endpoint
 already saved by another account to the caller, so a shared device notifies whoever enabled
-push last. Deleting is a plain RLS delete of an own row.
+push last. Only `https://` endpoints are accepted (the RPC, a check constraint on the table,
+and `send-push`, which never calls anything else), so a forged subscription cannot make the
+function call an arbitrary URL. Deleting is a plain RLS delete of an own row.
 
 ## No duplicates
 
@@ -163,6 +165,7 @@ is in [runbook.md](runbook.md#turn-on-push-notifications).
   `save_push_subscription`.
 - `supabase/functions/send-push/*_test.ts` (Deno): payload per kind (URL, TTL, urgency,
   topic), the handler's 405/401/503/400/500 answers, pushes to every claimed subscription,
-  404/410 deleting exactly those subscriptions, other failures kept.
+  404/410 deleting exactly those subscriptions, other failures kept, non-https endpoints never
+  called.
 - Requests in tests go to a test-only host and roll back with the transaction, so nothing is
   sent; CI runs without the edge runtime.

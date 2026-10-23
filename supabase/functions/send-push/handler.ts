@@ -46,11 +46,17 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     return json({ error: 'claim failed' }, 500);
   }
 
+  const unsafe = rows.filter((row) => !row.endpoint.startsWith('https://'));
+  for (const row of unsafe) {
+    console.error('send-push: skipped a non-https endpoint', row.notification_id, row.endpoint);
+  }
+  rows = rows.filter((row) => row.endpoint.startsWith('https://'));
+
   const now = deps.now();
   const results = await Promise.allSettled(rows.map((row) => deps.send(row, buildPush(row, now))));
   const gone: string[] = [];
   let sent = 0;
-  let failed = 0;
+  let failed = unsafe.length;
   results.forEach((result, i) => {
     if (result.status === 'fulfilled') {
       sent += 1;
@@ -72,7 +78,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     }
   }
 
-  const claimed = new Set(rows.map((row) => row.notification_id)).size;
+  const claimed = new Set([...rows, ...unsafe].map((row) => row.notification_id)).size;
   return json(summary(claimed, sent, failed + gone.length - removed, removed));
 }
 

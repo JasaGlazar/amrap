@@ -158,6 +158,10 @@ create trigger credit_transactions_notify_credit_change
 
 -- Push subscriptions -----------------------------------------------------------------------
 
+-- Browser push services are https; anything else would make send-push call an arbitrary URL.
+alter table public.push_subscriptions
+  add constraint push_subscriptions_endpoint_https_check check (endpoint like 'https://%');
+
 create function public.save_push_subscription(p_endpoint text, p_p256dh text, p_auth text)
 returns void
 language plpgsql
@@ -171,6 +175,9 @@ begin
   end if;
   if coalesce(p_endpoint, '') = '' or coalesce(p_p256dh, '') = '' or coalesce(p_auth, '') = '' then
     raise exception 'AMRAP_INVALID_ARGUMENT: endpoint, p256dh and auth are required' using errcode = 'P0001';
+  end if;
+  if p_endpoint not like 'https://%' then
+    raise exception 'AMRAP_INVALID_ARGUMENT: the endpoint must be an https URL' using errcode = 'P0001';
   end if;
 
   insert into public.push_subscriptions (user_id, endpoint, p256dh, auth)

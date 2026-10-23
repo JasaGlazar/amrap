@@ -331,8 +331,10 @@ public.save_push_subscription(p_endpoint text, p_p256dh text, p_auth text) retur
 - **Who may call:** a linked customer or the trainer (`current_customer_id()` is not null),
   for their own auth user; an auth user without a customer record gets `AMRAP_FORBIDDEN`.
   Granted to `authenticated` only; `anon` and `service_role` get `42501`.
-- **Rules:** all three arguments are required and non-empty (`AMRAP_INVALID_ARGUMENT`). They
-  are the browser's `PushSubscription` endpoint and its `p256dh` and `auth` keys.
+- **Rules:** all three arguments are required and non-empty, and the endpoint must start with
+  `https://` (`AMRAP_INVALID_ARGUMENT`; the table's check constraint enforces the same). They
+  are the browser's `PushSubscription` endpoint and its `p256dh` and `auth` keys; browsers'
+  push services are always https.
 - **Side effects:** upserts `push_subscriptions` on `endpoint`: a new endpoint is inserted for
   `auth.uid()`; an existing one is moved to the caller with the new keys and `created_at =
   now()`. A device shared by two accounts therefore notifies whoever enabled push last

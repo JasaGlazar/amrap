@@ -17,7 +17,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `20261023175948_core_rpcs.sql` | The RPCs in [rpcs.md](rpcs.md) and their execute grants. |
 | `20261023192556_recurring_and_jobs.sql` | `book()` replaced to check blocked periods by interval overlap; `appointments_rule_id_starts_at_idx`; `materialize_rule()`, `materialize_recurring()`, `activate_rule()`, `deactivate_rule()` and their grants; `slot_occupancy` view; the `pg_cron` extension and both job schedules ([jobs.md](jobs.md)). |
 | `20261023214654_notifications_and_reminders.sql` | The `pg_net` extension (schema `extensions`); `notification_kind` enum; `notifications` table; `push_config()`, `dispatch_notifications()`, `claim_notifications()`, `send_cutoff_reminders()` and their grants; the `send_cutoff_reminders` schedule ([jobs.md](jobs.md), [notifications.md](notifications.md)). |
-| `20261023215339_event_notifications.sql` | `enqueue_notification()`, the trigger functions `notify_booking_created()`, `notify_booking_cancelled()`, `notify_credit_change()` and their triggers on `appointments` and `credit_transactions`; `save_push_subscription()`; grants ([notifications.md](notifications.md#event-notifications)). |
+| `20261023215339_event_notifications.sql` | `enqueue_notification()`, the trigger functions `notify_booking_created()`, `notify_booking_cancelled()`, `notify_credit_change()` and their triggers on `appointments` and `credit_transactions`; the https-only check on `push_subscriptions.endpoint`; `save_push_subscription()`; grants ([notifications.md](notifications.md#event-notifications)). |
 
 ## Enums
 
@@ -175,7 +175,7 @@ a customer only through `customers.auth_user_id`.
 |---|---|---|
 | `id` | uuid | PK |
 | `user_id` | uuid | not null, references `auth.users(id)` on delete cascade |
-| `endpoint` | text | not null, unique |
+| `endpoint` | text | not null, unique, must start with `https://` (`push_subscriptions_endpoint_https_check`) |
 | `p256dh` | text | not null, subscription public key |
 | `auth` | text | not null, subscription auth secret |
 | `created_at` | timestamptz | |

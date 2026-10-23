@@ -81,7 +81,7 @@ erDiagram
     push_subscriptions {
         uuid id PK
         uuid user_id "auth user"
-        text endpoint "unique"
+        text endpoint "unique, https only"
         text p256dh
         text auth
         timestamptz created_at

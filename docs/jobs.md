@@ -173,7 +173,8 @@ writer commits ([notifications.md](notifications.md)); it is not scheduled itsel
 
 - **Work:** `claim_notifications(ids)` with the function's service key (the default
   `SUPABASE_SECRET_KEYS` entry, else the legacy `SUPABASE_SERVICE_ROLE_KEY`), then one push per
-  returned subscription in parallel: web-push 3.6.7 builds the encrypted (`aes128gcm`),
+  returned subscription with an `https://` endpoint, in parallel (any other endpoint is logged,
+  never called and counted as failed; the table already refuses them): web-push 3.6.7 builds the encrypted (`aes128gcm`),
   VAPID-signed request and `fetch` sends it (8 s timeout each). A 404 or 410 deletes those
   subscriptions in one `delete … in (endpoints)`; any other status or a network error is
   logged and the subscription kept. TTL, urgency and topic per kind are in
