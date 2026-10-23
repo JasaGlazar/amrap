@@ -9,8 +9,10 @@ link, signs up with email and password (no confirmation email), and the app call
 `accept_invite(token)`, which locks the record by token, checks it, links the new auth user
 (`customers.auth_user_id`) and clears the token. The app then reloads the user's own
 `customers` row (the role comes from that row) and routes by role: the trainer sees the trainer
-shell, a customer sees the customer home. A user with no `customers` row has no data access and
-sees an "account not linked" page with a sign-out button.
+shell, a customer lands on the customer Home, with the install card on top on a device where
+the app is not installed ([screens.md](../screens.md#install-card), [auth.md](../auth.md)). A
+user with no `customers` row has no data access and sees an "account not linked" page with a
+sign-out button.
 
 If the sign-up already succeeded earlier but `accept_invite` did not run or was rejected (a
 dropped request, or an invite replaced by a newer one), the auth user exists but is unlinked.
@@ -55,7 +57,8 @@ sequenceDiagram
         DB->>DB: set auth_user_id = auth.uid(), clear invite_token and invite_expires_at
         DB-->>App: customer id
         App->>DB: reload own customers row (role)
-        App-->>C: role-gated home
+        App-->>C: customer Home (/c)
+        Note over App,C: install card on top unless the app is installed or the card was dismissed on this device
     else unknown, used (token cleared) or expired
         DB-->>App: AMRAP_INVITE_INVALID
         App-->>C: invite rejected, signed in but not linked
