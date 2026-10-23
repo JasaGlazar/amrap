@@ -989,9 +989,9 @@ Branch `stage-4-pilot` off `main` (Stage 3 merged as #4). Rulings proposed for t
 - **Install card is one shared component in `AppShell`,** so both roles see it on every screen
   until it is dismissed or the app runs standalone, including the first screen after
   `accept_invite` (which navigates to `/`, then `/c`). It reuses `PushEnvironment` (`ios`,
-  `standalone`) from `push/browser.ts` and adds only an `android` flag beside them. On iOS, `PushToggle`'s
-  `needs-install` state points at the card while it is showing instead of repeating the steps
-  (Task 15 item 3).
+  `standalone`) from `push/browser.ts` and adds only an `android` flag beside them. On iOS,
+  `PushToggle`'s `needs-install` state points at the card while it is showing instead of
+  repeating the steps (Task 15 item 3).
 - **Dismissal is per device in `localStorage`** (key `amrap.install.dismissed`), every access in
   try/catch; storage that throws or is empty means "not dismissed" and the card still works.
   This is a per-device convenience, not state that must survive.
@@ -1034,8 +1034,8 @@ Branch `stage-4-pilot` off `main` (Stage 3 merged as #4). Rulings proposed for t
    on `dismissed` but drops the used event), the iOS steps (Safari: **Deli** → **Dodaj na
    začetni zaslon** → open AMRAP from the home screen, with a note that other iOS browsers use
    the same Share menu), or the Android menu steps (⋮ → **Namesti aplikacijo** / **Dodaj na
-   začetni zaslon**). **Ne zdaj** dismisses it on this device. A `region` with a heading so screen
-   readers can find and skip it.
+   začetni zaslon**). **Ne zdaj** dismisses it on this device. A `region` with a heading so
+   screen readers can find and skip it.
 3. `PushToggle` `needs-install`: while the install card is showing, the toggle says only that
    notifications need the installed app and that the steps are in the card
    (`pushToggle.needsInstallSeeCard`); once the card is dismissed, the toggle shows the current
@@ -1047,8 +1047,8 @@ Branch `stage-4-pilot` off `main` (Stage 3 merged as #4). Rulings proposed for t
    `dismissed` with working, empty and throwing storage; the card: hidden when standalone or
    dismissed, **Namesti aplikacijo** calls `prompt()` and hides on `accepted`, **Ne zdaj**
    persists and hides, an event arriving after mount shows the button; routes test: the card
-   is on `/c` right after an invite sign-up and on `/t`; `PushToggle` `needs-install` copy in both
-   cases.
+   is on `/c` right after an invite sign-up and on `/t`; `PushToggle` `needs-install` copy in
+   both cases.
 6. Docs: `docs/screens.md` (new "Install card" section, `install` in the Strings column of `/c`
    and `/t`, shared behaviour), `docs/app-structure.md` (`src/install/`, `fakeInstall.ts`),
    `docs/notifications.md` (iOS: install first, link to the card), `docs/auth.md` if the invite
