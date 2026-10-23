@@ -302,16 +302,24 @@ Verified:
 
 Not verified:
 - A real-gesture install prompt and **Ne zdaj** by a click: in these headless sessions, input
-  events stopped reaching the page once `/c` or `/t` had loaded (raw `Input.dispatchMouseEvent`
-  and agent-browser clicks alike, even on nav links); stopped after three attempts. Both are
-  covered by unit tests; the real prompt is an owner action on Android.
+  events stopped reaching the page once the app had navigated past the login (raw
+  `Input.dispatchMouseEvent` and agent-browser clicks alike, even on nav links, with a phone or
+  the default user agent; the first click on a freshly loaded page worked). Stopped after three
+  attempts. Both are covered by unit tests; the real prompt is an owner action on Android. A
+  script `element.click()` does reach React handlers (it is not a user gesture, so Chrome
+  refuses `prompt()` from it), which is how Tasks 17 and 19 can drive flows.
 - Real iOS Safari and a standalone (home-screen) launch: owner action.
-- Observed once, not reproduced: the very first invite sign-up after `supabase db reset` got a
-  `401` from `accept_invite` (the page showed `genericError` and the continue link). Opening the
-  same link again and submitting the same details went through the existing-account path and
-  linked the record. Six curl probes (sign-up, then `accept_invite` with the new token) after a
-  fresh reset all answered normally. Task 19 repeats the invite sign-up on a fresh reset and
-  captures the response body if it recurs.
+
+Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedule):
+- **`PGRST303 "JWT issued at future"`** on the local stack (PostgREST v16.2, Auth v2.196.0):
+  a request made within the same second the token was issued is sometimes rejected with 401.
+  Seen three times in this check: `accept_invite` right after an invite sign-up (the page
+  showed `genericError`; the 79-byte 401 body matches PGRST303 exactly), the customer lookup
+  right after sign-in (the "Podatkov ni mogoče naložiti" page), and the keep-alive (logged
+  only). Captured with a fetch logger injected at document start. Each recovers on retry
+  (the invite link again, **Poskusi znova**). Whether the hosted project shows it is unknown.
+  Proposed fix: a `global.fetch` wrapper in `lib/supabase.ts` that retries a request once,
+  after about a second, when PostgREST answers 401 with `PGRST303`, with Vitest coverage.
 
 ---
 
