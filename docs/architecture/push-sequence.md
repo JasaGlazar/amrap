@@ -8,11 +8,19 @@ nothing new. `dispatch_notifications()` queues one pg_net request, which leaves 
 writer's transaction commits, and never raises. The `send-push` edge function checks the shared
 secret, claims the ids once with `claim_notifications()` (at most once per notification), and
 sends to each of the recipient's subscriptions; a 404 or 410 from the push service deletes that
-subscription. Without the Vault config the writer logs and records nothing. Details in
+subscription. Without the Vault config the writer logs and records nothing. On the device, the
+app subscribes once (the notifications toggle waits for the active service worker, subscribes
+with the VAPID key and saves the keys with `save_push_subscription`); the service worker renders
+each push from `sl.ts` with the tag `<kind>:<id>`, and a click focuses and navigates a
+controlled window or opens a new one. Switching off or signing out deletes the signed-in user's
+row for the device, then unsubscribes the browser. Details in
 [notifications.md](../notifications.md).
 
 ```mermaid
 sequenceDiagram
+    participant U as User
+    participant A as App (notifications toggle, /logout)
+    participant S as push_subscriptions
     participant Cron as pg_cron (every 15 min)
     participant T as book, cancel, top_up, adjust
     participant J as send_cutoff_reminders()
@@ -25,6 +33,13 @@ sequenceDiagram
     participant P as Push service
     participant SW as Service worker
 
+    opt enable on this device (once)
+        U->>A: Vklopi obvestila
+        A->>A: permission, navigator.serviceWorker.ready
+        A->>P: pushManager.subscribe(VAPID public key)
+        P-->>A: endpoint, p256dh, auth
+        A->>S: save_push_subscription (upsert by endpoint for the caller)
+    end
     alt reminder job
         Cron->>J: select send_cutoff_reminders()
         J->>N: delete rows older than 30 days
@@ -56,6 +71,16 @@ sequenceDiagram
             F->>F: log, keep the subscription
         else delivered
             P->>SW: push event
+            SW->>SW: parsePush, showNotification(title and body from sl.ts, tag kind:id)
         end
+    end
+    opt the user taps the notification
+        U->>SW: notificationclick
+        SW->>A: focus a controlled window and navigate to the in-app url, else openWindow(url)
+    end
+    opt switch off or sign out
+        U->>A: Izklopi obvestila, or /logout
+        A->>S: delete this endpoint's row for the signed-in user
+        A->>P: unsubscribe
     end
 ```

@@ -77,8 +77,7 @@ notifications, keep-alive read on app load, unpause runbook verified. Branch
 **Success Criteria**: Reminder arrives on Android and iOS (home-screen install) before the
 cutoff; no duplicate reminders.
 **Tests**: reminder selection query idempotency with fixture dates; edge function unit tests.
-**Status**: Implementation complete (Tasks 10–14 on `stage-3-notifications`); waiting for the
-last reviews, then the PR. Owner actions: see "Stage 3 owner actions" below.
+**Status**: Complete (PR open). Owner actions: see "Stage 3 owner actions" below.
 
 ## Stage 4: Polish & pilot
 **Goal**: Install onboarding, Slovenian copy review with the trainer, real trial, release
@@ -179,6 +178,13 @@ checklist skill. Branch `stage-4-pilot`.
   headless Google Chrome 155 driven by agent-browser and raw DevTools protocol, results below and
   in `docs/notifications.md` "Manual check".
 
+- Task 13 review fixes done: subscribe waits for `serviceWorker.ready`, stale-VAPID-key retry,
+  push rows filtered by the signed-in user (trainer RLS sees all rows), notification clicks stay
+  on the app's origin and navigate only controlled windows, `cleanupOutdatedCaches` and the
+  `index.html` navigation route restored (workbox-routing 7.4.1), push sequence diagram extended
+  to the device side. Stage 3 complete; the orchestrator opens the PR. Local stack stopped
+  (`supabase stop`).
+
 ### Stage 3 manual check (2026-10-24, local stack, production build)
 
 Verified in a real browser:
@@ -208,10 +214,11 @@ Not verified:
 
 ### Stage 3 owner actions (consolidated)
 
-All after the Stage 3 PR merges to `main`; exact steps in `docs/runbook.md`.
+All after the Stage 3 PR merges to `main` and the orchestrator has run `supabase db push` for
+the two Stage 3 migrations (Workflow); exact steps in `docs/runbook.md`.
 
-1. `supabase db push` (the two Stage 3 migrations), then runbook "Deploy migrations after merge"
-   step 6: pg_net in `extensions`, three jobs in `cron.job`.
+1. Check runbook "Deploy migrations after merge" step 6 in the SQL editor: pg_net in
+   `extensions`, three jobs in `cron.job`.
 2. Generate the hosted VAPID key pair and a push secret (runbook "Turn on push notifications"
    step 1).
 3. `supabase secrets set --env-file …` for `PUSH_SECRET`, `VAPID_PUBLIC_KEY`,

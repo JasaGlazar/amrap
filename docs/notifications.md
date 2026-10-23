@@ -214,7 +214,14 @@ is in [runbook.md](runbook.md#turn-on-push-notifications).
 - `supabase/functions/send-push/*_test.ts` (Deno): payload per kind (URL, TTL, urgency,
   topic), the handler's 405/401/503/400/500 answers, pushes to every claimed subscription,
   404/410 deleting exactly those subscriptions, other failures kept, non-https endpoints never
-  called.
+  called; `keys_test.ts`: service-key selection (valid `SUPABASE_SECRET_KEYS`, malformed,
+  without `default`, legacy only, neither).
+- Vitest in `app/src/push/`: `render.test.ts` (copy per kind, DST, earlier-day cutoff, generic
+  fallbacks, safe in-app URLs), `support.test.ts` (support matrix), `subscribe.test.ts`
+  (permission, VAPID key, save, stale-key retry, disable), `browser.test.ts` (subscribe waits for
+  the active worker), `logout.test.tsx` (signing out removes the device, and still signs out when
+  that fails); `app/src/data/push.test.ts` (rows filtered by user);
+  `app/src/pages/shared/pushToggle.test.tsx` (every toggle state and action).
 - Requests in tests go to a test-only host and roll back with the transaction, so nothing is
   sent; CI runs without the edge runtime.
 
