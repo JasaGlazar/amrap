@@ -12,9 +12,10 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 - **Reads** return plain objects with `Date`s for timestamps and camelCase fields (slot templates
   keep their column names, since `lib/time.ts` reads them directly). A failed query throws the
   PostgREST error; the page shows its load-failed state.
-- **Actions** (`book`, `cancel`) never throw. They return `ActionResult`: `{ ok: true }`, or
-  `{ ok: false, message }` with the Slovenian copy from `fromError` (a thrown network error
-  becomes the generic message).
+- **Actions** (RPCs and writes) never throw. They return `ActionResult<T>`: `{ ok: true, data }`
+  (the RPC's or insert's result, which may be null), or `{ ok: false, message }` with the
+  Slovenian copy from `fromError` (a thrown network error or an unknown database error becomes
+  the generic message).
 - Queries for "my" rows filter by the caller's customer id, because the trainer can read
   every customer's rows.
 - Timestamps are sent as `toISOString()` and compared as instants ([time.md](time.md#model)).
@@ -32,6 +33,15 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 | `liveAppointmentsBetween(client, from, to, customerId?)` | `appointments` | `status in ('booked', 'charged')`, `from <= starts_at < to`, by start; only that customer's when `customerId` is given (the trainer omits it) |
 | `balanceOf(client, customerId)` | `customer_balances` | my row; 0 when there is none |
 | `ledgerOf(client, customerId)` | `credit_transactions` | mine, newest `created_at` first |
+| `allBalances(client)` | `customer_balances` | every row the caller may see (the trainer: all), as a map from customer id to balance |
+| `listCustomers(client)` | `customers` | `role = 'customer'` (not the trainer's own row), by name |
+| `getCustomer(client, id)` | `customers` | one customer record; throws when missing |
+| `rulesOf(client, customerId)` | `recurring_rules` | that customer's rules, oldest first |
+| `allTemplates(client)` | `slot_templates` | active and inactive, by `weekday`, `start_time` |
+| `upcomingBlocked(client, now)` | `blocked_periods` | `ends_at > now`, by start |
+
+`inviteStatus(customer, now)` derives a customer's invite status: `linked` (an auth user is
+linked), `pending` (an invite token that has not expired) or `none`.
 
 Appointments carry `customerId`, `slotTemplateId` (null for ad hoc), `startsAt`, `endsAt` and
 `status`.
@@ -58,7 +68,24 @@ already history.
 | Function | RPC | Arguments |
 |---|---|---|
 | `book(client, { customerId, startsAt, slotTemplateId })` | `book` | `p_customer_id`, `p_starts_at` (`startsAt.toISOString()`), `p_slot_template_id` |
+| `book(client, { customerId, startsAt, endsAt })` | `book` | ad hoc (trainer): `p_customer_id`, `p_starts_at`, `p_ends_at`, no template |
 | `cancel(client, appointmentId)` | `cancel` | `p_appointment_id` |
+| `topUp(client, customerId, amount, note)` | `top_up` | `p_customer_id`, `p_amount`, `p_note` (omitted when null) |
+| `adjust(client, customerId, amount, note)` | `adjust` | same as `topUp` |
+| `createInvite(client, customerId)` | `create_invite` | `p_customer_id`; `data` is the token |
+| `activateRule(client, ruleId)` / `deactivateRule(client, ruleId)` | `activate_rule` / `deactivate_rule` | `p_rule_id`; `data` is the number inserted / cancelled |
+
+Table writes go through RLS (the trainer's `for all` policies):
+
+| Function | Write |
+|---|---|
+| `createCustomer(client, { name, phone, email })` | insert into `customers` (role defaults to `customer`); `data.id` is the new id |
+| `updateCustomer(client, id, { name, phone, email })` | update that row |
+| `addRule(client, customerId, templateId)` | insert into `recurring_rules` (active by default), then `activate_rule` on the new id, which materializes it right away; `data` is the number of appointments created |
+| `saveTemplate(client, id \| null, fields)` | insert (`id` null) or update a `slot_templates` row (weekday, start time, duration, capacity, active). There is no delete: a template with appointments or rules cannot be deleted, so it is deactivated ([schema.md](schema.md)). |
+| `saveBlocked(client, id \| null, { startsAt, endsAt, reason })` | insert or update a `blocked_periods` row |
+| `deleteBlocked(client, id)` | delete a `blocked_periods` row |
+| `setLateCancelHours(client, hours)` | update `settings.late_cancel_hours` |
 
 After an action the page reloads what it shows; nothing is updated optimistically.
 

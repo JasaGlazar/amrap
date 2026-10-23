@@ -61,16 +61,22 @@ vi.mock('./lib/supabase', async () => ({
 
 `fakeSupabase.ts` is an in-memory stand-in that answers only what the app asks for:
 
-- `db` holds the state: the session, the customer row (`customers`), the balance
-  (`customer_balances`), the `settings` row, injected errors, and `db.tables` with rows for
-  `slot_templates`, `slot_occupancy`, `appointments`, `credit_transactions` and
-  `blocked_periods`. The query fake supports `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `or`
+- `db` holds the state: the session, the signed-in user's customer row and balance
+  (`db.customer`, `db.balance`), the `settings` row, injected errors, and `db.tables` with rows
+  for `customers` and `customer_balances` (added to the signed-in row, for the trainer's
+  lists), `recurring_rules`, `slot_templates`, `slot_occupancy`, `appointments`,
+  `credit_transactions` and `blocked_periods`. The query fake supports `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `or`
   (comma-separated `column.operator.value`), `order` and `limit`, and applies them the way
   PostgREST would (timestamps compared as instants), so a test fails when the app selects the
-  wrong rows; an unexpected table throws.
+  wrong rows; an unexpected table throws. `insert` (with `.select().single()`), `update` and
+  `delete` with filters change `db.tables` (inserts get an id and the column defaults the app
+  relies on).
 - `fakeSupabase.rpc` simulates `book` (inserts a booked appointment and counts it in
-  `slot_occupancy`) and `cancel` (marks it `cancelled` and uncounts it); any other RPC throws
-  unless a test mocks it. Tests mock a rejection with `mockResolvedValueOnce({ data: null,
+  `slot_occupancy` when it has a template), `cancel` (marks it `cancelled`, or
+  `cancelled_by_trainer` with a `refund` row when the trainer cancels a charged one, and
+  uncounts it), `top_up` and `adjust` (add a ledger row), `create_invite` (sets and returns a
+  token) and `activate_rule` / `deactivate_rule` (flip `active`; deactivating cancels the rule's
+  future booked appointments). Any other RPC throws unless a test mocks it. Tests mock a rejection with `mockResolvedValueOnce({ data: null,
   error: { message: 'AMRAP_…: detail' } })`.
 - `resetFake({ session?, customer? })` in `beforeEach` clears the state (tables empty,
   default settings) and the mocks and optionally starts signed in. `onAuthStateChange` delivers `INITIAL_SESSION` on a microtask,
@@ -79,7 +85,7 @@ vi.mock('./lib/supabase', async () => ({
   refresh, sign-out).
 - `makeSession`, `makeCustomer`, `authError` build fixtures; the `auth.signUp` /
   `signInWithPassword` mocks and any other RPC are set per test.
-- `src/data/data.test.ts` calls the data layer with the fake directly
+- `src/data/data.test.ts` and `trainer.test.ts` call the data layer with the fake directly
   (`fakeSupabase as unknown as Client`).
 
 `routes.test.tsx` renders the real route tree in a `createMemoryRouter` and asserts on what the

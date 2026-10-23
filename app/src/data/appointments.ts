@@ -80,19 +80,32 @@ export async function liveAppointmentsBetween(
   return data.map(toAppointment);
 }
 
-export function book(
-  client: Client,
-  booking: { customerId: string; startsAt: Date; slotTemplateId: string },
-): Promise<ActionResult> {
+export type Booking =
+  | { customerId: string; startsAt: Date; slotTemplateId: string }
+  | { customerId: string; startsAt: Date; endsAt: Date };
+
+export function book(client: Client, booking: Booking): Promise<ActionResult<string | null>> {
   return runAction(() =>
-    client.rpc('book', {
-      p_customer_id: booking.customerId,
-      p_starts_at: booking.startsAt.toISOString(),
-      p_slot_template_id: booking.slotTemplateId,
-    }),
+    client.rpc(
+      'book',
+      'slotTemplateId' in booking
+        ? {
+            p_customer_id: booking.customerId,
+            p_starts_at: booking.startsAt.toISOString(),
+            p_slot_template_id: booking.slotTemplateId,
+          }
+        : {
+            p_customer_id: booking.customerId,
+            p_starts_at: booking.startsAt.toISOString(),
+            p_ends_at: booking.endsAt.toISOString(),
+          },
+    ),
   );
 }
 
 export function cancel(client: Client, appointmentId: string): Promise<ActionResult> {
-  return runAction(() => client.rpc('cancel', { p_appointment_id: appointmentId }));
+  return runAction(async () => {
+    const { error } = await client.rpc('cancel', { p_appointment_id: appointmentId });
+    return { data: undefined, error };
+  });
 }

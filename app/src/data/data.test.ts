@@ -169,9 +169,7 @@ describe('credits and settings', () => {
 describe('actions', () => {
   it('books through the book RPC with the ISO start', async () => {
     const startsAt = new Date(at(48));
-    expect(await book(client, { customerId: me, startsAt, slotTemplateId: 'a' })).toEqual({
-      ok: true,
-    });
+    expect((await book(client, { customerId: me, startsAt, slotTemplateId: 'a' })).ok).toBe(true);
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('book', {
       p_customer_id: me,
       p_starts_at: startsAt.toISOString(),

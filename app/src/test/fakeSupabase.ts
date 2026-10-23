@@ -9,6 +9,10 @@ type Predicate = (row: Row) => boolean;
 
 type Query = PromiseLike<Result> & {
   select: (columns?: string) => Query;
+  insert: (values: Row | Row[]) => Query;
+  update: (values: Row) => Query;
+  delete: () => Query;
+  single: () => Promise<Result>;
   eq: (column: string, value: unknown) => Query;
   neq: (column: string, value: unknown) => Query;
   gt: (column: string, value: unknown) => Query;
@@ -23,6 +27,9 @@ type Query = PromiseLike<Result> & {
 };
 
 type Tables = {
+  customers: Row[];
+  customer_balances: Row[];
+  recurring_rules: Row[];
   slot_templates: Row[];
   slot_occupancy: Row[];
   appointments: Row[];
@@ -54,6 +61,9 @@ function defaultSettings() {
 
 function emptyTables(): Tables {
   return {
+    customers: [],
+    customer_balances: [],
+    recurring_rules: [],
     slot_templates: [],
     slot_occupancy: [],
     appointments: [],
@@ -97,17 +107,37 @@ export function emitAuth(event: string, session: Session | null) {
   listeners.forEach((listener) => listener(event, session));
 }
 
+function signedInCustomer(): Row[] {
+  if (db.customer === null) return [];
+  const listed = db.tables.customers.some((row) => row.id === db.customer?.id);
+  return listed ? [] : [db.customer];
+}
+
 function rowsOf(table: string): Row[] | Result {
   if (table === 'customers') {
     if (db.customersError) return { data: null, error: db.customersError };
-    return db.customer ? [db.customer] : [];
+    return [...signedInCustomer(), ...db.tables.customers];
   }
   if (table === 'customer_balances') {
-    return db.customer ? [{ customer_id: db.customer.id, balance: db.balance }] : [];
+    const own = signedInCustomer().map((row) => ({ customer_id: row.id, balance: db.balance }));
+    return [...own, ...db.tables.customer_balances];
   }
   if (table === 'settings') {
     return db.settingsError ? { data: null, error: db.settingsError } : [db.settings];
   }
+  if (table in db.tables) return db.tables[table as keyof Tables];
+  throw new Error(`fakeSupabase: unexpected table ${table}`);
+}
+
+const insertDefaults: Record<string, Row> = {
+  customers: { role: 'customer', auth_user_id: null, invite_token: null, invite_expires_at: null },
+  recurring_rules: { active: true },
+  slot_templates: { active: true, duration_minutes: 60, capacity: 5 },
+  blocked_periods: { reason: null },
+};
+
+function writableRows(table: string): Row[] {
+  if (table === 'settings') return [db.settings];
   if (table in db.tables) return db.tables[table as keyof Tables];
   throw new Error(`fakeSupabase: unexpected table ${table}`);
 }
@@ -146,8 +176,34 @@ function makeQuery(table: string): Query {
   const predicates: Predicate[] = [];
   const orders: { column: string; ascending: boolean }[] = [];
   let limit: number | undefined;
+  let write:
+    { kind: 'insert'; rows: Row[] } | { kind: 'update'; values: Row } | { kind: 'delete' } | null =
+    null;
+  let written: Row[] | null = null;
+
+  function applyWrite(): Row[] {
+    if (written !== null || write === null) return written ?? [];
+    const target = writableRows(table);
+    const matches = () => target.filter((row) => predicates.every((predicate) => predicate(row)));
+    if (write.kind === 'insert') {
+      written = write.rows.map((values) => ({
+        id: `${table}-${nextId++}`,
+        ...insertDefaults[table],
+        ...values,
+      }));
+      target.push(...written);
+    } else if (write.kind === 'update') {
+      written = matches();
+      for (const row of written) Object.assign(row, write.values);
+    } else {
+      written = matches();
+      for (const row of written) target.splice(target.indexOf(row), 1);
+    }
+    return written;
+  }
 
   function rows(): Result {
+    if (write !== null) return { data: applyWrite(), error: null };
     const source = rowsOf(table);
     if (!Array.isArray(source)) return source;
     const matched = source.filter((row) => predicates.every((predicate) => predicate(row)));
@@ -170,8 +226,29 @@ function makeQuery(table: string): Query {
 
   const query: Query = {
     select: (columns) => {
-      selects.push({ table, columns });
+      if (write === null) selects.push({ table, columns });
       return query;
+    },
+    insert: (values) => {
+      write = { kind: 'insert', rows: Array.isArray(values) ? values : [values] };
+      return query;
+    },
+    update: (values) => {
+      write = { kind: 'update', values };
+      return query;
+    },
+    delete: () => {
+      write = { kind: 'delete' };
+      return query;
+    },
+    single: () => {
+      const result = rows();
+      const first = Array.isArray(result.data) ? result.data[0] : result.data;
+      return Promise.resolve(
+        first === undefined || first === null
+          ? { data: null, error: { message: 'fakeSupabase: no row for single()' } }
+          : { data: first, error: result.error },
+      );
     },
     eq: where('eq'),
     neq: where('neq'),
@@ -221,11 +298,12 @@ function fakeBook(args: Row): Result {
   db.tables.appointments.push({
     id,
     customer_id: args.p_customer_id,
-    slot_template_id: args.p_slot_template_id,
+    slot_template_id: args.p_slot_template_id ?? null,
     starts_at: startsAt,
-    ends_at: new Date(Date.parse(startsAt) + minutes * 60_000).toISOString(),
+    ends_at: args.p_ends_at ?? new Date(Date.parse(startsAt) + minutes * 60_000).toISOString(),
     status: 'booked',
   });
+  if (args.p_slot_template_id === undefined) return { data: id, error: null };
   const occupancy = occupancyRow(args.p_slot_template_id, startsAt);
   if (occupancy) occupancy.booked_count = Number(occupancy.booked_count) + 1;
   else
@@ -240,11 +318,70 @@ function fakeBook(args: Row): Result {
 function fakeCancel(args: Row): Result {
   const appointment = db.tables.appointments.find((row) => row.id === args.p_appointment_id);
   if (appointment === undefined) return { data: null, error: { message: 'AMRAP_NOT_FOUND: x' } };
-  appointment.status = 'cancelled';
+  if (appointment.status === 'charged') {
+    db.tables.credit_transactions.push({
+      id: `refund-${nextId++}`,
+      customer_id: appointment.customer_id,
+      amount: 1,
+      type: 'refund',
+      note: null,
+      created_at: new Date().toISOString(),
+    });
+  }
+  appointment.status = db.customer?.role === 'trainer' ? 'cancelled_by_trainer' : 'cancelled';
   const occupancy = occupancyRow(appointment.slot_template_id, appointment.starts_at);
   if (occupancy) occupancy.booked_count = Number(occupancy.booked_count) - 1;
   return { data: null, error: null };
 }
+
+function fakeCredit(type: 'topup' | 'adjustment', args: Row): Result {
+  const id = `${type}-${nextId++}`;
+  db.tables.credit_transactions.push({
+    id,
+    customer_id: args.p_customer_id,
+    amount: args.p_amount,
+    type,
+    note: args.p_note ?? null,
+    created_at: new Date().toISOString(),
+  });
+  const balance = db.tables.customer_balances.find((row) => row.customer_id === args.p_customer_id);
+  if (balance) balance.balance = Number(balance.balance) + Number(args.p_amount);
+  return { data: id, error: null };
+}
+
+function fakeCreateInvite(args: Row): Result {
+  const customer = db.tables.customers.find((row) => row.id === args.p_customer_id);
+  if (customer === undefined) return { data: null, error: { message: 'AMRAP_NOT_FOUND: x' } };
+  const token = `token-${nextId++}`;
+  customer.invite_token = token;
+  customer.invite_expires_at = new Date(Date.now() + 7 * 86_400_000).toISOString();
+  return { data: token, error: null };
+}
+
+function fakeSetRule(args: Row, active: boolean): Result {
+  const rule = db.tables.recurring_rules.find((row) => row.id === args.p_rule_id);
+  if (rule === undefined) return { data: null, error: { message: 'AMRAP_NOT_FOUND: x' } };
+  rule.active = active;
+  if (active) return { data: 0, error: null };
+  const cancelled = db.tables.appointments.filter(
+    (row) =>
+      row.rule_id === rule.id &&
+      row.status === 'booked' &&
+      compare(row.starts_at, new Date().toISOString()) > 0,
+  );
+  for (const row of cancelled) row.status = 'cancelled_by_trainer';
+  return { data: cancelled.length, error: null };
+}
+
+const rpcs: Record<string, (args: Row) => Result> = {
+  book: fakeBook,
+  cancel: fakeCancel,
+  top_up: (args) => fakeCredit('topup', args),
+  adjust: (args) => fakeCredit('adjustment', args),
+  create_invite: fakeCreateInvite,
+  activate_rule: (args) => fakeSetRule(args, true),
+  deactivate_rule: (args) => fakeSetRule(args, false),
+};
 
 export const fakeSupabase = {
   auth: {
@@ -285,8 +422,8 @@ export function resetFake(initial: { session?: Session; customer?: CustomerRow |
   fakeSupabase.auth.signUp.mockReset();
   fakeSupabase.from.mockReset().mockImplementation((table: string) => makeQuery(table));
   fakeSupabase.rpc.mockReset().mockImplementation(async (name: string, args: Row) => {
-    if (name === 'book') return fakeBook(args);
-    if (name === 'cancel') return fakeCancel(args);
-    throw new Error(`fakeSupabase: unexpected rpc ${name}`);
+    const handler = rpcs[name];
+    if (handler === undefined) throw new Error(`fakeSupabase: unexpected rpc ${name}`);
+    return handler(args);
   });
 }
