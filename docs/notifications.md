@@ -109,12 +109,12 @@ and registered by the plugin's `registerSW.js`:
   installing (first visit, right after an update) cannot subscribe; after 5 seconds without an
   active worker it gives up and the toggle shows `pushToggle.failed`.
 - `subscribe.ts`: `enablePush` (permission, `pushManager.subscribe({userVisibleOnly: true,
-  applicationServerKey})`, `save_push_subscription`; when the browser refuses because an existing
-  subscription was made with another VAPID key, `InvalidStateError`, it unsubscribes that one and
-  retries once) and `disablePush` (delete this device's row for the
-  signed-in user, unsubscribe; with no known user it only unsubscribes, and the 404/410 cleanup
-  removes the row on the next push). Signing out calls `disablePush` first, best effort, so a shared device stops
-  getting the previous user's notifications.
+  applicationServerKey})`, `save_push_subscription`; when the browser refuses because an
+  existing subscription was made with another VAPID key, `InvalidStateError`, it unsubscribes
+  that one and retries once) and `disablePush` (delete this device's row for the signed-in user,
+  unsubscribe; with no known user it only unsubscribes, and the 404/410 cleanup removes the row
+  on the next push). Signing out calls `disablePush` first, best effort, so a shared device
+  stops getting the previous user's notifications.
 
 ## Event notifications
 
@@ -137,9 +137,9 @@ The domain has one trainer. The booking triggers pick a single recipient, matchi
 subscription (ties by id). The credit trigger reads the balance after the row from
 `customer_balances`.
 
-`enqueue_notification()` records nothing without push config or when the recipient has no
-linked user or no subscription, inserts the row and dispatches its id. It and each trigger
-function catch every error (`raise warning`), so a failing notification never fails `book`, `cancel`,
+`enqueue_notification()` records nothing without push config or when the recipient has no linked
+user or no subscription, inserts the row and dispatches its id. It and each trigger function
+catch every error (`raise warning`), so a failing notification never fails `book`, `cancel`,
 `top_up` or `adjust`.
 
 ## Subscriptions
@@ -173,10 +173,10 @@ The edge function needs its own secrets (`PUSH_SECRET`, `VAPID_PUBLIC_KEY`,
 `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, see [jobs.md](jobs.md#send-push-edge-function)); without
 them it answers 503 and claims nothing, so the rows stay undispatched.
 
-When either Vault row is missing or empty, `send_cutoff_reminders()` and `dispatch_notifications()` log
-with `raise log` and do nothing, so the hosted project runs unchanged until the owner sets
-them. The service-role key is never stored in the database. Setting them on the hosted project
-is in [runbook.md](runbook.md#turn-on-push-notifications).
+When either Vault row is missing or empty, `send_cutoff_reminders()` and
+`dispatch_notifications()` log with `raise log` and do nothing, so the hosted project runs
+unchanged until the owner sets them. The service-role key is never stored in the database.
+Setting them on the hosted project is in [runbook.md](runbook.md#turn-on-push-notifications).
 
 ## Best effort
 

@@ -161,12 +161,13 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   number, else `customerDetail.topUpInvalid`); **Popravi stanje** calls `adjust` (any non-zero
   whole number, negative subtracts; else `customerDetail.adjustInvalid`). Waiving a late
   cancel is an adjustment of +1.
-- **Povabilo:** for an unlinked record, **Ustvari povabilo** calls `create_invite` and shows
-  the full link `${location.origin}/invite/<token>` in a read-only field (focus selects it) with
+- **Povabilo:** for an unlinked record, **Ustvari povabilo** calls `create_invite` and shows the
+  full link `${location.origin}/invite/<token>` in a read-only field (focus selects it) with
   **Kopiraj** (clipboard; `customerDetail.copied`, or `customerDetail.copyFailed` when the
-  browser refuses, e.g. without HTTPS) and the 7-day hint. A pending invite's link is shown on load, and the button
-  becomes **Ustvari novo povabilo** (a new token replaces the old one). A linked record shows
-  the re-link hint pointing to the runbook ("Re-link a customer", ADR 0007) instead.
+  browser refuses, e.g. without HTTPS) and the 7-day hint. A pending invite's link is shown on
+  load, and the button becomes **Ustvari novo povabilo** (a new token replaces the old one). A
+  linked record shows the re-link hint pointing to the runbook ("Re-link a customer", ADR 0007)
+  instead.
 - **Stalni termini:** the customer's recurring rules (`{weekday} ob {time}`, stopped ones
   greyed with `ustavljen`). **Ustavi** calls `deactivate_rule` (future booked instances are
   cancelled; the message shows how many); **Ponovno vključi** calls `activate_rule` (shows how
@@ -262,10 +263,10 @@ How the guards and the auth state work is in [auth.md](auth.md).
 - **Environment.** `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are required. Without
   them `start.tsx` shows a start-up error page (`startupError`) naming the missing variable
   instead of a blank page ([runbook.md](runbook.md#cloudflare-pages-build-settings)).
-- **PWA.** A custom service worker (`src/sw.ts`, vite-plugin-pwa `injectManifest`) precaches
-  the build, serves `index.html` for every navigation (deep links work offline), updates itself (`skipWaiting` + `clientsClaim`, the `autoUpdate` behaviour) and
-  shows push notifications ([notifications.md](notifications.md#service-worker)).
-  `display: standalone`, manifest language `sl`, icons
-  192 and 512 px. Cloudflare Pages falls back to `index.html` for unknown paths natively;
-  `app/public/_redirects` is a belt-and-braces measure
+- **PWA.** A custom service worker (`src/sw.ts`, vite-plugin-pwa `injectManifest`) precaches the
+  build, serves `index.html` for every navigation (deep links work offline), updates itself
+  (`skipWaiting` + `clientsClaim`, the `autoUpdate` behaviour) and shows push notifications
+  ([notifications.md](notifications.md#service-worker)). `display: standalone`, manifest
+  language `sl`, icons 192 and 512 px. Cloudflare Pages falls back to `index.html` for unknown
+  paths natively; `app/public/_redirects` is a belt-and-braces measure
   ([runbook.md](runbook.md#cloudflare-pages-build-settings)).

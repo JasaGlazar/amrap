@@ -77,7 +77,8 @@ notifications, keep-alive read on app load, unpause runbook verified. Branch
 **Success Criteria**: Reminder arrives on Android and iOS (home-screen install) before the
 cutoff; no duplicate reminders.
 **Tests**: reminder selection query idempotency with fixture dates; edge function unit tests.
-**Status**: Complete (PR open). Owner actions: see "Stage 3 owner actions" below.
+**Status**: Complete (PR #4 open; device check pending, owner action 8). Owner actions: see
+"Stage 3 owner actions" below.
 
 ## Stage 4: Polish & pilot
 **Goal**: Install onboarding, Slovenian copy review with the trainer, real trial, release
@@ -184,6 +185,9 @@ checklist skill. Branch `stage-4-pilot`.
   `index.html` navigation route restored (workbox-routing 7.4.1), push sequence diagram extended
   to the device side. Stage 3 complete; the orchestrator opens the PR. Local stack stopped
   (`supabase stop`).
+- Final review fixes (PR #4): browser re-check at e5c893f (below), unparseable notification URL
+  falls back to `/`, sign-out without a session still unsubscribes the browser, 5-second timeout
+  on `serviceWorker.ready`, long doc lines rewrapped. Local stack stopped again.
 
 ### Stage 3 manual check (2026-10-24, local stack, production build)
 
@@ -212,6 +216,31 @@ Not verified:
   unit tests cover the delete).
 - iOS (home-screen install hint shown only by unit test) and Android.
 
+### Stage 3 browser re-check (2026-10-24, at e5c893f, after the Task 13 fixes)
+
+Local stack, production build (`vite preview`), a fresh headless Google Chrome 155 profile driven
+over the DevTools protocol (notification permission granted per session, as in the first check).
+
+Verified:
+- First visit: the service worker installed, activated and controlled the page on the first load
+  of `/login`; signing in as ana and pressing **Vklopi obvestila** right away, without a reload,
+  showed "on", created an FCM subscription and saved ana's row.
+- Deep links online: `/c/zgodovina` (History with its sections) and
+  `/invite/dev-invite-token` (invite sign-up form).
+- Deep links offline (network emulation offline; a fetch probe confirmed the network was
+  blocked): both navigations were answered by the service worker with the app shell
+  (`NavigationRoute`); `/invite/dev-invite-token` rendered the sign-up form, `/c/zgodovina`
+  rendered the designed "Podatkov ni mogoče naložiti" page because its data needs the network.
+- **Izklopi obvestila** with a live row: ana's row 1 → 0 and the browser unsubscribed.
+- Signing out with a live row: row 1 → 0 and the browser unsubscribed.
+
+Not verified:
+- `cleanupOutdatedCaches` (needs two builds in a row).
+- Enabling while the worker is still installing (the worker activated before the click could
+  run) and the 5-second ready timeout, both only by unit tests; the final review fixes after
+  e5c893f (unparseable URL, sign-out without a session, ready timeout) are unit-tested only.
+- FCM delivery into a browser, the notification click, iOS and Android (owner action 8).
+
 ### Stage 3 owner actions (consolidated)
 
 All after the Stage 3 PR merges to `main` and the orchestrator has run `supabase db push` for
@@ -231,8 +260,11 @@ the two Stage 3 migrations (Workflow); exact steps in `docs/runbook.md`.
    notifications and `{"claimed":1,"sent":n,...}` in `net._http_response` (step 6). If the
    response is a gateway 401, report it: the `apikey` fallback in ADR 0009 is needed.
 8. Real-device tests: Android Chrome and iPhone (Add to Home Screen first): enable on Home and
-   on the trainer's Settings, receive a reminder (an appointment whose cutoff is about an hour
-   away), a booking and a cancel notification, tap a notification and land on the right screen.
+   on the trainer's Settings on the first visit after installing, without reloading; receive a
+   reminder (an appointment whose cutoff is about an hour away), a booking and a cancel
+   notification; tap a notification and land on the right screen; open a deep link
+   (`/c/zgodovina`, an invite link) online, then again in airplane mode (the app shell must
+   still open).
 9. Decide: should a trainer cancel notify the customer? (Not in PLAN.md, not built.)
 10. Before the pilot, keep in mind the runbook's unpause notes: sessions that pass during a pause
     are charged on restore and need a trainer review.

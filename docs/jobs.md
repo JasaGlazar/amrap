@@ -22,21 +22,22 @@ that pg_net calls) is described in [notifications.md](notifications.md).
   `settings.timezone` for the dates themselves, so the run time does not change which
   occurrences it creates.
 - **How cron authenticates:** it does not go through PostgREST or a JWT. pg_cron runs each
-  command in a new database session as the role that scheduled it, `postgres` (the owner of
-  all three functions), so `request.jwt.claims` is empty and `auth.uid()` is null.
+  command in a new database session as the role that scheduled it, `postgres` (the owner of all
+  three functions), so `request.jwt.claims` is empty and `auth.uid()` is null.
   `charge_due_appointments` and `send_cutoff_reminders` have no role check and are executable
-  only by their owner and `service_role`; `materialize_recurring` admits callers with `auth.uid() is null` or the
-  trainer. None is executable by `anon`.
+  only by their owner and `service_role`; `materialize_recurring` admits callers with
+  `auth.uid() is null` or the trainer. None is executable by `anon`.
 - **Inspect:** `select jobid, jobname, schedule, command, active from cron.job;` and the last
   runs `select jobid, status, return_message, start_time from cron.job_run_details order by
   start_time desc limit 20;`.
 - **Run by hand, local:** `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c
   'select public.charge_due_appointments()'` (or `public.materialize_recurring()`,
   `public.send_cutoff_reminders()`).
-- **Run by hand, hosted:** in the dashboard SQL editor (which runs as `postgres`):
-  `select public.charge_due_appointments();`, `select public.materialize_recurring();` or
-  `select public.send_cutoff_reminders();`. All three are idempotent, so a manual run next to the scheduled one is safe. The trainer can also call
-  `materialize_recurring` from the app (`supabase.rpc('materialize_recurring')`).
+- **Run by hand, hosted:** in the dashboard SQL editor (which runs as `postgres`): `select
+  public.charge_due_appointments();`, `select public.materialize_recurring();` or `select
+  public.send_cutoff_reminders();`. All three are idempotent, so a manual run next to the
+  scheduled one is safe. The trainer can also call `materialize_recurring` from the app
+  (`supabase.rpc('materialize_recurring')`).
 
 ## charge_due_appointments (every 15 minutes)
 
@@ -172,16 +173,15 @@ writer commits ([notifications.md](notifications.md)); it is not scheduled itsel
 | 500 | `claim_notifications` failed (logged) | no |
 | 200 | `{"claimed", "sent", "failed", "removed"}`: claimed notifications that still had at least one device (`claim_notifications` joins the subscriptions, so a claimed row whose recipient has none is not counted), pushes delivered, pushes failed (subscription kept), subscriptions deleted | yes |
 
-- **Work:** `claim_notifications(ids)` with the function's service key (`keys.ts`: the
-  non-empty string `default` entry of `SUPABASE_SECRET_KEYS` when that is a JSON object, else
-  the legacy `SUPABASE_SERVICE_ROLE_KEY`; with neither the function fails at start with an error
-  naming both), then one push per
-  returned subscription with an `https://` endpoint, in parallel (any other endpoint is logged,
-  never called and counted as failed; the table already refuses them): web-push 3.6.7 builds the encrypted (`aes128gcm`),
-  VAPID-signed request and `fetch` sends it (8 s timeout each). A 404 or 410 deletes those
-  subscriptions in one `delete … in (endpoints)`; any other status or a network error is
-  logged and the subscription kept. TTL, urgency and topic per kind are in
-  [notifications.md](notifications.md#push-payload).
+- **Work:** `claim_notifications(ids)` with the function's service key (`keys.ts`: the non-empty
+  string `default` entry of `SUPABASE_SECRET_KEYS` when that is a JSON object, else the legacy
+  `SUPABASE_SERVICE_ROLE_KEY`; with neither the function fails at start with an error naming
+  both), then one push per returned subscription with an `https://` endpoint, in parallel (any
+  other endpoint is logged, never called and counted as failed; the table already refuses them):
+  web-push 3.6.7 builds the encrypted (`aes128gcm`), VAPID-signed request and `fetch` sends it
+  (8 s timeout each). A 404 or 410 deletes those subscriptions in one `delete … in (endpoints)`;
+  any other status or a network error is logged and the subscription kept. TTL, urgency and
+  topic per kind are in [notifications.md](notifications.md#push-payload).
 - **Secrets:** `PUSH_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
   (`mailto:` or `https:`). Locally from `supabase/functions/.env` (gitignored; template
   `supabase/functions/.env.example`), loaded by `supabase start`, which serves every function

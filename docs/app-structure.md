@@ -65,26 +65,26 @@ vi.mock('./lib/supabase', async () => ({
 
 - `db` holds the state: the session, the signed-in user's customer row and balance
   (`db.customer`, `db.balance`), the `settings` row, injected errors (`customersError`,
-  `settingsError`, and `readErrors` keyed by table for any other read), and `db.tables` with rows
-  for `customers` and `customer_balances` (added to the signed-in row, for the trainer's
+  `settingsError`, and `readErrors` keyed by table for any other read), and `db.tables` with
+  rows for `customers` and `customer_balances` (added to the signed-in row, for the trainer's
   lists), `recurring_rules`, `slot_templates`, `slot_occupancy`, `appointments`,
-  `credit_transactions`, `blocked_periods` and `push_subscriptions`. The query fake supports `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `or`
-  (comma-separated `column.operator.value`), `order` and `limit`, and applies them the way
-  PostgREST would (timestamps compared as instants), so a test fails when the app selects the
-  wrong rows; an unexpected table throws. `insert` (with `.select().single()`), `update` and
-  `delete` with filters change `db.tables` (inserts get an id and the column defaults the app
-  relies on).
+  `credit_transactions`, `blocked_periods` and `push_subscriptions`. The query fake supports
+  `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `or` (comma-separated `column.operator.value`),
+  `order` and `limit`, and applies them the way PostgREST would (timestamps compared as
+  instants), so a test fails when the app selects the wrong rows; an unexpected table throws.
+  `insert` (with `.select().single()`), `update` and `delete` with filters change `db.tables`
+  (inserts get an id and the column defaults the app relies on).
 - `fakeSupabase.rpc` simulates `book` (inserts a booked appointment and counts it in
   `slot_occupancy` when it has a template), `cancel` (marks it `cancelled`, or
   `cancelled_by_trainer` with a `refund` row when the trainer cancels a charged one, and
   uncounts it), `top_up` and `adjust` (add a ledger row), `create_invite` (sets and returns a
   token) and `activate_rule` / `deactivate_rule` (flip `active`; deactivating cancels the rule's
   future booked appointments) and `save_push_subscription` (upserts the signed-in user's row by
-  endpoint). Any other RPC throws unless a test mocks it. Tests mock a rejection with `mockResolvedValueOnce({ data: null,
-  error: { message: 'AMRAP_…: detail' } })`.
-- `resetFake({ session?, customer? })` in `beforeEach` clears the state (tables empty,
-  default settings) and the mocks and optionally starts signed in. `onAuthStateChange` delivers `INITIAL_SESSION` on a microtask,
-  like the real client.
+  endpoint). Any other RPC throws unless a test mocks it. Tests mock a rejection with
+  `mockResolvedValueOnce({ data: null, error: { message: 'AMRAP_…: detail' } })`.
+- `resetFake({ session?, customer? })` in `beforeEach` clears the state (tables empty, default
+  settings) and the mocks and optionally starts signed in. `onAuthStateChange` delivers
+  `INITIAL_SESSION` on a microtask, like the real client.
 - `emitAuth(event, session)` simulates Supabase Auth announcing a change (sign-in, token
   refresh, sign-out).
 - `auth.getSession` returns the current `db.session` (the `/logout` loader reads it).

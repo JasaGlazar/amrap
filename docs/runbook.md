@@ -233,14 +233,14 @@ Production branch is `main`. Pull request branches get preview deployments.
 
 Set `VITE_SUPABASE_URL` (the project URL, `https://etzkbwqgjuipihypokjp.supabase.co`) and
 `VITE_SUPABASE_ANON_KEY` (the project's anon key from the Supabase dashboard, Project Settings,
-API) for both Production and Preview. Both are public by design; access is controlled by RLS.
-If either is missing the app shows a start-up error page that names the missing variable
-(and logs it to the console) instead of a blank page, so a misconfigured deploy is visible.
-`VITE_VAPID_PUBLIC_KEY` is the public half of the push key pair
-([Turn on push notifications](#turn-on-push-notifications)); it is public by design. Without it
-the app works and shows notifications as unavailable. `NODE_VERSION=22` pins the build's Node version (`app/.node-version` says the same, and
-`app/package.json` requires Node 22 or newer). Vite inlines the variables at build time, so
-changing them needs a new deployment.
+API) for both Production and Preview. Both are public by design; access is controlled by RLS. If
+either is missing the app shows a start-up error page that names the missing variable (and logs
+it to the console) instead of a blank page, so a misconfigured deploy is visible.
+`VITE_VAPID_PUBLIC_KEY` is the public half of the push key pair ([Turn on push
+notifications](#turn-on-push-notifications)); it is public by design. Without it the app works
+and shows notifications as unavailable. `NODE_VERSION=22` pins the build's Node version
+(`app/.node-version` says the same, and `app/package.json` requires Node 22 or newer). Vite
+inlines the variables at build time, so changing them needs a new deployment.
 
 Cloudflare Pages already falls back to `index.html` for unknown paths when a site has no
 `404.html`, so deep links such as `/invite/<token>` work natively. `app/public/_redirects`
