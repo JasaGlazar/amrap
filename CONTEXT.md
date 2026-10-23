@@ -26,6 +26,7 @@ Slovenian, but identifiers and docs use the English terms below.
 - **blocked period** — a trainer-defined time range (holiday, closure) in which booking is not allowed; table `blocked_periods`.
 - **debtor** — a customer whose `customer_balances` row has balance < 0; shown in red and listed on the trainer dashboard, never blocked.
 - **invite** — a single-use, expiring (7 days) token a trainer generates with `create_invite` and a customer redeems with `accept_invite` to link an account to their customer record.
+- **invite status** — derived per customer record, never stored: **linked** (an auth user is linked), **pending** (an unexpired invite token exists) or **none**; shown on the trainer's customer list.
 - **trainer** — the gym owner; the only user with `role = 'trainer'`, who manages the grid, credits, customers and all appointments (helper `is_trainer()`).
 - **customer** — a person who trains at the gym, with a row in `customers` (role `customer`); may or may not have an app account (`auth_user_id` may be null; helper `current_customer_id()`).
 - **keep-alive** — the lightweight authenticated read the frontend performs on every load so the Supabase free-tier project is not paused for inactivity.

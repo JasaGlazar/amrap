@@ -94,10 +94,26 @@ export function TrainerCustomerDetail() {
       time: template.start_time.slice(0, 5),
     });
   };
-  const ruleTemplates = new Set(rules.filter((rule) => rule.active).map((r) => r.slotTemplateId));
+  const ruleTemplates = new Set(rules.map((rule) => rule.slotTemplateId));
   const addableTemplates = templates.filter(
     (template) => template.active && !ruleTemplates.has(template.id),
   );
+
+  async function copyLink(link: string) {
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(link);
+      copied = true;
+    } catch (error) {
+      console.warn('copy failed', error);
+    }
+    setNotices((current) => ({
+      ...current,
+      invite: copied
+        ? { error: false, text: t.customerDetail.copied }
+        : { error: true, text: t.customerDetail.copyFailed },
+    }));
+  }
 
   async function changeCredits(kind: 'topUp' | 'adjust') {
     const value = Number(amount);
@@ -190,17 +206,7 @@ export function TrainerCustomerDetail() {
                 <button
                   type="button"
                   className="button secondary"
-                  onClick={() => {
-                    void navigator.clipboard
-                      ?.writeText(inviteLink)
-                      .then(() =>
-                        setNotices((current) => ({
-                          ...current,
-                          invite: { error: false, text: t.customerDetail.copied },
-                        })),
-                      )
-                      .catch((error: unknown) => console.warn('copy failed', error));
-                  }}
+                  onClick={() => void copyLink(inviteLink)}
                 >
                   {t.customerDetail.copy}
                 </button>

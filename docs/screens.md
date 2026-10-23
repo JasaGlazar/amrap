@@ -162,7 +162,8 @@ are matched to appointments by customer id. Load failures show `customer.loadFai
   greyed with `ustavljen`). **Ustavi** calls `deactivate_rule` (future booked instances are
   cancelled; the message shows how many); **Ponovno vključi** calls `activate_rule` (shows how
   many instances were created; cancelled dates stay cancelled, ADR 0008). The add control
-  lists active templates that have no active rule for this customer; **Dodaj stalni termin**
+  lists active templates that have no rule for this customer yet (a stopped rule is restarted
+  with **Ponovno vključi**, not added again); **Dodaj stalni termin**
   inserts the rule and activates it, which materializes it right away.
 - **Prihajajoči termini:** the customer's upcoming booked appointments, each with **Odpovej**
   (trainer cancel dialog).

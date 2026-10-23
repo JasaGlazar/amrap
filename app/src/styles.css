@@ -431,3 +431,18 @@ h3 {
   font-size: 1rem;
   margin: 0 0 0.5rem;
 }
+
+.form label > input:not([type='checkbox']),
+.form label > select {
+  width: 100%;
+  min-width: 0;
+}
+
+.card .button.secondary {
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+section > .roster-add {
+  margin-bottom: 1.5rem;
+}

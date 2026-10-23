@@ -134,6 +134,7 @@ export const sl = {
     inviteHint: 'Povezavo pošljite stranki. Velja 7 dni; novo povabilo razveljavi prejšnje.',
     copy: 'Kopiraj',
     copied: 'Povezava je kopirana.',
+    copyFailed: 'Kopiranje ni uspelo. Povezavo označite in kopirajte ročno.',
     relinkHint:
       'Račun je povezan. Če stranka izgubi dostop, sledite postopku »Re-link a customer« v priročniku (docs/runbook.md).',
     rulesTitle: 'Stalni termini',

@@ -59,7 +59,9 @@ blocked period; screen-level Vitest for calendar/capacity rendering and cancel w
 **Carry-over from Stage 1 review**: materialization must take the same
 `pg_advisory_xact_lock` key as `book()` (template id + start epoch) or it can overfill a slot;
 add a sign-out link to both shells (done, Task 7); add an automated two-session test for `accept_invite` if a
-harness allows it.
+harness allows it (none does: pgTAP runs each file in one rolled-back transaction, so a second
+connection, e.g. dblink, cannot see its fixtures; the race stays covered by the row lock and the
+unique `auth_user_id`, see rpcs.md).
 The customer calendar must show remaining capacity per slot while RLS hides other customers'
 appointments: add a `SECURITY DEFINER` counting RPC or view (e.g. `slot_occupancy`). Route the
 not-linked and lookup-failed sign-out buttons through `/logout` so failures surface (done,
@@ -108,7 +110,11 @@ checklist skill. Branch `stage-4-pilot`.
   `docs/app-structure.md`, harness rule and reviewer item.
 - Task 7 done: customer Home, Calendar (`/c/koledar`), History (`/c/zgodovina`), cancel
   dialog, `src/data/`, `lib/time.ts`, sign-out via `/logout` everywhere; docs `data-layer.md`,
-  `time.md`, `screens.md`. Manually checked in a browser as ana. Next: Task 8.
+  `time.md`, `screens.md`. Manually checked in a browser as ana. Review fixes done.
+- Task 8 done: trainer Today, Calendar (`/t/koledar`), Customers (`/t/stranke`, `/:id`),
+  Settings (`/t/nastavitve`) on the shared week loader and calendar parts; runbook invite path
+  is the Customers screen. Manually checked as trainer. Stage 2 tasks 6–9 are done; the PR to
+  `main` is the orchestrator's to open.
 
 ---
 

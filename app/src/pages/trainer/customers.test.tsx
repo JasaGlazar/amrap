@@ -128,6 +128,16 @@ describe('customer detail', () => {
     expect(within(invite).getByRole('button', { name: t.customerDetail.copy })).toBeVisible();
   });
 
+  it('says so when the link cannot be copied', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    renderAt(`/t/stranke/${bor.id}`);
+    const invite = await screen.findByRole('region', { name: t.customerDetail.inviteTitle });
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    await userEvent.click(within(invite).getByRole('button', { name: t.customerDetail.copy }));
+    expect(await within(invite).findByRole('alert')).toHaveTextContent(t.customerDetail.copyFailed);
+    warn.mockRestore();
+  });
+
   it('shows a pending invite link and offers a new one', async () => {
     renderAt(`/t/stranke/${bor.id}`);
     const invite = await screen.findByRole('region', { name: t.customerDetail.inviteTitle });
@@ -187,5 +197,7 @@ describe('customer detail', () => {
       fill(t.customerDetail.ruleStopped, { count: 1 }),
     );
     expect(within(rules).getByRole('button', { name: t.customerDetail.restartRule })).toBeVisible();
+    const addable = within(rules).getByLabelText(t.customerDetail.addRuleLabel);
+    expect(within(addable).getAllByRole('option')).toHaveLength(1);
   });
 });
