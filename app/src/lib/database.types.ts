@@ -349,8 +349,16 @@ export type Database = {
       }
     }
     Functions: {
+      adjust: {
+        Args: { p_amount: number; p_customer_id: string; p_note?: string }
+        Returns: string
+      }
       current_customer_id: { Args: never; Returns: string }
       is_trainer: { Args: never; Returns: boolean }
+      top_up: {
+        Args: { p_amount: number; p_customer_id: string; p_note?: string }
+        Returns: string
+      }
     }
     Enums: {
       appointment_source: "recurring" | "self_booked" | "trainer"
