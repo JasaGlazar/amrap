@@ -48,6 +48,7 @@ describe('retrying a fresh token refused as issued in the future', () => {
     vi.useFakeTimers();
   });
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
@@ -110,6 +111,11 @@ describe('retrying a fresh token refused as issued in the future', () => {
 
   it('is what the client fetches through', async () => {
     vi.useRealTimers();
+    const realSetTimeout = globalThis.setTimeout;
+    const timers = vi
+      .spyOn(globalThis, 'setTimeout')
+      .mockImplementation(((handler: () => void, ms?: number) =>
+        ms === 1000 ? (handler(), 0) : realSetTimeout(handler, ms)) as typeof setTimeout);
     const fetchMock = vi.fn().mockResolvedValueOnce(issuedAtFuture()).mockResolvedValueOnce(ok());
     vi.stubGlobal('fetch', fetchMock);
     vi.stubEnv('VITE_SUPABASE_URL', 'http://127.0.0.1:54321');
@@ -121,5 +127,6 @@ describe('retrying a fresh token refused as issued in the future', () => {
     expect(error).toBeNull();
     expect(data).toEqual([{ id: 'c1' }]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(timers).toHaveBeenCalledWith(expect.any(Function), 1000);
   });
 });

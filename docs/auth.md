@@ -104,7 +104,8 @@ Whatever the cause, the one client in `lib/supabase.ts` fetches through `retryIs
 `code: "PGRST303"` is retried exactly once, after one second, with the same request; the
 retry's answer is returned whatever it is. Any other response, including other 401s and bodies
 that are not JSON, is returned as it is without a retry. The body is read from a clone, so the
-original response stays readable.
+original response stays readable. Supabase Auth requests go through the same wrapper and never
+match: Auth error bodies carry a numeric `code` (the HTTP status), not `PGRST303`.
 
 ## Keep-alive
 
