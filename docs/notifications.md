@@ -17,9 +17,10 @@ and records it in a log; one edge function, `send-push`, delivers. The functions
    `x-amrap-push-secret`.
 3. pg_net sends the request after the writer's transaction commits. A writer that rolls back
    sends nothing.
-4. `send-push` calls `claim_notifications(ids)` with its service key, which marks the rows
-   dispatched and returns them with the recipient's subscriptions, then pushes to each
-   subscription. A 404 or 410 from the push service deletes that subscription.
+4. `send-push` checks the secret, calls `claim_notifications(ids)` with its service key, which
+   marks the rows dispatched and returns them with the recipient's subscriptions, then pushes
+   to each subscription. A 404 or 410 from the push service deletes that subscription. The
+   function's contract is in [jobs.md](jobs.md#send-push-edge-function).
 
 ## The log
 
@@ -47,6 +48,26 @@ Appointment kinds set `notifications.appointment_id`; credit kinds set `transact
 leave `appointment_id` null.
 
 `cutoff_at` is `starts_at − late_cancel_hours · 1 h`, the same cutoff `cancel()` uses.
+
+## Push payload
+
+The encrypted payload is JSON with no display text, so all copy stays in the app
+(`app/src/i18n/sl.ts`; the service worker renders it):
+
+```json
+{ "kind": "cutoff_reminder", "data": { "appointment_id": "…", "starts_at": "…", "cutoff_at": "…", "timezone": "Europe/Ljubljana" }, "url": "/c" }
+```
+
+`data` is the row's `data` unchanged (see [Kinds and data](#kinds-and-data)). Per kind
+(`supabase/functions/send-push/payload.ts`):
+
+| Kind | `url` | TTL | Urgency | Topic |
+|---|---|---|---|---|
+| `cutoff_reminder` | `/c` | seconds until `data.cutoff_at` (0 when passed or missing) | `high` | the appointment id without dashes (32 characters), so a newer reminder replaces an undelivered older one |
+| `booking_created`, `booking_cancelled` | `/t` | 24 hours | `normal` | none |
+| `credit_topup`, `credit_adjustment` | `/c/zgodovina` | 24 hours | `normal` | none |
+
+A reminder that expires at the cutoff is never delivered after it, when it would be useless.
 
 ## Event notifications
 
@@ -98,7 +119,11 @@ Two Vault secrets switch push on; `push_config()` reads them:
 | `amrap_functions_url` | `https://<project-ref>.supabase.co/functions/v1` | `http://host.docker.internal:54321/functions/v1` |
 | `amrap_push_secret` | a random secret, the same value as the function's `PUSH_SECRET` | `local-push-secret` |
 
-When either is missing or empty, `send_cutoff_reminders()` and `dispatch_notifications()` log
+The edge function needs its own secrets (`PUSH_SECRET`, `VAPID_PUBLIC_KEY`,
+`VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, see [jobs.md](jobs.md#send-push-edge-function)); without
+them it answers 503 and claims nothing, so the rows stay undispatched.
+
+When either Vault row is missing or empty, `send_cutoff_reminders()` and `dispatch_notifications()` log
 with `raise log` and do nothing, so the hosted project runs unchanged until the owner sets
 them. The service-role key is never stored in the database. Setting them on the hosted project
 is in [runbook.md](runbook.md).
@@ -112,6 +137,17 @@ is in [runbook.md](runbook.md).
 - pg_net keeps each response in `net._http_response` for 6 hours (`pg_net.ttl`); a request
   that reached the gateway but no function shows status 404 or 503 there.
 
+## Local setup
+
+1. `cp supabase/functions/.env.example supabase/functions/.env` and fill in a VAPID pair from
+   `npx web-push@3.6.7 generate-vapid-keys` (`PUSH_SECRET=local-push-secret` already matches
+   the dev seed's Vault row).
+2. `supabase stop && supabase start` so the edge runtime loads the file; `send-push` is then
+   served at `http://127.0.0.1:54321/functions/v1/send-push` (a POST without the secret answers
+   401).
+3. Trigger a notification (for example the reminder job, see [jobs.md](jobs.md#schedules)) and
+   read `net._http_response` and `docker logs supabase_edge_runtime_amrap`.
+
 ## Testing
 
 - `supabase/tests/030_notifications.sql`: pg_net schema, the table, its key and closed
@@ -124,5 +160,8 @@ is in [runbook.md](runbook.md).
   which do not (trainer booking, materialization, trainer cancel, charge, refund, no device, no
   account, no config), actions succeeding when the notification fails,
   `save_push_subscription`.
+- `supabase/functions/send-push/*_test.ts` (Deno): payload per kind (URL, TTL, urgency,
+  topic), the handler's 405/401/503/400/500 answers, pushes to every claimed subscription,
+  404/410 deleting exactly those subscriptions, other failures kept.
 - Requests in tests go to a test-only host and roll back with the transaction, so nothing is
   sent; CI runs without the edge runtime.

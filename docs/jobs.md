@@ -144,3 +144,45 @@ Pushes the pre-cutoff reminder, the customer's only warning before a booking bec
   pruning, no config, no settings, grants, the schedule).
 - **Manual run:** see [Schedules](#schedules).
 - **Diagram:** [architecture/push-sequence.md](architecture/push-sequence.md).
+
+## send-push (edge function)
+
+The only edge function: `supabase/functions/send-push/`. pg_net calls it after a notification
+writer commits ([notifications.md](notifications.md)); it is not scheduled itself.
+
+- **Endpoint:** `POST <functions_url>/send-push` (hosted
+  `https://etzkbwqgjuipihypokjp.supabase.co/functions/v1/send-push`, local
+  `http://127.0.0.1:54321/functions/v1/send-push`, from the db container
+  `http://host.docker.internal:54321/functions/v1/send-push`).
+- **Auth:** `verify_jwt = false` (`supabase/config.toml` `[functions.send-push]`), so the
+  gateway passes the request without a user JWT. The function compares the
+  `x-amrap-push-secret` header with its `PUSH_SECRET` secret in constant time.
+- **Request:** `{"ids": ["<notification uuid>", ...]}`.
+- **Responses:**
+
+| Status | When | Claims anything |
+|---|---|---|
+| 405 | not `POST` | no |
+| 503 | `PUSH_SECRET` or a VAPID secret is not set (logged) | no |
+| 401 | the secret header is missing or wrong | no |
+| 400 | the body is not JSON with an `ids` array of strings | no |
+| 500 | `claim_notifications` failed (logged) | no |
+| 200 | `{"claimed", "sent", "failed", "removed"}`: claimed notifications, pushes delivered, pushes failed (kept), subscriptions deleted | yes |
+
+- **Work:** `claim_notifications(ids)` with the function's service key (the default
+  `SUPABASE_SECRET_KEYS` entry, else the legacy `SUPABASE_SERVICE_ROLE_KEY`), then one push per
+  returned subscription in parallel: web-push 3.6.7 builds the encrypted (`aes128gcm`),
+  VAPID-signed request and `fetch` sends it (8 s timeout each). A 404 or 410 deletes those
+  subscriptions in one `delete … in (endpoints)`; any other status or a network error is
+  logged and the subscription kept. TTL, urgency and topic per kind are in
+  [notifications.md](notifications.md#push-payload).
+- **Secrets:** `PUSH_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+  (`mailto:` or `https:`). Locally from `supabase/functions/.env` (gitignored; template
+  `supabase/functions/.env.example`), loaded by `supabase start`, which serves every function
+  in `supabase/functions/` without a separate `supabase functions serve`. Hosted: `supabase
+  secrets set` ([runbook.md](runbook.md#turn-on-push-notifications)).
+- **Logs:** local `docker logs supabase_edge_runtime_amrap`; hosted dashboard, Edge Functions,
+  `send-push`, Logs. The caller's view is `net._http_response` (status and the JSON summary).
+- **Tests:** Deno unit tests next to the code (`payload_test.ts`, `handler_test.ts`) with fake
+  claim, send and delete; run by `scripts/test-functions.sh` and the `functions` CI job.
+- **Diagram:** [architecture/push-sequence.md](architecture/push-sequence.md).

@@ -122,11 +122,69 @@ Migrations reach the remote project only after the PR is merged. Never from a fe
 2. `supabase link --project-ref etzkbwqgjuipihypokjp` (once per machine)
 3. `supabase db push`
 4. Verify in the dashboard that the migration is listed and the app still works.
-5. After the push migration (`20261023214654_notifications_and_reminders.sql`), check in the
+5. If `supabase/functions/` changed in the merge, redeploy the function:
+   `supabase functions deploy send-push --no-verify-jwt --project-ref etzkbwqgjuipihypokjp`
+   (first time: see [Turn on push notifications](#turn-on-push-notifications)).
+6. After the push migration (`20261023214654_notifications_and_reminders.sql`), check in the
    SQL editor that pg_net is enabled in `extensions` and the reminder job is scheduled:
    `select extnamespace::regnamespace from pg_extension where extname = 'pg_net';` and
    `select jobname, schedule from cron.job;`. Until the push Vault rows are set the job runs
    and does nothing ([notifications.md](notifications.md#configuration)).
+
+## Turn on push notifications
+
+Push stays off on the hosted project until these steps are done; until then the reminder job
+and the notification triggers run and record nothing (ADR 0009). Do them in this order, so a
+request never reaches a function without its secrets. Run the CLI steps from an up-to-date
+`main` after the Stage 3 merge, linked to the project (`supabase link --project-ref
+etzkbwqgjuipihypokjp`).
+
+1. **Generate a VAPID key pair** (once; keep the private key secret):
+   `npx web-push@3.6.7 generate-vapid-keys`. Generate a push secret too:
+   `openssl rand -hex 32`.
+2. **Set the function secrets** from a temporary file outside the repo, so the values stay out
+   of shell history, then delete the file:
+
+```sh
+cat > /tmp/amrap-push.env <<'ENV'
+PUSH_SECRET=<push secret>
+VAPID_PUBLIC_KEY=<public key>
+VAPID_PRIVATE_KEY=<private key>
+VAPID_SUBJECT=mailto:<trainer or owner email>
+ENV
+supabase secrets set --env-file /tmp/amrap-push.env --project-ref etzkbwqgjuipihypokjp
+rm /tmp/amrap-push.env
+supabase secrets list --project-ref etzkbwqgjuipihypokjp   # names only
+```
+
+3. **Deploy the function:** `supabase functions deploy send-push --no-verify-jwt --project-ref
+   etzkbwqgjuipihypokjp` (`--no-verify-jwt` repeats what `config.toml` says). Check:
+   `curl -s -X POST https://etzkbwqgjuipihypokjp.supabase.co/functions/v1/send-push -d '{}'`
+   answers `{"error":"unauthorized"}` (401 from the function itself).
+4. **Insert the Vault rows** in the dashboard SQL editor:
+
+```sql
+select vault.create_secret('https://etzkbwqgjuipihypokjp.supabase.co/functions/v1', 'amrap_functions_url');
+select vault.create_secret('<push secret>', 'amrap_push_secret');
+```
+
+5. **Set the app's public key:** Cloudflare Pages, Settings, Variables:
+   `VITE_VAPID_PUBLIC_KEY=<public key>` for Production and Preview, then redeploy (see
+   [Cloudflare Pages build settings](#cloudflare-pages-build-settings)).
+6. **Check:** enable notifications on a phone, then trigger one (the trainer tops up a test
+   customer by 1 and adjusts it back by -1). In the SQL editor:
+   `select id, status_code, content, error_msg from net._http_response order by id desc limit 5;`
+   should show `200` with `{"claimed":1,"sent":1,…}`; the function logs are under Edge
+   Functions, `send-push`, Logs.
+
+If step 6 shows `401` with a body that is not `{"error":"unauthorized"}`, the hosted gateway
+wants an `apikey` header even with JWT verification off (not verified locally, ADR 0009).
+Report it: the fix is a small migration that adds the publishable key from a third Vault row
+(`amrap_publishable_key`) to the request headers in `dispatch_notifications`.
+
+To change the push secret, set `PUSH_SECRET` again and update the Vault row
+(`select vault.update_secret(id, '<new>') from vault.secrets where name = 'amrap_push_secret';`).
+To switch push off, delete the two Vault rows.
 
 ## Cloudflare Pages build settings
 

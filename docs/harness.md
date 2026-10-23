@@ -41,13 +41,14 @@ function name appears in the schema and RPC reference docs (see [CI](#ci)).
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`, as three
+`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`, as four
 independent jobs:
 
 | Job | What it runs |
 |---|---|
 | `db` | `supabase/setup-cli@v1`, then `supabase start -x studio,imgproxy,logflare,vector,edge-runtime` (applies the migrations and the seeds in `config.toml` `[db.seed]`), `supabase test db`, `supabase db lint`, and a check that `app/src/lib/database.types.ts` equals the output of `supabase gen types typescript --local`. |
 | `app` | In `app/` with the Node version from `app/.node-version`: `npm ci`, `npm run lint`, `npm run typecheck`, `npm test -- --run`, `npm run build`. |
+| `functions` | `denoland/setup-deno@v2` with Deno 2.1.4 (what the local edge runtime 1.74.3 is compatible with), then `bash scripts/test-functions.sh`. |
 | `docs` | `bash scripts/check-docs.sh`. |
 
 `scripts/check-docs.sh` also runs locally from any directory and lists everything it finds
@@ -135,6 +136,15 @@ Tests compute expected counts and balances from the data they insert. No hardcod
 that break when fixtures change.
 
 ## Testing
+
+Edge functions are tested with Deno: `scripts/test-functions.sh` runs, in every
+`supabase/functions/<name>/` with a `deno.json`, `deno fmt --check`, `deno lint`, `deno check
+index.ts` and `deno test --allow-env`. It uses a local `deno` when one is installed and
+otherwise the `denoland/deno:2.1.4` Docker image (Deno is not required on the host). Tests sit
+next to the code (`*_test.ts`) and inject fakes for the database and the push service, so they
+need no network beyond fetching their imports. Each function's `deno.json` pins its imports and
+sets `"lock": false`, so no lockfile is generated.
+
 
 Database tests are pgTAP files in `supabase/tests/`, run by `supabase test db` against the
 local stack after `supabase db reset` (which applies the migrations, then the seeds listed in

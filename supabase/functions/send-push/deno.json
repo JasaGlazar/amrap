@@ -1,0 +1,12 @@
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1.0.13",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.118.0",
+    "web-push": "npm:web-push@3.6.7"
+  },
+  "lock": false,
+  "fmt": {
+    "singleQuote": true,
+    "lineWidth": 100
+  }
+}
