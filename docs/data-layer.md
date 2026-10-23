@@ -29,9 +29,25 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 | `blockedBetween(client, from, to)` | `blocked_periods` | overlaps `[from, to)`: `starts_at < to` and `ends_at > from` |
 | `upcomingAppointments(client, customerId, now)` | `appointments` | mine, `status = 'booked'`, `starts_at > now`, soonest first |
 | `pastAppointments(client, customerId, now)` | `appointments` | mine and not upcoming: `status <> 'booked'` or `starts_at <= now` (so a cancelled future appointment is history too), newest first |
-| `liveAppointmentsBetween(client, customerId, from, to)` | `appointments` | mine, `status in ('booked', 'charged')`, `from <= starts_at < to` |
+| `liveAppointmentsBetween(client, from, to, customerId?)` | `appointments` | `status in ('booked', 'charged')`, `from <= starts_at < to`, by start; only that customer's when `customerId` is given (the trainer omits it) |
 | `balanceOf(client, customerId)` | `customer_balances` | my row; 0 when there is none |
 | `ledgerOf(client, customerId)` | `credit_transactions` | mine, newest `created_at` first |
+
+Appointments carry `customerId`, `slotTemplateId` (null for ad hoc), `startsAt`, `endsAt` and
+`status`.
+
+## Week
+
+`loadWeek(client, { now, weekOffset, customerId? })` (`data/week.ts`) loads one calendar week
+for both calendars: the settings, the week's Monday (`weekOffset` weeks from the current week,
+in `settings.timezone`), the active templates' occurrences that week ([time.md](time.md)), and
+the live appointments in the week (only the customer's when `customerId` is given). Each
+`WeekSlot` has its start and end, duration, capacity, `booked` (from `slot_occupancy`, 0
+without a row), `free = max(0, capacity − booked)`, `past` (`startsAt <= now`) and `blocked`
+(overlaps a blocked period). Blocked periods are read up to the week's end plus the longest
+template duration, so an occurrence late on Sunday that runs into the next week is checked
+too. `appointmentsIn(week, slot)` returns the week's appointments of that occurrence (same
+template and start).
 
 `upcomingAppointments` and `pastAppointments` split my appointments into two disjoint sets: an
 appointment that has started but is not charged yet (the charge job runs every 15 minutes) is

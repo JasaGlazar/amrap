@@ -7,7 +7,7 @@ import { fill, formatTimeUntil, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { formatLongDay, formatTime, timeUntil } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
-import { CancelDialog } from './CancelDialog';
+import { CancelDialog } from '../shared/CancelDialog';
 
 export function CustomerHome() {
   const customer = useCustomer();

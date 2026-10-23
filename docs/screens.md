@@ -49,10 +49,8 @@ data.
 - **Week:** Monday to Sunday in the gym timezone, starting with the current week. `‹` and `›`
   (named `calendar.previousWeek` / `nextWeek`) move by a week and stay in place while a week
   loads; `‹` is disabled on the current week. The heading shows the range (`26. 10. – 1. 11.`).
-- **Data:** `getSettings`, `activeTemplates`, and for the week's range `occupancyBetween`,
-  `liveAppointmentsBetween` and `blockedBetween`; the blocked-period range is extended by the
-  longest template duration, so an occurrence late on Sunday that runs into the next week is
-  checked against blocks there too.
+- **Data:** `loadWeek` with my customer id ([data-layer.md](data-layer.md#week)); blocked
+  periods are checked past the week's end for an occurrence late on Sunday.
 - **Occurrences:** one row per active template in that week, grouped by day (days without any
   are left out; a week without any shows `calendar.noSlots`). A start time in the spring-forward
   gap has no occurrence that week. Each row shows the start time, duration and

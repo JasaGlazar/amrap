@@ -2,16 +2,18 @@ import { runAction, type ActionResult, type AppointmentStatus, type Client } fro
 
 export type Appointment = {
   id: string;
+  customerId: string;
   slotTemplateId: string | null;
   startsAt: Date;
   endsAt: Date;
   status: AppointmentStatus;
 };
 
-const columns = 'id, slot_template_id, starts_at, ends_at, status';
+const columns = 'id, customer_id, slot_template_id, starts_at, ends_at, status';
 
 type Row = {
   id: string;
+  customer_id: string;
   slot_template_id: string | null;
   starts_at: string;
   ends_at: string;
@@ -21,6 +23,7 @@ type Row = {
 function toAppointment(row: Row): Appointment {
   return {
     id: row.id,
+    customerId: row.customer_id,
     slotTemplateId: row.slot_template_id,
     startsAt: new Date(row.starts_at),
     endsAt: new Date(row.ends_at),
@@ -61,17 +64,18 @@ export async function pastAppointments(
 
 export async function liveAppointmentsBetween(
   client: Client,
-  customerId: string,
   from: Date,
   to: Date,
+  customerId?: string,
 ): Promise<Appointment[]> {
-  const { data, error } = await client
+  let query = client
     .from('appointments')
     .select(columns)
-    .eq('customer_id', customerId)
     .in('status', ['booked', 'charged'])
     .gte('starts_at', from.toISOString())
     .lt('starts_at', to.toISOString());
+  if (customerId !== undefined) query = query.eq('customer_id', customerId);
+  const { data, error } = await query.order('starts_at');
   if (error) throw error;
   return data.map(toAppointment);
 }

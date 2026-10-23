@@ -86,7 +86,7 @@ describe('appointments', () => {
       )
       .map((row) => row.id)
       .sort();
-    const result = await liveAppointmentsBetween(client, me, from, to);
+    const result = await liveAppointmentsBetween(client, from, to, me);
     expect(result.map((a) => a.id).sort()).toEqual(expected);
   });
 });
