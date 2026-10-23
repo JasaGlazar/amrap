@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { formatLongDay, formatTime, timeUntil } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
 import { CancelDialog } from '../shared/CancelDialog';
+import { PushToggle } from '../shared/PushToggle';
 
 export function CustomerHome() {
   const customer = useCustomer();
@@ -83,6 +84,7 @@ export function CustomerHome() {
           ))}
         </ul>
       )}
+      <PushToggle audience="customer" userId={customer.auth_user_id ?? ''} />
       {cancelling !== null && (
         <CancelDialog
           appointment={cancelling}

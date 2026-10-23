@@ -3,6 +3,8 @@ import { AuthProvider } from './auth/AuthProvider';
 import { RequireAuth, RequireRole, RoleRedirect } from './auth/guards';
 import { fromError } from './i18n';
 import { supabase } from './lib/supabase';
+import { browserPlatform } from './push/browser';
+import { disablePush } from './push/subscribe';
 import { CustomerShell } from './pages/CustomerPages';
 import { CustomerCalendar } from './pages/customer/Calendar';
 import { CustomerHistory } from './pages/customer/History';
@@ -26,6 +28,13 @@ function Root() {
 }
 
 async function logout() {
+  try {
+    const userId = (await supabase.auth.getSession()).data.session?.user.id ?? null;
+    const removed = await disablePush(supabase, browserPlatform, userId);
+    if (!removed.ok) console.warn('removing the push subscription failed', removed.message);
+  } catch (error) {
+    console.warn('removing the push subscription failed', error);
+  }
   const { error } = await supabase.auth.signOut();
   if (error) {
     console.error('sign out failed', error);

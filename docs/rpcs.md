@@ -16,11 +16,14 @@ app relies on.
   form `AMRAP_<CODE>: <English detail>`. The app maps the token before the colon to Slovenian
   copy in `app/src/i18n/sl.ts`; the detail after it is for logs only and may change.
 - **Grants.** The initial migration revoked default execute, so each RPC below is granted
-  explicitly to `authenticated` and `service_role` (never `anon`), except
-  `charge_due_appointments()`, which has no grant to `authenticated` or `anon`. The grant is
-  not the protection: `materialize_recurring()` is granted to `authenticated` so the trainer
-  can call it, and its role check inside rejects everyone else. The private helper
-  `materialize_rule()` is granted to nobody.
+  explicitly to `authenticated` and `service_role` (never `anon`), except the job functions
+  `charge_due_appointments()` and `send_cutoff_reminders()` and the edge function's
+  `claim_notifications()`, which have no grant to `authenticated` or `anon` (`service_role`
+  only), and `save_push_subscription()`, which is granted to `authenticated` only (it acts on
+  the caller's auth user, so `service_role` has no use for it). The grant is not the protection: `materialize_recurring()` is granted to
+  `authenticated` so the trainer can call it, and its role check inside rejects everyone else.
+  The private helpers `materialize_rule()`, `push_config()`, `dispatch_notifications()` and
+  `enqueue_notification()` and the notification trigger functions are granted to nobody.
 - Times are `timestamptz`. Weekday and start time of a slot template are interpreted in
   `settings.timezone` (weekday 0 = Monday, see [schema.md](schema.md#slot_templates)).
 
@@ -28,8 +31,8 @@ app relies on.
 
 | Token | Meaning | Raised by |
 |---|---|---|
-| `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record, or (`accept_invite`) there is no signed-in user | all except `charge_due_appointments` |
-| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record) | `book`, `top_up`, `adjust`, `create_invite`, `materialize_recurring` |
+| `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record, or (`accept_invite`) there is no signed-in user | all except `charge_due_appointments`, `send_cutoff_reminders` and `claim_notifications` |
+| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record) | `book`, `top_up`, `adjust`, `create_invite`, `materialize_recurring`, `save_push_subscription` |
 | `AMRAP_NOT_FOUND` | The referenced customer, slot template, appointment or recurring rule does not exist | `book`, `cancel`, `top_up`, `adjust`, `create_invite`, `activate_rule`, `deactivate_rule` |
 | `AMRAP_SLOT_INACTIVE` | The slot template is deactivated | `book` |
 | `AMRAP_IN_PAST` | A customer tried to book a start that is not in the future | `book` |
@@ -271,6 +274,73 @@ public.materialize_recurring(p_weeks int default 4) returns int
 - Scheduled nightly by pg_cron as `postgres`, see [jobs.md](jobs.md#schedules).
 - **Diagram:** [architecture/materialization-sequence.md](architecture/materialization-sequence.md).
 
+## send_cutoff_reminders
+
+```sql
+public.send_cutoff_reminders() returns int
+```
+
+- **Who may call:** pg_cron (as `postgres`, every 15 minutes, see [jobs.md](jobs.md#schedules))
+  and `service_role` only. No role check inside; `execute` is revoked from `public`, `anon` and
+  `authenticated` (SQLSTATE `42501`), the `charge_due_appointments` pattern
+  ([ADR 0008](adr/0008-recurrence-and-occupancy.md)).
+- **Rules:** first deletes `notifications` rows older than 30 days. Then, without push config
+  (`push_config()` returns a null) or without the `settings` row, it logs (`raise log`) and
+  returns 0: a cron job never raises, and nothing is recorded, so the reminder is still sent if
+  the config appears while the cutoff is in the window. Otherwise it selects every appointment
+  with `status = 'booked'` whose cutoff, `starts_at − late_cancel_hours · 1 h` (the same cutoff
+  `cancel()` uses), is in `[now() + 45 min, now() + 75 min)`, whose customer is linked and has
+  at least one `push_subscriptions` row.
+- **Errors:** none of its own.
+- **Side effects:** per selected appointment, one `notifications` row `kind = 'cutoff_reminder'`
+  with `data = {appointment_id, starts_at, cutoff_at, timezone}`, inserted `on conflict (kind,
+  appointment_id) do nothing`; then `dispatch_notifications(ids)` with the ids actually
+  inserted. Returns the number inserted.
+- **Idempotent:** the unique `(kind, appointment_id)` key allows one reminder per appointment,
+  ever, so a second or overlapping run inserts and dispatches nothing for it (a concurrent run
+  waits on the unique index and then skips). Details in [notifications.md](notifications.md).
+- **Diagram:** [architecture/push-sequence.md](architecture/push-sequence.md).
+
+## claim_notifications
+
+```sql
+public.claim_notifications(p_ids uuid[])
+  returns table (notification_id uuid, kind notification_kind, data jsonb,
+                 endpoint text, p256dh text, auth text)
+```
+
+- **Who may call:** `service_role` only (the `send-push` edge function); `execute` is revoked
+  from `public`, `anon` and `authenticated` (SQLSTATE `42501`). `language sql security
+  definer set search_path = ''`.
+- **Rules:** sets `dispatched_at = now()` on the rows of `p_ids` where it is still null and
+  returns each claimed row once per push subscription of its recipient
+  (`notifications.customer_id` → `customers.auth_user_id` → `push_subscriptions.user_id`).
+  A row whose recipient has no subscription left is claimed and returns nothing.
+- **Errors:** none of its own.
+- **Side effects:** `notifications.dispatched_at`. A second call with the same ids returns no
+  rows, and a concurrent call waits on the row lock and then finds it claimed, so a
+  notification is pushed at most once.
+- **Diagram:** [architecture/push-sequence.md](architecture/push-sequence.md).
+
+## save_push_subscription
+
+```sql
+public.save_push_subscription(p_endpoint text, p_p256dh text, p_auth text) returns void
+```
+
+- **Who may call:** a linked customer or the trainer (`current_customer_id()` is not null),
+  for their own auth user; an auth user without a customer record gets `AMRAP_FORBIDDEN`.
+  Granted to `authenticated` only; `anon` and `service_role` get `42501`.
+- **Rules:** all three arguments are required and non-empty, and the endpoint must start with
+  `https://` (`AMRAP_INVALID_ARGUMENT`; the table's check constraint enforces the same). They
+  are the browser's `PushSubscription` endpoint and its `p256dh` and `auth` keys; browsers'
+  push services are always https.
+- **Side effects:** upserts `push_subscriptions` on `endpoint`: a new endpoint is inserted for
+  `auth.uid()`; an existing one is moved to the caller with the new keys and `created_at =
+  now()`. A device shared by two accounts therefore notifies whoever enabled push last
+  (ADR 0009). Removing a subscription stays a plain delete of an own row (RLS).
+- **Errors:** `AMRAP_FORBIDDEN`, `AMRAP_INVALID_ARGUMENT`.
+
 ## Helpers
 
 Role helpers used by RLS policies and by every RPC's role check. Both are `language sql
@@ -311,3 +381,48 @@ from `public`, `anon`, `authenticated` and `service_role`). It is only called by
   5. Insert `status = 'booked'`, `source = 'recurring'`, `rule_id`, `slot_template_id`;
      `on conflict do nothing` covers a concurrent booking of the same customer at the same
      start through another template (another lock).
+
+Push helpers, defined in `20261023214654_notifications_and_reminders.sql`: `security definer
+set search_path = ''`, executable by nobody but their owner (execute revoked from `public`,
+`anon`, `authenticated` and `service_role`). Called by `send_cutoff_reminders()` and
+`enqueue_notification()`. See [notifications.md](notifications.md).
+
+- `public.push_config() returns table (functions_url text, push_secret text)` — `language sql
+  stable`; one row with the Vault secrets `amrap_functions_url` and `amrap_push_secret`
+  (`vault.decrypted_secrets`), each null when missing or empty.
+- `public.dispatch_notifications(p_ids uuid[]) returns void` — `language plpgsql`. Does
+  nothing for a null or empty array. Without push config it logs (`raise log`) and returns.
+  Otherwise it queues one `net.http_post` to `<functions_url>/send-push` with body
+  `{"ids": [...]}`, headers `Content-Type: application/json` and `x-amrap-push-secret`, and a
+  10 s timeout. pg_net sends it only after the calling transaction commits (a rolled-back
+  caller sends nothing). Any error, including a pg_net failure, is caught and reported with
+  `raise warning`, so it never aborts the caller.
+
+Event notification helpers, defined in `20261023215339_event_notifications.sql`: `language
+plpgsql security definer set search_path = ''`, executable by nobody but their owner (execute
+revoked from `public`, `anon`, `authenticated` and `service_role`; a trigger needs no execute
+grant for the role that fires it). See [notifications.md](notifications.md#event-notifications).
+
+- `public.enqueue_notification(p_customer_id uuid, p_kind notification_kind, p_data jsonb,
+  p_appointment_id uuid default null, p_transaction_id uuid default null) returns void` —
+  without push config logs (`raise log`) and returns; returns when the recipient has no linked
+  user or no push subscription; otherwise inserts the `notifications` row `on conflict (kind,
+  appointment_id) do nothing` and, when a row was inserted, calls
+  `dispatch_notifications(array[id])`. Any error inside it is caught and reported with
+  `raise warning` (nothing is recorded then).
+- `public.notify_booking_created() returns trigger` — trigger
+  `appointments_notify_booking_created` (`after insert`, `source = 'self_booked'`): enqueues
+  `booking_created` for the trainer (see below).
+- `public.notify_booking_cancelled() returns trigger` — trigger
+  `appointments_notify_booking_cancelled` (`after update of status`, `booked` → `cancelled` or
+  `cancelled_late`): enqueues `booking_cancelled` for the trainer. The recipient is one
+  trainer record, the earliest created one with a push subscription (ties by id), matching the
+  one-row-per-`(kind, appointment_id)` key; the domain has a single trainer.
+- `public.notify_credit_change() returns trigger` — trigger
+  `credit_transactions_notify_credit_change` (`after insert`, `type in ('topup',
+  'adjustment')`): enqueues `credit_topup` or `credit_adjustment` for the customer with the
+  balance after the row, read from `customer_balances`.
+
+Each trigger function, like `enqueue_notification` itself, catches every error and reports it
+with `raise warning`, so a notification problem never fails `book`, `cancel`, `top_up` or
+`adjust`.

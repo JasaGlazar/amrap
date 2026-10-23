@@ -4,16 +4,47 @@ Supabase project "AMRAP", ref `etzkbwqgjuipihypokjp`, eu-central-1, Free Plan.
 
 ## Unpause a paused Supabase project
 
-The Free Plan pauses a project after about 7 days of low user-database activity (ADR 0005).
-The app's keep-alive read on every load normally prevents this.
+The Free Plan pauses a project after about 7 days of low user-database activity (ADR 0005;
+Supabase docs checked 2026-10-24: "a few user requests to the database each day" is typically
+enough). The app's keep-alive read on every signed-in load normally prevents this
+([auth.md](auth.md#keep-alive)). Supabase emails the owner roughly a week before pausing and
+again once paused. On the warning email, open the project in the dashboard or the app to
+generate activity; that is enough to prevent the pause.
+
+While paused, the app cannot load data (it shows the lookup-failed page), pg_cron does not run,
+and the edge function is unreachable. To restore:
 
 1. Open the Supabase dashboard and select the project "AMRAP".
-2. Click the restore/unpause button on the paused-project banner.
+2. Click the restore button on the paused-project banner (one click; available for 1 year
+   after the pause).
 3. Wait until the project status is healthy (a few minutes).
 4. Open the app and sign in to confirm data is intact.
+5. In the SQL editor, check that the jobs are back and running:
+   `select jobname, schedule, active from cron.job;` (three jobs) and, after the next quarter
+   hour, `select jobid, status, start_time from cron.job_run_details order by start_time desc
+   limit 10;`.
+6. Catch up by hand instead of waiting: `select public.materialize_recurring();` (creates the
+   instances the nightly runs missed) and `select public.charge_due_appointments();`.
+7. Push: check the Vault rows (`select name from vault.secrets where name like 'amrap_%';`, two
+   rows) and the function secrets (`supabase secrets list --project-ref etzkbwqgjuipihypokjp`);
+   both are project data and survive the pause. Trigger one notification as in
+   [Turn on push notifications](#turn-on-push-notifications) step 6.
 
-If the project stays paused past the restore window, download the backup from the dashboard
-before it is removed.
+What the pause changes for the business:
+
+- Every `booked` appointment whose start passed during the pause is charged by the first
+  charge run after the restore, as the rules say (nobody cancelled it). Customers could not
+  cancel while the app was down, so the trainer reviews those sessions and cancels the ones that
+  did not happen (trainer cancel of a charged appointment refunds it).
+- Reminders whose window passed during the pause are not sent afterwards; the job only looks
+  45 to 75 minutes ahead.
+- Recurring instances are only created from today onward, so occurrences that fell inside the
+  pause stay missing (nothing to charge).
+
+If the project stays paused for more than a year, the one-click restore is gone: download the
+database backup from the project dashboard and restore it into a new project (Supabase guide
+"Restore a project paused for more than 1 year"); that is a new project ref, so the app's
+environment variables, the push secrets and the Vault rows have to be set again.
 
 ## Bootstrap the trainer
 
@@ -122,6 +153,72 @@ Migrations reach the remote project only after the PR is merged. Never from a fe
 2. `supabase link --project-ref etzkbwqgjuipihypokjp` (once per machine)
 3. `supabase db push`
 4. Verify in the dashboard that the migration is listed and the app still works.
+5. If `supabase/functions/` changed in the merge, redeploy the function:
+   `supabase functions deploy send-push --no-verify-jwt --project-ref etzkbwqgjuipihypokjp`
+   (first time: see [Turn on push notifications](#turn-on-push-notifications)).
+6. After the push migration (`20261023214654_notifications_and_reminders.sql`), check in the
+   SQL editor that pg_net is enabled in `extensions` and the reminder job is scheduled:
+   `select extnamespace::regnamespace from pg_extension where extname = 'pg_net';` and
+   `select jobname, schedule from cron.job;`. Until the push Vault rows are set the job runs
+   and does nothing ([notifications.md](notifications.md#configuration)).
+
+## Turn on push notifications
+
+Push stays off on the hosted project until these steps are done; until then the reminder job
+and the notification triggers run and record nothing (ADR 0009). Do them in this order, so a
+request never reaches a function without its secrets. Run the CLI steps from an up-to-date
+`main` after the Stage 3 merge, linked to the project (`supabase link --project-ref
+etzkbwqgjuipihypokjp`).
+
+1. **Generate a VAPID key pair** (once; keep the private key secret):
+   `npx web-push@3.6.7 generate-vapid-keys`. Generate a push secret too:
+   `openssl rand -hex 32`.
+2. **Set the function secrets** from a temporary file outside the repo, so the values stay out
+   of shell history, then delete the file:
+
+```sh
+cat > /tmp/amrap-push.env <<'ENV'
+PUSH_SECRET=<push secret>
+VAPID_PUBLIC_KEY=<public key>
+VAPID_PRIVATE_KEY=<private key>
+VAPID_SUBJECT=mailto:<trainer or owner email>
+ENV
+supabase secrets set --env-file /tmp/amrap-push.env --project-ref etzkbwqgjuipihypokjp
+rm /tmp/amrap-push.env
+supabase secrets list --project-ref etzkbwqgjuipihypokjp   # names only
+```
+
+3. **Deploy the function:** `supabase functions deploy send-push --no-verify-jwt --project-ref
+   etzkbwqgjuipihypokjp` (`--no-verify-jwt` repeats what `config.toml` says). Check:
+   `curl -s -X POST https://etzkbwqgjuipihypokjp.supabase.co/functions/v1/send-push -d '{}'`
+   answers `{"error":"unauthorized"}` (401 from the function itself). Any other 401 body comes
+   from the gateway: see the `apikey` note after step 6.
+4. **Insert the Vault rows** in the dashboard SQL editor:
+
+```sql
+select vault.create_secret('https://etzkbwqgjuipihypokjp.supabase.co/functions/v1', 'amrap_functions_url');
+select vault.create_secret('<push secret>', 'amrap_push_secret');
+```
+
+5. **Set the app's public key:** Cloudflare Pages, Settings, Variables:
+   `VITE_VAPID_PUBLIC_KEY=<public key>` for Production and Preview, then redeploy (see
+   [Cloudflare Pages build settings](#cloudflare-pages-build-settings)).
+6. **Check:** on a phone signed in as a test customer, enable notifications; then the trainer
+   tops that customer up by 1 and adjusts it back by -1 (each sends the customer a
+   notification). In the SQL editor:
+   `select id, status_code, content, error_msg from net._http_response order by id desc limit 5;`
+   should show `200` with `{"claimed":1,"sent":<n>,…}` per notification, where `n` is the
+   number of devices that customer enabled; the function logs are under Edge Functions,
+   `send-push`, Logs.
+
+If step 6 shows `401` with a body that is not `{"error":"unauthorized"}`, the hosted gateway
+wants an `apikey` header even with JWT verification off (not verified locally, ADR 0009).
+Report it: the fix is a small migration that adds the publishable key from a third Vault row
+(`amrap_publishable_key`) to the request headers in `dispatch_notifications`.
+
+To change the push secret, set `PUSH_SECRET` again and update the Vault row
+(`select vault.update_secret(id, '<new>') from vault.secrets where name = 'amrap_push_secret';`).
+To switch push off, delete the two Vault rows.
 
 ## Cloudflare Pages build settings
 
@@ -130,18 +227,20 @@ Migrations reach the remote project only after the PR is merged. Never from a fe
 | Root directory | `app` |
 | Build command | `npm run build` |
 | Build output directory | `dist` |
-| Environment variables | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `NODE_VERSION=22` |
+| Environment variables | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY` (optional), `NODE_VERSION=22` |
 
 Production branch is `main`. Pull request branches get preview deployments.
 
 Set `VITE_SUPABASE_URL` (the project URL, `https://etzkbwqgjuipihypokjp.supabase.co`) and
 `VITE_SUPABASE_ANON_KEY` (the project's anon key from the Supabase dashboard, Project Settings,
-API) for both Production and Preview. Both are public by design; access is controlled by RLS.
-If either is missing the app shows a start-up error page that names the missing variable
-(and logs it to the console) instead of a blank page, so a misconfigured deploy is visible.
-`NODE_VERSION=22` pins the build's Node version (`app/.node-version` says the same, and
-`app/package.json` requires Node 22 or newer). Vite inlines the variables at build time, so
-changing them needs a new deployment.
+API) for both Production and Preview. Both are public by design; access is controlled by RLS. If
+either is missing the app shows a start-up error page that names the missing variable (and logs
+it to the console) instead of a blank page, so a misconfigured deploy is visible.
+`VITE_VAPID_PUBLIC_KEY` is the public half of the push key pair ([Turn on push
+notifications](#turn-on-push-notifications)); it is public by design. Without it the app works
+and shows notifications as unavailable. `NODE_VERSION=22` pins the build's Node version
+(`app/.node-version` says the same, and `app/package.json` requires Node 22 or newer). Vite
+inlines the variables at build time, so changing them needs a new deployment.
 
 Cloudflare Pages already falls back to `index.html` for unknown paths when a site has no
 `404.html`, so deep links such as `/invite/<token>` work natively. `app/public/_redirects`

@@ -77,7 +77,8 @@ notifications, keep-alive read on app load, unpause runbook verified. Branch
 **Success Criteria**: Reminder arrives on Android and iOS (home-screen install) before the
 cutoff; no duplicate reminders.
 **Tests**: reminder selection query idempotency with fixture dates; edge function unit tests.
-**Status**: Not Started
+**Status**: Complete (PR #4 open; device check pending, owner action 8). Owner actions: see
+"Stage 3 owner actions" below.
 
 ## Stage 4: Polish & pilot
 **Goal**: Install onboarding, Slovenian copy review with the trainer, real trial, release
@@ -117,6 +118,156 @@ checklist skill. Branch `stage-4-pilot`.
   is the Customers screen. Manually checked as trainer. Review fixes done (off-grid bookings
   listed, stranded-booking warning, recent charges with refund). Stage 2 complete; the
   orchestrator opens the PR to `main`.
+
+### Handoff state (2026-10-23, Stage 3)
+- Stage 2: PR #3 merged to `main` (5499077).
+- Stage 3: branch `stage-3-notifications`. Item 0 done: "Stage 3 tasks" below and ADR 0009
+  (push design). Research (Context7 + local stack): pg_net 0.20.4 available but not installed,
+  Vault installed, `npm:web-push@3.6.7` verified in edge runtime 1.74.3 (Deno 2.1.4), Deno not
+  installed on the host (tests via the `denoland/deno:2.1.4` image). Plan approved with
+  rulings: dev-seed Vault placeholders, Docker Deno, 45-75 min window, no row without config or
+  subscription, trainer cancels do not notify customers (owner question), `save_push_subscription`
+  RPC, `apikey` fallback documented for the owner to verify.
+- Task 10 done: migration `20261023214654_notifications_and_reminders.sql` (pg_net in
+  `extensions`, `notifications` log, `push_config`, `dispatch_notifications`,
+  `claim_notifications`, `send_cutoff_reminders` + cron every 15 min), tests 030/031, dev-seed
+  Vault rows, docs (`notifications.md`, `push-sequence.md`, schema/rpcs/jobs/ERD/context,
+  runbook pg_net check). Checked by hand: pg_net from the db container reaches
+  `host.docker.internal:54321` (gateway 503 until `send-push` exists, Task 12). pg_net 0.20.4's
+  default timeout is 5000 ms (docs say 2000); dispatch sets 10000.
+- Task 11 done: migration `20261023215339_event_notifications.sql` (`enqueue_notification`,
+  triggers `appointments_notify_booking_created` / `_booking_cancelled` /
+  `credit_transactions_notify_credit_change`, `save_push_subscription` upsert on endpoint), test
+  032, docs (notifications event section, schema triggers, rpcs, booking and push sequences).
+  Best effort is tested by replacing `enqueue_notification` with a raising body inside the test
+  (the trigger's guard keeps book/cancel/top_up succeeding); the notification row is not kept in
+  that case. Single-trainer assumption documented (the triggers loop over every trainer, the
+  `(kind, appointment_id)` key lets only the first one with a device get it).
+- Task 12 done: `supabase/functions/send-push/` (handler with injected deps, payload per kind,
+  web-push `generateRequestDetails` + `fetch`), 14 Deno tests, `scripts/test-functions.sh`
+  (fmt, lint, check, test; Docker image when no local deno), CI job `functions`,
+  `[functions.send-push] verify_jwt = false`, `supabase/functions/.env.example`, runbook "Turn on
+  push notifications". `supabase start` serves the function without `functions serve`.
+  End-to-end locally: a credit trigger → pg_net → `send-push` → a fake push service container on
+  `supabase_network_amrap` received two encrypted (`aes128gcm`, VAPID-signed) pushes; its 410
+  device was deleted; summary `{"claimed":1,"sent":1,"failed":0,"removed":1}`. The Bash sandbox
+  blocks listening sockets on the host, hence the container. A local VAPID pair is in the
+  gitignored `supabase/functions/.env`.
+- Task 10 and 11 review fixes done (items 1-15 of the orchestrator's list): derived test counts,
+  job docs, `enqueue_notification` error guard (test-first), one trainer recipient, balance
+  from `customer_balances`, `save_push_subscription` granted to `authenticated` only, more
+  best-effort tests (real pg_net failure, actions take effect), https-only endpoints (check
+  constraint, RPC check, `send-push` skips others). The Task 11 migration was edited in place
+  (not on the hosted DB). Accepted deviation: `dispatch_notifications` returns silently for an
+  empty or null id list (the plan said `raise log`); nothing is lost and the job would log on
+  every quiet run. The Task 12 local end-to-end used an `http://` fake push service; with the
+  https rule a repeat needs an https fake endpoint.
+- Task 12 review fixes done: guarded `serviceKey(env)` with Deno tests (Important), response
+  table, runbook check steps, harness notes, per-test console stub, comments removed.
+- Task 13 done: `src/sw.ts` (injectManifest, `skipWaiting` + `clientsClaim`, push and click
+  handlers), `src/push/` (`render`, `support`, `browser`, `subscribe`), `PushToggle` on customer
+  Home and trainer Settings, `/logout` removes the device first, `save_push_subscription` /
+  delete wrappers in `src/data/push.ts`, `tsconfig.sw.json` (WebWorker lib), workbox-core and
+  workbox-precaching 7.4.1 pinned. Vitest 199 (46 new). Browser check not done: the Claude in
+  Chrome extension timed out injecting into the local preview page three times; the build, the
+  emitted `sw.js` (no imports, push handler present) and the dev server were checked instead.
+  The local VAPID public key is in the gitignored `app/.env.local`.
+- Task 14 done: keep-alive already covered (`routes.test.tsx` "keep-alive": once per sign-in,
+  not on token refresh, not signed out, failure tolerated; `auth.md` matches); runbook unpause
+  section checked against current Supabase docs and extended (warning email, one-year restore,
+  post-restore checks, what a pause does to charges, reminders and instances). Manual check with
+  headless Google Chrome 155 driven by agent-browser and raw DevTools protocol, results below and
+  in `docs/notifications.md` "Manual check".
+
+- Task 13 review fixes done: subscribe waits for `serviceWorker.ready`, stale-VAPID-key retry,
+  push rows filtered by the signed-in user (trainer RLS sees all rows), notification clicks stay
+  on the app's origin and navigate only controlled windows, `cleanupOutdatedCaches` and the
+  `index.html` navigation route restored (workbox-routing 7.4.1), push sequence diagram extended
+  to the device side. Stage 3 complete; the orchestrator opens the PR. Local stack stopped
+  (`supabase stop`).
+- Final review fixes (PR #4): browser re-check at e5c893f (below), unparseable notification URL
+  falls back to `/`, sign-out without a session still unsubscribes the browser, 5-second timeout
+  on `serviceWorker.ready`, long doc lines rewrapped. Local stack stopped again.
+
+### Stage 3 manual check (2026-10-24, local stack, production build)
+
+Verified in a real browser:
+- Service worker registered, activated and controlling the page; Push API and Notification API
+  present.
+- Toggle states: "blocked" (headless default permission), "off" with **Vklopi obvestila**, "on"
+  after enabling, "off" again after **Izklopi obvestila** (customer Home and trainer Settings).
+- Enabling with permission granted creates a real FCM subscription and saves it for the signed-in
+  user (row with 87-character `p256dh`, 22-character `auth`).
+- Signing out as ana deleted her row (1 → 0) and unsubscribed the browser.
+- Delivery side against real FCM: credit trigger (top-up), reminder job (first run 1, second run
+  0, one row) and a customer booking through the `book` RPC with ana's token each led to
+  `send-push` answering `{"claimed":1,"sent":1,...}` (FCM 201). After headless Chrome dropped its
+  registration, the next pushes (an adjustment, the customer's cancel) got 404/410 and the
+  subscription was deleted (`removed: 1`).
+- Service worker rendering of real payloads (credit top-up with note, the reminder from the job's
+  row, booking created, booking cancelled) via `ServiceWorker.deliverPushMessage`: titles, bodies,
+  times in Europe/Ljubljana across the DST change, tags and in-app URLs as specified.
+
+Not verified:
+- A push delivered by FCM into a browser (headless Chrome's GCM login fails) — owner phone test.
+- The notification click (cannot be simulated headless).
+- **Izklopi obvestila** deleting a row that still existed: by then the 410 cleanup had removed
+  the trainer's row (the UI flow, the browser unsubscribe and logout's deletion were verified;
+  unit tests cover the delete).
+- iOS (home-screen install hint shown only by unit test) and Android.
+
+### Stage 3 browser re-check (2026-10-24, at e5c893f, after the Task 13 fixes)
+
+Local stack, production build (`vite preview`), a fresh headless Google Chrome 155 profile driven
+over the DevTools protocol (notification permission granted per session, as in the first check).
+
+Verified:
+- First visit: the service worker installed, activated and controlled the page on the first load
+  of `/login`; signing in as ana and pressing **Vklopi obvestila** right away, without a reload,
+  showed "on", created an FCM subscription and saved ana's row.
+- Deep links online: `/c/zgodovina` (History with its sections) and
+  `/invite/dev-invite-token` (invite sign-up form).
+- Deep links offline (network emulation offline; a fetch probe confirmed the network was
+  blocked): both navigations were answered by the service worker with the app shell
+  (`NavigationRoute`); `/invite/dev-invite-token` rendered the sign-up form, `/c/zgodovina`
+  rendered the designed "Podatkov ni mogoče naložiti" page because its data needs the network.
+- **Izklopi obvestila** with a live row: ana's row 1 → 0 and the browser unsubscribed.
+- Signing out with a live row: row 1 → 0 and the browser unsubscribed.
+
+Not verified:
+- `cleanupOutdatedCaches` (needs two builds in a row).
+- Enabling while the worker is still installing (the worker activated before the click could
+  run) and the 5-second ready timeout, both only by unit tests; the final review fixes after
+  e5c893f (unparseable URL, sign-out without a session, ready timeout) are unit-tested only.
+- FCM delivery into a browser, the notification click, iOS and Android (owner action 8).
+
+### Stage 3 owner actions (consolidated)
+
+All after the Stage 3 PR merges to `main` and the orchestrator has run `supabase db push` for
+the two Stage 3 migrations (Workflow); exact steps in `docs/runbook.md`.
+
+1. Check runbook "Deploy migrations after merge" step 6 in the SQL editor: pg_net in
+   `extensions`, three jobs in `cron.job`.
+2. Generate the hosted VAPID key pair and a push secret (runbook "Turn on push notifications"
+   step 1).
+3. `supabase secrets set --env-file …` for `PUSH_SECRET`, `VAPID_PUBLIC_KEY`,
+   `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (step 2).
+4. `supabase functions deploy send-push --no-verify-jwt` and the curl check (step 3).
+5. Insert the Vault rows `amrap_functions_url` and `amrap_push_secret` in the SQL editor
+   (step 4).
+6. Cloudflare Pages: `VITE_VAPID_PUBLIC_KEY` for Production and Preview, redeploy (step 5).
+7. Check on a phone signed in as a test customer: top up 1 and adjust −1, confirm two
+   notifications and `{"claimed":1,"sent":n,...}` in `net._http_response` (step 6). If the
+   response is a gateway 401, report it: the `apikey` fallback in ADR 0009 is needed.
+8. Real-device tests: Android Chrome and iPhone (Add to Home Screen first): enable on Home and
+   on the trainer's Settings on the first visit after installing, without reloading; receive a
+   reminder (an appointment whose cutoff is about an hour away), a booking and a cancel
+   notification; tap a notification and land on the right screen; open a deep link
+   (`/c/zgodovina`, an invite link) online, then again in airplane mode (the app shell must
+   still open).
+9. Decide: should a trainer cancel notify the customer? (Not in PLAN.md, not built.)
+10. Before the pilot, keep in mind the runbook's unpause notes: sessions that pass during a pause
+    are charged on restore and need a trainer review.
 
 ---
 
@@ -578,3 +729,232 @@ acceptance, lookup-failed vs not-linked, keep-alive, start-up error), `docs/app-
 not yet documented. Add the rule to `docs/harness.md` and a checklist item to
 `.claude/agents/reviewer.md` ("no explanatory comments; behaviour documented in the layer doc").
 No behaviour changes; all suites green; one or two commits.
+
+---
+
+## Stage 3 tasks
+
+Branch `stage-3-notifications` off `main` (Stage 2 merged as #3). Design in ADR 0009; the
+lasting rulings:
+- A `notifications` log with a unique `(kind, appointment_id)` key is the dedupe: writers
+  insert `on conflict do nothing returning id` and dispatch only returned ids. No config or no
+  subscription → no row.
+- Postgres decides and builds `data`; a private helper posts the ids to the edge function
+  `send-push` with `net.http_post` (after commit, 10 s timeout). The function claims them
+  through `claim_notifications(ids)` (sets `dispatched_at` once): at most once, never retried.
+- Config = Vault rows `amrap_functions_url` and `amrap_push_secret`. Missing → `raise log`,
+  return, no error. DB→function auth is the shared secret header `x-amrap-push-secret`;
+  `send-push` has `verify_jwt = false`.
+- Event notifications are triggers filtered by `source` / `status` / `type`; RPC bodies are not
+  changed. Every trigger and helper body catches errors (`raise warning`) so a push problem
+  never aborts the caller.
+- The payload is `{kind, data, url}`; the service worker renders copy from `sl.ts`.
+- Grants: the reminder job like `charge_due_appointments` (no grant to `authenticated`/`anon`),
+  `claim_notifications` to `service_role` only, helpers and trigger functions to nobody.
+- Edge function tests run with Deno 2.1.4 (the local edge runtime 1.74.3 is Deno 2.1.4
+  compatible). Deno is not installed on this machine: run them with
+  `docker run --rm -v "$PWD:/w" -w /w denoland/deno:2.1.4 deno test --allow-env supabase/functions`
+  (wrapped by `scripts/test-functions.sh`, which uses a local `deno` when present). CI gets a
+  `functions` job with `denoland/setup-deno` pinned to the same version.
+- Pre-commit gate for every Stage 3 task (from the brief): app `npm run lint && npm run
+  typecheck && npm test -- --run && npm run build`; DB `supabase test db`, `supabase db lint`,
+  `bash scripts/check-docs.sh`, types diff; `bash scripts/test-functions.sh` once it exists.
+- Owner actions known up front (one issue, filed by the orchestrator): generate the hosted
+  VAPID pair, `supabase secrets set` (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
+  `VAPID_SUBJECT`, `PUSH_SECRET`), deploy `send-push` after merge, insert the two Vault rows,
+  set `VITE_VAPID_PUBLIC_KEY` in Cloudflare Pages, test on a real Android phone and an iPhone
+  (home-screen install). Exact steps land in `docs/runbook.md` (Tasks 12 and 14).
+
+### Task 10: Notification log, dispatch and the pre-cutoff reminder job
+
+New migration (`supabase migration new notifications_and_reminders`; `new-migration` skill),
+TDD with pgTAP (`supabase/tests/030_notifications.sql`, `031_reminders.sql`, failing first).
+
+1. `create extension if not exists pg_net with schema extensions` (not `public`; the Security
+   Advisor flags that). Check it is enabled on the hosted project after `db push` (runbook).
+2. Enum `notification_kind` (`cutoff_reminder`, `booking_created`, `booking_cancelled`,
+   `credit_topup`, `credit_adjustment`). Table `notifications(id uuid pk, customer_id uuid
+   not null references customers on delete cascade (the recipient), kind notification_kind
+   not null, appointment_id uuid null references appointments on delete cascade,
+   transaction_id uuid null references credit_transactions on delete cascade, data jsonb not
+   null default '{}', created_at timestamptz not null default now(), dispatched_at
+   timestamptz null)`, unique `(kind, appointment_id)` (nulls distinct, so credit rows never
+   collide), index `(created_at)`. RLS on, no policy for `authenticated`, `revoke all` from
+   `anon`/`authenticated`.
+3. `public.push_config() returns table(functions_url text, push_secret text)` — security
+   definer, stable, reads `vault.decrypted_secrets` names `amrap_functions_url` /
+   `amrap_push_secret`; granted to nobody.
+4. `public.dispatch_notifications(p_ids uuid[]) returns void` — granted to nobody. Empty array
+   or missing config → `raise log`, return. Else one `net.http_post(url := functions_url ||
+   '/send-push', body := jsonb_build_object('ids', p_ids), headers := Content-Type +
+   x-amrap-push-secret, timeout_milliseconds := 10000)`. The whole body is wrapped in
+   `begin … exception when others then raise warning …; end`.
+5. `public.claim_notifications(p_ids uuid[]) returns table(notification_id uuid, kind
+   notification_kind, data jsonb, endpoint text, p256dh text, auth text)` — security definer,
+   granted to `service_role` only. `update notifications set dispatched_at = now() where id =
+   any(p_ids) and dispatched_at is null returning …`, joined to the recipient's subscriptions
+   through `customers.auth_user_id`. A second call with the same ids returns no rows.
+6. `public.send_cutoff_reminders() returns int` — the 15-minute job. Missing config or
+   missing `settings` → `raise log`, return 0 (cron never raises). Selects `booked`
+   appointments whose cutoff `starts_at − late_cancel_hours * interval '1 hour'` is in
+   `[now() + interval '45 minutes', now() + interval '75 minutes')`, whose customer is linked
+   and has at least one `push_subscriptions` row; inserts one `cutoff_reminder` per
+   appointment with `data = {appointment_id, starts_at, cutoff_at, timezone}` `on conflict
+   (kind, appointment_id) do nothing returning id`; calls `dispatch_notifications` with the
+   returned ids; deletes `notifications` older than 30 days; returns the number inserted.
+   Grants like `charge_due_appointments` (owner and `service_role`).
+7. `cron.schedule('send_cutoff_reminders', '*/15 * * * *', $$select
+   public.send_cutoff_reminders()$$)`.
+8. Local config: add the two Vault rows to a dev seed (`supabase/seeds/dev.sql`, or a new
+   `seeds/push.sql` listed in `config.toml`) with `http://host.docker.internal:54321/functions/v1`
+   and the placeholder secret `local-push-secret` (local only, like the seeded passwords).
+   Tests never rely on the seed: they set or delete the Vault rows inside their transaction.
+9. Tests (expected sets derived from the fixtures, times relative to `now()` and the
+   cutoff from `settings`): cutoff at window start (45 min) selected, 44 min not, 74 min
+   selected, 75 min not; `late_cancel_hours = 0`; not `booked` (cancelled, charged) skipped;
+   unlinked customer and customer without subscription skipped; second run → 0 and still one
+   row per appointment; a pre-existing row (simulating an overlapping run) → no second row and
+   no second queue entry; with config a run queues exactly one `net.http_request_queue` row
+   whose body holds the inserted ids and whose headers carry the secret; without config →
+   returns 0, no rows, no queue entry, no error; missing settings → 0, no error;
+   `claim_notifications` returns the subscriptions once and nothing on the second call;
+   grants: `authenticated` cannot execute the job, `claim_notifications` or the helpers, and
+   cannot read `notifications`; the cron job exists with its schedule; old rows pruned.
+10. Docs in the same commits: `docs/schema.md` (migration, enum, table, grants, RLS),
+    `docs/rpcs.md` (`claim_notifications`, `send_cutoff_reminders`, helpers `push_config`,
+    `dispatch_notifications`), `docs/jobs.md` (the schedule, selection window, dedupe,
+    no-op without config, manual run), new `docs/notifications.md` (layer doc: kinds and
+    their `data`, the log, dedupe, dispatch, config, best effort; added to `docs/README.md`
+    and the harness layer table), new `docs/architecture/push-sequence.md` (cron/trigger →
+    log → pg_net after commit → `send-push` → claim → push service → 404/410 cleanup → SW),
+    `data-model.md`, `system-context.md`, `CONTEXT.md` (notification, reminder, push
+    subscription). Regenerate `database.types.ts`.
+
+### Task 11: Event notifications and the subscription RPC
+
+New migration (`supabase migration new event_notifications`), TDD
+(`supabase/tests/032_event_notifications.sql`).
+
+1. `public.enqueue_notification(p_customer_id uuid, p_kind notification_kind, p_data jsonb,
+   p_appointment_id uuid default null, p_transaction_id uuid default null) returns void` —
+   granted to nobody. No config, or the recipient has no linked user or no subscription →
+   return. Else insert `on conflict do nothing returning id` and `dispatch_notifications`.
+   Wrapped in `begin … exception when others then raise warning; end`.
+2. Trigger functions (security definer, granted to nobody) and triggers:
+   - `after insert on appointments for each row when (new.source = 'self_booked')` → the
+     trainer (`customers where role = 'trainer'`), `booking_created`, data `{customer_name,
+     starts_at, timezone}`.
+   - `after update of status on appointments for each row when (old.status = 'booked' and
+     new.status in ('cancelled', 'cancelled_late'))` → the trainer, `booking_cancelled`,
+     data `{customer_name, starts_at, late, timezone}`.
+   - `after insert on credit_transactions for each row when (new.type in ('topup',
+     'adjustment'))` → the customer, `credit_topup` / `credit_adjustment`, data `{amount,
+     note, balance}` (balance from `customer_balances` after the insert).
+3. `public.save_push_subscription(p_endpoint text, p_p256dh text, p_auth text) returns void`
+   — linked customer or trainer only (`AMRAP_FORBIDDEN` otherwise); arguments required
+   (`AMRAP_INVALID_ARGUMENT`); deletes any row with that endpoint, inserts it for
+   `auth.uid()`. Granted to `authenticated`. Deleting stays a plain RLS delete of own rows.
+4. Tests: a customer `book()` creates one `booking_created` row for the trainer and queues one
+   request; a trainer `book()` and `materialize_recurring()` create none; a customer cancel
+   (free and late) creates `booking_cancelled` with the right `late`; a trainer cancel and
+   `charge_due_appointments()` create none; `top_up` / `adjust` create the customer row with
+   the derived balance; refunds and charges create none; recipient without subscription or
+   link → no row; without config → no row, the RPC still succeeds; **best effort**: inside the
+   test transaction replace `dispatch_notifications` with a body that raises, then `book`,
+   `cancel` and `top_up` still succeed and their rows exist; `save_push_subscription` moves an
+   endpoint from one user to another, rejects an unlinked user and `anon`.
+5. Docs: `docs/rpcs.md` (new functions, `AMRAP_*` reuse), `docs/schema.md` (migration,
+   triggers), `docs/notifications.md` (event kinds and filters), `push-sequence.md` (trigger
+   lane), `booking-sequence.md` / `charging-sequence.md` if they show the side effect. Types.
+
+### Task 12: Edge function `send-push`, Deno tests, CI
+
+1. `supabase/functions/send-push/` with `deno.json` (imports pinned: `npm:web-push@3.6.7`,
+   `npm:@supabase/supabase-js@2.118.0`), `index.ts` (wiring only: env, client, `Deno.serve`),
+   and small pure modules with injected dependencies so tests need no network:
+   - `payload.ts`: `buildPush(row, now)` → `{body: JSON {kind, data, url}, ttl, urgency,
+     topic?}`. URLs: reminder and credit kinds → customer routes (`/c`, `/c/zgodovina`),
+     booking kinds → `/t`. Reminder TTL = seconds until `data.cutoff_at` (≥ 0), urgency
+     `high`, topic derived from the appointment id (≤ 32 base64url chars); others TTL 86400,
+     `normal`.
+   - `handler.ts`: `handle(req, deps)` — 405 for non-POST; 401 when `x-amrap-push-secret`
+     differs from `PUSH_SECRET` (constant-time compare); 503 with a log when VAPID secrets are
+     missing; 400 for a body without an `ids` array; else `claim_notifications(ids)`, send each
+     row's push, collect endpoints that returned 404/410 and delete them from
+     `push_subscriptions` in one call; other send errors logged, never thrown; responds
+     `{claimed, sent, failed, removed}`.
+2. `supabase/config.toml`: `[functions.send-push] verify_jwt = false`.
+   `supabase/functions/.env.example` (committed): `PUSH_SECRET=local-push-secret` (matches
+   the seed), empty `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT=mailto:…`, with
+   the generation command (`npx web-push generate-vapid-keys`). `supabase/functions/.env`
+   stays ignored (already covered by `.env` / `.env.*` in `.gitignore`; verify).
+3. Deno tests `supabase/functions/send-push/*_test.ts`: payload per kind (url, TTL, urgency,
+   topic, TTL never negative); handler 401 / 405 / 400 / 503; a fake sender rejecting with
+   status 404 and 410 deletes exactly those endpoints; 500 or a network error keeps the
+   subscription and still sends the others; nothing claimed → no sends.
+   `scripts/test-functions.sh` (local `deno` or the pinned Docker image).
+4. CI: new job `functions` (`denoland/setup-deno@v2`, `deno-version: 2.1.4`, `deno test
+   --allow-env supabase/functions`); the `db` job keeps `-x …,edge-runtime`. Update the CI
+   table in `docs/harness.md`.
+5. Verify locally whether `supabase start` serves `supabase/functions/*` without a separate
+   `supabase functions serve` (the CLI only listed it under `serve` in the Task 0 spike);
+   document the working command. Check from the db container that pg_net reaches
+   `host.docker.internal:54321` (`net._http_response` after a dispatch).
+6. Docs: `docs/jobs.md` edge-function section (endpoint, auth, request/response, secrets,
+   404/410), `docs/notifications.md` (payload contract and TTL/urgency), `docs/runbook.md`
+   (hosted: generate VAPID pair, `supabase secrets set …`, `supabase functions deploy
+   send-push` from `main` after merge, Vault inserts in the SQL editor, in that order, plus how
+   to check `net._http_response` and the function logs), `README.md` local run steps.
+
+### Task 13: App — service worker push handler and subscription UI
+
+1. vite-plugin-pwa → `strategies: 'injectManifest'`, `srcDir: 'src'`, `filename: 'sw.ts'`;
+   add `workbox-precaching` (and `workbox-core` for `clientsClaim`) at versions matching the
+   plugin. `src/sw.ts`: `precacheAndRoute(self.__WB_MANIFEST)`, `skipWaiting` + `clientsClaim`
+   (keeps `autoUpdate` behaviour), `push` → parse `{kind, data, url}`, render title/body with
+   a pure `renderNotification(kind, data)` in `src/push/render.ts` using `sl.push.*` and
+   `lib/time.ts` formatting in `data.timezone`, `showNotification` with `tag` per appointment
+   (a newer reminder replaces an older one); unknown kind → generic copy; `notificationclick`
+   → focus an open client and navigate it to `url`, else `clients.openWindow(url)`. Typecheck
+   the SW with the `webworker` lib (own tsconfig or reference), check the build still emits
+   the manifest and the SW, and that the dev server still runs.
+2. `src/push/`: `support.ts` (`pushSupport()` → `supported | needs-install` (iOS Safari not
+   standalone) `| unsupported | no-key` (no `VITE_VAPID_PUBLIC_KEY`)), `subscribe.ts`
+   (`enablePush(client)`: permission → `pushManager.subscribe({userVisibleOnly: true,
+   applicationServerKey})` → `save_push_subscription`; `disablePush(client)`: unsubscribe +
+   delete own row by endpoint; `currentSubscription()` via `navigator.serviceWorker.ready`,
+   guarded so Vitest and browsers without SW do not throw). Data wrapper in `src/data/`.
+3. `PushToggle` component (shared): state line (on / off / blocked by the browser /
+   install hint / unavailable), on/off button, errors via `fromError`. Placed on customer
+   Home and trainer Settings. `/logout` calls `disablePush` best effort before signing out.
+4. `sl.ts`: `push.*` notification copy per kind (reminder with time and cutoff, booking
+   created/cancelled with name, late flag, top-up/adjustment with amount and balance) and
+   `pushToggle.*` UI copy; `app/.env.example` gains `VITE_VAPID_PUBLIC_KEY=` with a note.
+5. Vitest: `renderNotification` per kind (derived from fixture data, DST date), support
+   detection matrix, `enablePush` calls the RPC with the subscription keys, permission denied
+   path, toggle states, logout removes the subscription; extend `fakeSupabase.ts` with
+   `push_subscriptions` and `save_push_subscription`.
+6. Docs: `docs/screens.md` (toggle on both screens, strings), `docs/notifications.md` (SW
+   rendering, click handling, subscription lifecycle, iOS), `docs/app-structure.md`
+   (`src/push/`, `sw.ts`), `docs/data-layer.md`, `docs/runbook.md` Cloudflare env var
+   `VITE_VAPID_PUBLIC_KEY`.
+
+### Task 14: Keep-alive, runbook, end-to-end check
+
+1. Keep-alive: confirm `keepAlive()` runs once per signed-in load (existing test in
+   `keepAlive.test.ts` / auth tests; add one if the "once per user, not on token refresh"
+   rule is not covered) and that docs match.
+2. `docs/runbook.md` unpause section: verify against current Supabase docs (Context7) and
+   extend: after a restore check `cron.job` and the last `cron.job_run_details`, the Vault rows
+   and the function secrets survive, run `select public.charge_due_appointments();` and
+   `select public.materialize_recurring();` once to catch up, reminders missed during the
+   pause are not sent afterwards (their window has passed).
+3. Manual check against the local stack in a desktop browser (Chrome): VAPID pair in
+   `supabase/functions/.env` and `app/.env.local`, enable push as `ana@amrap.local` and as the
+   trainer, then (a) a fixture appointment with its cutoff ~1 h away + `select
+   public.send_cutoff_reminders();` → reminder shown, second call → nothing; (b) ana books in
+   the app → trainer notification; (c) trainer top-up → ana notification; (d) a stale
+   subscription (unsubscribed in the browser) is deleted after the next send. Record the
+   results in the task report.
+4. Stage 3 status, Handoff state, `docs/README.md` index. Owner actions consolidated
+   (hosted secrets, deploy, Vault rows, Pages variable, real phones).

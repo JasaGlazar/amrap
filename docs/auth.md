@@ -55,11 +55,15 @@ offers sign out only (the trainer has to invite or re-link the record, see ADR 0
 
 ## Sign-out
 
-`/logout` is a route loader: it calls `supabase.auth.signOut()` and redirects to `/login`. If
-signing out fails, the loader logs it and returns the `fromError` message, and
-`LogoutFailedPage` shows it with a continue link. Every sign-out control links to `/logout`:
-the top bar of both shells, `NotLinkedPage` and `LookupFailedPage`, so a failed sign-out is
-always shown.
+`/logout` is a route loader: it first removes this device's push subscription with `disablePush`
+for the user of `supabase.auth.getSession()`: with a user it deletes that user's row for this
+endpoint and unsubscribes the browser; without a session it only unsubscribes, and the next
+push's 404/410 removes the row. A failure is logged with `console.warn` and never stops the
+sign-out (see [notifications.md](notifications.md#subscribing-in-the-app)). It then calls
+`supabase.auth.signOut()` and redirects to `/login`. If signing out fails, the loader logs it
+and returns the `fromError` message, and `LogoutFailedPage` shows it with a continue link. Every
+sign-out control links to `/logout`: the top bar of both shells, `NotLinkedPage` and
+`LookupFailedPage`, so a failed sign-out is always shown.
 
 ## Invite acceptance
 

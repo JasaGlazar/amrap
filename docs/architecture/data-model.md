@@ -10,7 +10,8 @@ otherwise none. `push_subscriptions.user_id` and `credit_transactions.created_by
 (unique `appointments(rule_id, starts_at)` where `rule_id` is set, any status). The view
 `slot_occupancy` (not drawn) counts `booked` and `charged` appointments per slot template and
 `starts_at` for linked callers; it runs as its owner and exposes counts only, never customer
-identities. All tables are under RLS and all credit and capacity changes go
+identities. `notifications` is the push log (ADR 0009): one row per push the database decided to
+send, unique per `(kind, appointment_id)`, closed to the API. All tables are under RLS and all credit and capacity changes go
 through RPCs. Column lists show the main fields; the migration is the exact definition and
 `docs/schema.md` is the reference.
 
@@ -80,10 +81,20 @@ erDiagram
     push_subscriptions {
         uuid id PK
         uuid user_id "auth user"
-        text endpoint "unique"
+        text endpoint "unique, https only"
         text p256dh
         text auth
         timestamptz created_at
+    }
+    notifications {
+        uuid id PK
+        uuid customer_id FK "recipient"
+        notification_kind kind "cutoff_reminder, booking_created, booking_cancelled, credit_topup, credit_adjustment"
+        uuid appointment_id FK "nullable, unique with kind"
+        uuid transaction_id FK "nullable"
+        jsonb data
+        timestamptz created_at
+        timestamptz dispatched_at "nullable, set once by the claim"
     }
 
     customers ||--o{ recurring_rules : "has"
@@ -93,4 +104,7 @@ erDiagram
     recurring_rules |o--o{ appointments : "materializes"
     customers ||--o{ credit_transactions : "owns ledger"
     appointments |o--o{ credit_transactions : "charged by"
+    customers ||--o{ notifications : "receives"
+    appointments |o--o{ notifications : "is about"
+    credit_transactions |o--o{ notifications : "is about"
 ```

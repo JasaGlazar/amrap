@@ -20,7 +20,8 @@ These constraints bind every task and are what the reviewer checks against (alon
   blocking hooks (all below).
 - Auth: email/password with email confirmations disabled. Customers join only via trainer
   invite token (`create_invite` / `accept_invite`). Magic links and OTP are not used.
-- Tests: pgTAP via `supabase test db` (`supabase/tests/*.sql`); frontend logic tests with Vitest.
+- Tests: pgTAP via `supabase test db` (`supabase/tests/*.sql`); frontend logic tests with Vitest;
+  edge function tests with Deno (`scripts/test-functions.sh`).
 - Never `supabase db push` to the remote from a feature branch (see `docs/runbook.md`).
 
 ## Docs 1:1 rule
@@ -41,13 +42,14 @@ function name appears in the schema and RPC reference docs (see [CI](#ci)).
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`, as three
+`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`, as four
 independent jobs:
 
 | Job | What it runs |
 |---|---|
 | `db` | `supabase/setup-cli@v1`, then `supabase start -x studio,imgproxy,logflare,vector,edge-runtime` (applies the migrations and the seeds in `config.toml` `[db.seed]`), `supabase test db`, `supabase db lint`, and a check that `app/src/lib/database.types.ts` equals the output of `supabase gen types typescript --local`. |
 | `app` | In `app/` with the Node version from `app/.node-version`: `npm ci`, `npm run lint`, `npm run typecheck`, `npm test -- --run`, `npm run build`. |
+| `functions` | `denoland/setup-deno@v2` with Deno 2.1.4 (what the local edge runtime 1.74.3 is compatible with), then `bash scripts/test-functions.sh`. |
 | `docs` | `bash scripts/check-docs.sh`. |
 
 `scripts/check-docs.sh` also runs locally from any directory and lists everything it finds
@@ -81,6 +83,7 @@ the code:
 | Tables, views, RLS, grants, seeds | `docs/schema.md` |
 | RPCs and helpers | `docs/rpcs.md` |
 | Scheduled jobs | `docs/jobs.md` |
+| Web push: notification log, dispatch, edge function, service worker | `docs/notifications.md` |
 
 A migration starts with one line pointing at its reference docs; section divider lines
 (`-- Name ----`) are fine. A migration already on `main` is never edited, except for its
@@ -135,6 +138,14 @@ that break when fixtures change.
 
 ## Testing
 
+Edge functions are tested with Deno: `scripts/test-functions.sh` runs, in every
+`supabase/functions/<name>/` with a `deno.json`, `deno fmt --check`, `deno lint`, `deno check
+index.ts` and `deno test --allow-env`. It uses a local `deno` when one is installed and
+otherwise the `denoland/deno:2.1.4` Docker image (Deno is not required on the host). Tests sit
+next to the code (`*_test.ts`) and inject fakes for the database and the push service, so they
+need no network beyond fetching their imports. Each function's `deno.json` pins its imports and
+sets `"lock": false`, so no lockfile is generated.
+
 Database tests are pgTAP files in `supabase/tests/`, run by `supabase test db` against the
 local stack after `supabase db reset` (which applies the migrations, then the seeds listed in
 `supabase/config.toml` `[db.seed] sql_paths`). The CLI enables the `pgtap` extension for the
@@ -151,6 +162,9 @@ run, so test files do not create it.
 | `014_invites.sql` | `create_invite` and `accept_invite`: token format and expiry, single use, expired/superseded/unknown tokens, already linked users and records |
 | `020_materialize.sql` | `materialize_recurring` and the `materialize_rule` helper: grants and role check, derived instance set over the window, skips (past, blocked overlap, cancelled instance, live booking, full slot, inactive rule/template), book()'s advisory lock, DST wall-clock, idempotent second run, trainer path, missing settings |
 | `021_rules_and_jobs.sql` | `activate_rule` / `deactivate_rule`: trainer only, unknown rule, future booked instances cancelled and the rest untouched, immediate materialization, no recreation after reactivating, the any-status rule index; `slot_occupancy`: columns, owner-run, grants, counts for customer and trainer, nothing for an unlinked user or anon; pg_cron: both jobs in `cron.job`, materialization without a JWT |
+| `030_notifications.sql` | pg_net in `extensions`, the `notifications` table (unique per kind and appointment, closed to the API), push function grants, `push_config`, the queued `send-push` request, no request without ids or config, a failing pg_net call caught, `claim_notifications` once per notification and subscription |
+| `031_reminders.sql` | `send_cutoff_reminders`: the 45/75-minute window boundaries, statuses, unlinked and unsubscribed customers, one row per appointment, the request and its ids, second and overlapping runs, a late subscriber, a 0-hour cutoff, pruning, no config, no settings, grants, the schedule |
+| `032_event_notifications.sql` | the notification triggers: a customer booking and cancel notify the trainer (with `late`), top-up and adjustment notify the customer (with the balance); trainer bookings, materialization, trainer cancels, charges and refunds do not; one recipient with two trainers; no device, no account or no config records nothing; actions succeed and take effect when the notification fails (a failing `enqueue_notification`, a failed pg_net call that keeps the row undispatched, a direct failure inside `enqueue_notification`); `save_push_subscription` (move between accounts, forbidden, invalid, non-https, anon), the https-only endpoint constraint; function grants and the triggers |
 
 Helpers in `supabase/seeds/test_helpers.sql` (schema `tests`, local only):
 

@@ -8,6 +8,9 @@ const plugins: PluginOption[] = [react()];
 if (!process.env.VITEST) {
   plugins.push(
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       includeAssets: ['icon-192.png'],
       manifest: {

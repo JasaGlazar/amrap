@@ -15,8 +15,8 @@ The design is in [PLAN.md](PLAN.md); the domain vocabulary is in [CONTEXT.md](CO
 | `app/` | Vite + React + TypeScript PWA |
 | `docs/` | harness conventions, runbook, ADRs, architecture diagrams, component docs |
 | `.claude/agents/`, `.claude/skills/` | project reviewer agent and skills |
-| `scripts/` | repo scripts (`check-docs.sh`: migrations and functions must be documented) |
-| `.github/workflows/` | CI (`ci.yml`: pgTAP, app and docs checks; see [docs/harness.md](docs/harness.md#ci)) |
+| `scripts/` | repo scripts (`check-docs.sh`: migrations and functions must be documented; `test-functions.sh`: edge function checks) |
+| `.github/workflows/` | CI (`ci.yml`: pgTAP, app, edge function and docs checks; see [docs/harness.md](docs/harness.md#ci)) |
 
 Start with [docs/README.md](docs/README.md).
 
@@ -29,6 +29,16 @@ supabase start        # local Postgres, Auth, Studio
 supabase db reset     # apply migrations and seeds
 supabase test db      # run pgTAP tests
 supabase gen types typescript --local > app/src/lib/database.types.ts   # after a schema change
+```
+
+### Edge functions (`supabase/functions/`)
+
+`supabase start` serves them. Push needs secrets in `supabase/functions/.env` (gitignored):
+copy `supabase/functions/.env.example` and add a VAPID pair, then restart the stack
+([docs/notifications.md](docs/notifications.md#local-setup)).
+
+```sh
+bash scripts/test-functions.sh   # deno fmt/lint/check/test (local deno or the Docker image)
 ```
 
 ### The app (`app/`)
@@ -47,6 +57,10 @@ npm run typecheck
 npm test              # vitest
 npm run build         # type-check and production build into app/dist
 ```
+
+Push notifications need `VITE_VAPID_PUBLIC_KEY` in `app/.env.local` and a production build
+(`npm run build && npm run preview`): the dev server registers no service worker
+([docs/notifications.md](docs/notifications.md#local-setup)).
 
 After `supabase start`, restart the stack once (`supabase stop && supabase start`) when
 `supabase/config.toml` changed so Auth picks up the `site_url` of the dev server.
