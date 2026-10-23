@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+supabase/.temp/
+supabase/.branches/
+.claude/settings.local.json
+.superpowers/
+.DS_Store
+coverage/
