@@ -25,7 +25,8 @@ scope for the free-tier constraint.
 
 - No emails are sent by the app in Stage 1, so the SMTP limit never matters.
 - No self-service password reset in Stage 1. If a customer loses access, the trainer re-issues
-  an invite to re-link the record.
+  an invite to re-link the record (refined by ADR 0007: the trainer first deletes the
+  customer's auth user, then re-invites).
 - Because email is not confirmed, the email address is not proof of identity; the invite token
   is the proof, and it must be unguessable, single use and expiring.
 - `accept_invite` must be tested for reuse and expiry rejection.

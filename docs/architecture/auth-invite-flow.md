@@ -9,6 +9,11 @@ link, signs up with email and password (no confirmation email), and the app call
 sees the trainer shell, a customer sees the customer home. A user with no `customers` row has
 no data access. Error tokens are listed in [rpcs.md](../rpcs.md#accept_invite).
 
+`create_invite` refuses a record that is already linked. To re-link a customer who lost access
+(ADR 0007), the trainer first deletes the customer's auth user in the Supabase dashboard; the
+foreign key `on delete set null` clears `customers.auth_user_id`, and the flow below starts
+again with a new sign-up (steps in [runbook.md](../runbook.md#re-link-a-customer)).
+
 ```mermaid
 sequenceDiagram
     actor T as Trainer
@@ -17,6 +22,10 @@ sequenceDiagram
     participant Auth as Supabase Auth
     participant DB as Postgres RPCs
 
+    opt re-link a customer who lost access (ADR 0007)
+        T->>Auth: delete the customer's auth user (dashboard)
+        Auth->>DB: on delete set null clears customers.auth_user_id
+    end
     T->>App: Invite customer
     App->>DB: create_invite(customer_id)
     DB->>DB: is_trainer(), record exists and not linked, else AMRAP_FORBIDDEN / AMRAP_NOT_FOUND / AMRAP_ALREADY_LINKED

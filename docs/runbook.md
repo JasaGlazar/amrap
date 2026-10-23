@@ -34,6 +34,27 @@ values ('<trainer name>', '<trainer email>', 'trainer', '<auth user uid>');
    returns exactly the one row.
 4. Sign in to the app and confirm the trainer shell is shown.
 
+## Re-link a customer
+
+When a linked customer loses access (forgotten password, lost device, wrong email), there is
+no password reset (ADR 0006). `create_invite` refuses linked records (`AMRAP_ALREADY_LINKED`),
+so the old auth user is removed first (ADR 0007).
+
+1. In the app (or SQL editor), find the customer and note their `auth_user_id`:
+   `select id, name, auth_user_id from public.customers where name ilike '%<name>%';`
+2. In the Supabase dashboard open Authentication, Users, find the user with that UID, and
+   delete it. The foreign key `on delete set null` clears `customers.auth_user_id`; the
+   customer's appointments and credits stay as they are. Their push subscriptions are deleted.
+3. Check the record is unlinked: the query from step 1 now shows `auth_user_id` null.
+4. In the app, create an invite for the customer (`create_invite`) and send the new link.
+5. The customer opens the link and signs up again with a new password (same or new email);
+   `accept_invite` links the new auth user. They re-enable notifications on their device.
+
+This does not work for the trainer: only the trainer can create invites. To re-link the
+trainer, create a new auth user as in "Bootstrap the trainer" step 1, then run
+`update public.customers set auth_user_id = '<new auth user uid>' where role = 'trainer';`
+(after deleting the old auth user).
+
 ## Deploy migrations after merge
 
 Migrations reach the remote project only after the PR is merged. Never from a feature branch.

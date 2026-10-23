@@ -61,6 +61,10 @@ public.book(p_customer_id uuid, p_starts_at timestamptz,
      past occurrences); `p_starts_at` in `settings.timezone` must fall on the template's
      `weekday` (`isodow - 1`) at its `start_time` (`AMRAP_SLOT_MISMATCH`). If the `settings`
      row is missing the call fails closed (`AMRAP_SETTINGS_MISSING`).
+     DST: a `start_time` inside the autumn fall-back hour (02:00–03:00 local) occurs twice, so
+     it maps to two instants and both match; a `start_time` inside the spring-forward gap does
+     not exist that day, so no instant matches and that occurrence cannot be booked from the
+     template (the trainer can book it ad hoc).
   5. `p_starts_at` must not fall inside a blocked period, `starts_at <= p_starts_at < ends_at`
      (`AMRAP_BLOCKED`). Applies to the trainer and to ad-hoc bookings too.
   6. With a template: takes `pg_advisory_xact_lock(hashtext(template_id || '@' ||
@@ -153,6 +157,9 @@ public.create_invite(p_customer_id uuid) returns text
 - **Side effects:** sets `invite_token = encode(extensions.gen_random_bytes(24), 'hex')` (48 hex
   characters) and `invite_expires_at = now() + interval '7 days'`. Returns the token, which the
   app turns into the invite link.
+- **Re-linking:** a linked customer who lost access is re-linked by deleting their auth user in
+  the dashboard (`on delete set null` clears `auth_user_id`), then calling `create_invite`
+  again; see ADR 0007 and `docs/runbook.md` "Re-link a customer".
 - **Diagram:** [architecture/auth-invite-flow.md](architecture/auth-invite-flow.md).
 
 ## accept_invite

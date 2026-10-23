@@ -13,6 +13,7 @@ mark the old one `Status: Superseded by NNNN`.
 | [0004](0004-slot-templates-per-slot-capacity.md) | Slot templates with per-slot capacity | Accepted |
 | [0005](0005-supabase-free-tier-cloudflare-pages.md) | Supabase free tier and Cloudflare Pages | Accepted |
 | [0006](0006-auth-invite-token-password.md) | Email/password auth with invite tokens | Accepted |
+| [0007](0007-relink-by-deleting-auth-user.md) | Re-link a customer by deleting their auth user | Accepted |
 
 ## Template
 
