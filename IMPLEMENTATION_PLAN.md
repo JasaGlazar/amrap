@@ -85,7 +85,7 @@ cutoff; no duplicate reminders.
 checklist skill. Branch `stage-4-pilot`.
 **Success Criteria**: Trainer runs one full week on AMRAP without the paper sheet.
 **Tests**: manual E2E on both roles on real phones.
-**Status**: In Progress (plan written, see "Stage 4 tasks"; Tasks 15-19 not started)
+**Status**: In Progress (plan approved; Task 15 done, Tasks 16-19 not started)
 
 ## Workflow (from 2026-10-23 evening)
 
@@ -273,6 +273,45 @@ the two Stage 3 migrations (Workflow); exact steps in `docs/runbook.md`.
 - Stage 3: PR #4 merged to `main` (e305f91).
 - Stage 4: branch `stage-4-pilot` off `main`. Item 0 done: "Stage 4 tasks" below (Tasks 15-19),
   waiting for the orchestrator's approval before Task 15 starts. No DB change is planned.
+- Plan approved as written (all rulings, including the starting-balance field in Task 18).
+- Task 15 done: `src/install/` (`capture.ts` store and listener registered in `main.tsx`,
+  `mode.ts`, `dismissed.ts`, `platform.ts` with `InstallContext`, `useInstall.ts`),
+  `InstallCard` in `AppShell`, `PushToggle` refers to the card on iOS while it is shown
+  (`pushToggle.needsInstallSeeCard`), device detection moved to `lib/device.ts`, `install.*`
+  copy, `fakeInstall.ts`. Docs: `screens.md` (Install card), `app-structure.md` (Install
+  onboarding), `notifications.md`, `auth.md`, README and harness layer tables. Vitest 253.
+
+### Stage 4 Task 15 browser check (2026-10-24, local stack, production build)
+
+Headless Google Chrome 155 at 360×800, user agent overridden per profile, driven by
+agent-browser 0.6.0 (`--cdp`) and raw DevTools calls (`Runtime.evaluate`,
+`Page.addScriptToEvaluateOnNewDocument`).
+
+Verified:
+- Android user agent: after signing up from `/invite/dev-invite-token` the app landed on `/c`
+  with the card on top and **Namesti aplikacijo**: headless Chrome fired a real
+  `beforeinstallprompt` (logged at document start), the store kept it.
+- `prompt()` without a user gesture is refused by Chrome (`NotAllowedError`); the card then
+  dropped the used event and fell back to the Android menu steps, as designed.
+- iPhone user agent (with `beforeinstallprompt` suppressed at document start, since iOS never
+  fires it): the iOS steps on `/c`, `/t` and `/t/nastavitve`; the toggle on Home and Settings
+  says the steps are in the card (`needsInstallSeeCard`). With `amrap.install.dismissed` set in
+  `localStorage` and a reload, the card is gone and the toggle gives the full steps
+  (`needsInstall`). No horizontal scroll (`scrollWidth` 360) on any page checked.
+- Card spacing fixed after the first screenshot (f2b89ac).
+
+Not verified:
+- A real-gesture install prompt and **Ne zdaj** by a click: in these headless sessions, input
+  events stopped reaching the page once `/c` or `/t` had loaded (raw `Input.dispatchMouseEvent`
+  and agent-browser clicks alike, even on nav links); stopped after three attempts. Both are
+  covered by unit tests; the real prompt is an owner action on Android.
+- Real iOS Safari and a standalone (home-screen) launch: owner action.
+- Observed once, not reproduced: the very first invite sign-up after `supabase db reset` got a
+  `401` from `accept_invite` (the page showed `genericError` and the continue link). Opening the
+  same link again and submitting the same details went through the existing-account path and
+  linked the record. Six curl probes (sign-up, then `accept_invite` with the new token) after a
+  fresh reset all answered normally. Task 19 repeats the invite sign-up on a fresh reset and
+  captures the response body if it recurs.
 
 ---
 
