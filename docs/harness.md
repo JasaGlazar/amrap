@@ -34,6 +34,7 @@ diagram in the same commit:
 | RPCs | `docs/rpcs.md` | the relevant sequence or state diagram |
 | pg_cron jobs, edge functions | `docs/jobs.md` | `docs/architecture/charging-sequence.md` or system context |
 | Screens | `docs/screens.md` | - |
+| Auth flow, app structure | `docs/auth.md`, `docs/app-structure.md` | `docs/architecture/auth-invite-flow.md` (invite flow) |
 
 A lightweight check (`scripts/check-docs.sh`, run by the `docs` CI job) verifies that every migration file and every
 function name appears in the schema and RPC reference docs (see [CI](#ci)).
@@ -64,6 +65,24 @@ generated with); bumping it means regenerating `database.types.ts` in the same P
 
 A stale generated-types failure is fixed by running
 `supabase gen types typescript --local > app/src/lib/database.types.ts` and committing the result.
+
+## Code comments
+
+No explanatory comments: a comment is at most one line giving a non-obvious *why* (a
+constraint, a race, a workaround). What a layer does is documented in its layer doc, not in
+the code:
+
+| Layer | Doc |
+|---|---|
+| Sign-in, customer lookup, role gating, invite acceptance, keep-alive | `docs/auth.md` |
+| App folders, i18n rule, data layer contract, testing with the fake client | `docs/app-structure.md` |
+| Tables, views, RLS, grants, seeds | `docs/schema.md` |
+| RPCs and helpers | `docs/rpcs.md` |
+| Scheduled jobs | `docs/jobs.md` |
+
+A migration starts with one line pointing at its reference docs; section divider lines
+(`-- Name ----`) are fine. A migration already on `main` is never edited, except for its
+comments: its SQL statements stay byte-identical.
 
 ## ADR rule
 

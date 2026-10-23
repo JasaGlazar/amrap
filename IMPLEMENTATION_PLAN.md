@@ -101,9 +101,10 @@ checklist skill. Branch `stage-4-pilot`.
 ### Handoff state (2026-10-23, end of Fable session)
 - Stage 1: PR #1 merged to `main` (418f876); `db push` after merge per Workflow.
 - Stage 2: branch `stage-2-core`. Task 6 committed (c99c787..d2bce86), reviewed (approve with
-  fixes); fixes done: ADR 0008, deterministic DST tests, docs index/jobs/schema notes. Next:
-  Task 9. The implementer's concerns were all ruled acceptable and are recorded in ADR 0008.
-- Tasks 7, 8, 9 not started. Run Task 9 first (small), then 7, then 8.
+  fixes); fixes done: ADR 0008, deterministic DST tests, docs index/jobs/schema notes. The
+  implementer's concerns were all ruled acceptable and are recorded in ADR 0008.
+- Task 9 done: comment sweep (migrations, seeds, scripts, `app/src`), new `docs/auth.md` and
+  `docs/app-structure.md`, harness rule and reviewer item. Next: Task 7, then Task 8.
 
 ---
 
@@ -411,7 +412,7 @@ Commit: `ci: pgTAP, app and docs checks`.
 
 ## Stage 2 tasks
 
-Branch `stage-2-core` off `stage-1-foundation`; PR base `stage-1-foundation` (stacked on #1).
+Branch `stage-2-core` off `stage-1-foundation`; PR base `main` (#1 is merged).
 Rulings for this stage (lasting ones recorded in ADR 0008):
 - Blocked periods are checked by **interval overlap** (`appointment [starts_at, ends_at)` vs
   `blocked [starts_at, ends_at)`), for `book()` and materialization alike.
