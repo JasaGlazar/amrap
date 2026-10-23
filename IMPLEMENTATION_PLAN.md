@@ -77,7 +77,8 @@ notifications, keep-alive read on app load, unpause runbook verified. Branch
 **Success Criteria**: Reminder arrives on Android and iOS (home-screen install) before the
 cutoff; no duplicate reminders.
 **Tests**: reminder selection query idempotency with fixture dates; edge function unit tests.
-**Status**: In Progress (plan and ADR 0009 written; Tasks 10–14 below)
+**Status**: Implementation complete (Tasks 10–14 on `stage-3-notifications`); waiting for the
+last reviews, then the PR. Owner actions: see "Stage 3 owner actions" below.
 
 ## Stage 4: Polish & pilot
 **Goal**: Install onboarding, Slovenian copy review with the trainer, real trial, release
@@ -171,6 +172,63 @@ checklist skill. Branch `stage-4-pilot`.
   Chrome extension timed out injecting into the local preview page three times; the build, the
   emitted `sw.js` (no imports, push handler present) and the dev server were checked instead.
   The local VAPID public key is in the gitignored `app/.env.local`.
+- Task 14 done: keep-alive already covered (`routes.test.tsx` "keep-alive": once per sign-in,
+  not on token refresh, not signed out, failure tolerated; `auth.md` matches); runbook unpause
+  section checked against current Supabase docs and extended (warning email, one-year restore,
+  post-restore checks, what a pause does to charges, reminders and instances). Manual check with
+  headless Google Chrome 155 driven by agent-browser and raw DevTools protocol, results below and
+  in `docs/notifications.md` "Manual check".
+
+### Stage 3 manual check (2026-10-24, local stack, production build)
+
+Verified in a real browser:
+- Service worker registered, activated and controlling the page; Push API and Notification API
+  present.
+- Toggle states: "blocked" (headless default permission), "off" with **Vklopi obvestila**, "on"
+  after enabling, "off" again after **Izklopi obvestila** (customer Home and trainer Settings).
+- Enabling with permission granted creates a real FCM subscription and saves it for the signed-in
+  user (row with 87-character `p256dh`, 22-character `auth`).
+- Signing out as ana deleted her row (1 → 0) and unsubscribed the browser.
+- Delivery side against real FCM: credit trigger (top-up), reminder job (first run 1, second run
+  0, one row) and a customer booking through the `book` RPC with ana's token each led to
+  `send-push` answering `{"claimed":1,"sent":1,...}` (FCM 201). After headless Chrome dropped its
+  registration, the next pushes (an adjustment, the customer's cancel) got 404/410 and the
+  subscription was deleted (`removed: 1`).
+- Service worker rendering of real payloads (credit top-up with note, the reminder from the job's
+  row, booking created, booking cancelled) via `ServiceWorker.deliverPushMessage`: titles, bodies,
+  times in Europe/Ljubljana across the DST change, tags and in-app URLs as specified.
+
+Not verified:
+- A push delivered by FCM into a browser (headless Chrome's GCM login fails) — owner phone test.
+- The notification click (cannot be simulated headless).
+- **Izklopi obvestila** deleting a row that still existed: by then the 410 cleanup had removed
+  the trainer's row (the UI flow, the browser unsubscribe and logout's deletion were verified;
+  unit tests cover the delete).
+- iOS (home-screen install hint shown only by unit test) and Android.
+
+### Stage 3 owner actions (consolidated)
+
+All after the Stage 3 PR merges to `main`; exact steps in `docs/runbook.md`.
+
+1. `supabase db push` (the two Stage 3 migrations), then runbook "Deploy migrations after merge"
+   step 6: pg_net in `extensions`, three jobs in `cron.job`.
+2. Generate the hosted VAPID key pair and a push secret (runbook "Turn on push notifications"
+   step 1).
+3. `supabase secrets set --env-file …` for `PUSH_SECRET`, `VAPID_PUBLIC_KEY`,
+   `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (step 2).
+4. `supabase functions deploy send-push --no-verify-jwt` and the curl check (step 3).
+5. Insert the Vault rows `amrap_functions_url` and `amrap_push_secret` in the SQL editor
+   (step 4).
+6. Cloudflare Pages: `VITE_VAPID_PUBLIC_KEY` for Production and Preview, redeploy (step 5).
+7. Check on a phone signed in as a test customer: top up 1 and adjust −1, confirm two
+   notifications and `{"claimed":1,"sent":n,...}` in `net._http_response` (step 6). If the
+   response is a gateway 401, report it: the `apikey` fallback in ADR 0009 is needed.
+8. Real-device tests: Android Chrome and iPhone (Add to Home Screen first): enable on Home and
+   on the trainer's Settings, receive a reminder (an appointment whose cutoff is about an hour
+   away), a booking and a cancel notification, tap a notification and land on the right screen.
+9. Decide: should a trainer cancel notify the customer? (Not in PLAN.md, not built.)
+10. Before the pilot, keep in mind the runbook's unpause notes: sessions that pass during a pause
+    are charged on restore and need a trainer review.
 
 ---
 

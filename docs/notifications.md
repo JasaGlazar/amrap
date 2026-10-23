@@ -206,3 +206,23 @@ is in [runbook.md](runbook.md#turn-on-push-notifications).
   called.
 - Requests in tests go to a test-only host and roll back with the transaction, so nothing is
   sent; CI runs without the edge runtime.
+
+## Manual check (desktop, local stack)
+
+What a headless desktop check can and cannot show, found on 2026-10-24 with Chrome 155:
+
+- Headless Chrome starts with notification permission `denied` (the toggle shows "blocked").
+  Granting it over the DevTools protocol (`Browser.grantPermissions` for the app origin) works
+  only within the same protocol session; a tool that reconnects for every command (agent-browser
+  through Playwright) loses the grant, so drive the permission-dependent steps from one session.
+- With the grant, **Vklopi obvestila** creates a real FCM subscription
+  (`https://fcm.googleapis.com/fcm/send/…`), saves it and shows "on", and `send-push` gets 201
+  from FCM (`sent: 1`).
+- Headless Chrome cannot receive pushes: its GCM client fails to log in (`Authentication
+  Failed: wrong_secret` in the Chrome log) and after a few minutes drops the registration, so
+  the next push gets 404/410 from FCM and `send-push` deletes the subscription (`removed: 1`).
+  Delivery to a device is therefore a phone (or headed desktop Chrome) check.
+- The service worker's rendering can be checked without FCM: the protocol's
+  `ServiceWorker.deliverPushMessage` hands the worker a payload in the `send-push` format, and
+  `registration.getNotifications()` in the page returns what it showed. A notification click
+  cannot be simulated this way.
