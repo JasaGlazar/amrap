@@ -97,7 +97,9 @@ and registered by the plugin's `registerSW.js`:
 - `browser.ts`: `browserPlatform`, the only code that touches `navigator.serviceWorker`,
   `PushManager` and `Notification`. It uses the existing service worker registration
   (`getRegistration()`), so on the Vite dev server, which registers no service worker, push is
-  not available; use a production build (`npm run build && npm run preview`).
+  not available; use a production build (`npm run build && npm run preview`). Subscribing waits
+  for `navigator.serviceWorker.ready` once a registration exists, because a worker that is still
+  installing (first visit, right after an update) cannot subscribe.
 - `subscribe.ts`: `enablePush` (permission, `pushManager.subscribe({userVisibleOnly: true,
   applicationServerKey})`, `save_push_subscription`) and `disablePush` (delete this device's row,
   unsubscribe). Signing out calls `disablePush` first, best effort, so a shared device stops

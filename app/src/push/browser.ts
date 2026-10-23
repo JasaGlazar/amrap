@@ -47,8 +47,8 @@ export const browserPlatform: PushPlatform = {
     return current ? current.pushManager.getSubscription() : null;
   },
   async subscribe(applicationServerKey) {
-    const current = await registration();
-    if (!current) throw new Error('no service worker registration');
-    return current.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+    if (!(await registration())) throw new Error('no service worker registration');
+    const active = await navigator.serviceWorker.ready;
+    return active.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
   },
 };
