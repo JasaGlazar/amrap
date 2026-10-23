@@ -15,8 +15,9 @@ supabase migration new <snake_case_name>
 ```
 
 This creates `supabase/migrations/<timestamp>_<name>.sql`. Never hand-write the timestamp and
-never edit a migration that is already on `main` (it has been or will be pushed to the remote);
-write a new one instead. Comment-only edits are the exception (SQL statements byte-identical). Unmerged migrations on the current branch may still be edited.
+never edit a migration that is already on `main` (it has been or will be pushed to the
+remote); write a new one instead. Comment-only edits are the exception (SQL statements stay
+byte-identical). Unmerged migrations on the current branch may still be edited.
 
 Conventions inside the file (see the existing migrations):
 

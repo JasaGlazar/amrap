@@ -56,8 +56,8 @@ export const routes: RouteObject[] = [
                 element: <CustomerShell />,
                 children: [
                   { index: true, element: <CustomerHome /> },
-                  { path: 'calendar', element: <CustomerCalendar /> },
-                  { path: 'history', element: <CustomerHistory /> },
+                  { path: 'koledar', element: <CustomerCalendar /> },
+                  { path: 'zgodovina', element: <CustomerHistory /> },
                 ],
               },
             ],

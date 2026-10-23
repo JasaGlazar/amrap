@@ -62,11 +62,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (currentUserId.current !== null) await loadCustomer(currentUserId.current);
   }, [loadCustomer]);
 
-  const signOut = useCallback(async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) console.warn('sign out failed', error.message);
-  }, []);
-
   const value = useMemo<AuthState>(() => {
     const customer = loaded !== null && loaded.userId === userId ? loaded.customer : null;
     const customerKnown = userId === null || (loaded !== null && loaded.userId === userId);
@@ -77,9 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lookupFailed: loaded !== null && loaded.userId === userId && loaded.failed,
       role: customer?.role ?? null,
       refresh,
-      signOut,
     };
-  }, [session, userId, loaded, refresh, signOut]);
+  }, [session, userId, loaded, refresh]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -14,12 +14,12 @@ stubs and are built out in Stage 2 (see `PLAN.md`, "Screens").
 | `/invite/:token` | anyone | Sign-up from an invite link: email, password, confirm password. Creates the auth user (or signs in when that account already exists but is unlinked), calls `accept_invite(token)`, reloads the customer record and goes to `/`. A rejected invite shows its `errors.AMRAP_*` copy. | `invite`, `errors`, `authErrors` | Stage 1 |
 | `/logout` | anyone | Signs out and redirects to `/login` (a route loader). If signing out fails it stays and shows the error with a continue link. | `logoutFailed`, `common.continue`, `genericError` | Stage 1 |
 | `/` | signed in | Redirects to `/t` for the trainer or `/c` for a customer. | none | Stage 1 |
-| (any route below `/`) | signed in, customer lookup failed | Error page with retry and sign-out buttons. | `lookupFailed`, `common.signOut` | Stage 1 |
-| (any route below `/`) | signed in, no `customers` row | "Account not linked" page with a sign-out button. Shown instead of the route, URL unchanged. | `notLinked`, `common.signOut` | Stage 1 |
-| `/c` | customer | Customer shell with bottom navigation (Home, Calendar, History). Home shows the balance from `customer_balances` (red when negative) and "no upcoming appointments". | `nav`, `customer` | Home balance Stage 1; upcoming list placeholder |
-| `/c/calendar` | customer | Book open slots, cancel with free/late warning. | `customer.calendarTitle`, `common.comingSoon` | placeholder |
-| `/c/history` | customer | Past appointments and readable ledger. | `customer.historyTitle`, `common.comingSoon` | placeholder |
-| `/t` | trainer | Trainer shell with bottom navigation (Today, Calendar, Customers, Settings). Index is Today. | `nav`, `trainer` | placeholder |
+| (any route below `/`) | signed in, customer lookup failed | Error page with a retry button and a sign-out link to `/logout`. | `lookupFailed`, `common.signOut` | Stage 1 |
+| (any route below `/`) | signed in, no `customers` row | "Account not linked" page with a sign-out link to `/logout`. Shown instead of the route, URL unchanged. | `notLinked`, `common.signOut` | Stage 1 |
+| `/c` | customer | Customer shell: top bar with the app name and a sign-out link to `/logout`, bottom navigation (Home, Calendar, History). Home shows the balance from `customer_balances` (red when negative) and "no upcoming appointments". | `nav`, `customer` | Home balance Stage 1; upcoming list placeholder |
+| `/c/koledar` | customer | Book open slots, cancel with free/late warning. | `customer.calendarTitle`, `common.comingSoon` | placeholder |
+| `/c/zgodovina` | customer | Past appointments and readable ledger. | `customer.historyTitle`, `common.comingSoon` | placeholder |
+| `/t` | trainer | Trainer shell: the same top bar with sign-out, bottom navigation (Today, Calendar, Customers, Settings). Index is Today. | `nav`, `trainer` | placeholder |
 | `/t/calendar` | trainer | Week view of all customers, capacity per slot. | `trainer.calendarTitle`, `common.comingSoon` | placeholder |
 | `/t/customers` | trainer | Balances, ledger, top-up, adjust, invite link. | `trainer.customersTitle`, `common.comingSoon` | placeholder |
 | `/t/settings` | trainer | Slot templates, cutoff hours, blocked periods. | `trainer.settingsTitle`, `common.comingSoon` | placeholder |
@@ -36,7 +36,7 @@ How the guards and the auth state work is in [auth.md](auth.md).
 - `RequireRole('customer' | 'trainer')` wraps `/c` and `/t`. A user of the other role is
   redirected straight to their own home (`/t` or `/c`).
 - If the customers lookup fails (network, server error, paused project) `RequireAuth` shows an
-  error page with a retry button and a sign-out button instead of the not-linked page, so an
+  error page with a retry button and a sign-out link instead of the not-linked page, so an
   outage is not mistaken for an unlinked account.
 - The role comes from the signed-in user's `customers` row (`role`), selected by
   `auth_user_id`; it is never read from auth metadata (ADR 0006). The database enforces the

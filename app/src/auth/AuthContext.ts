@@ -12,7 +12,6 @@ export type AuthState = {
   lookupFailed: boolean;
   role: Role | null;
   refresh: () => Promise<void>;
-  signOut: () => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthState | null>(null);

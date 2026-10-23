@@ -111,7 +111,7 @@ describe('signed-in user without a customers row', () => {
 
   it('can sign out from the not-linked page', async () => {
     const router = renderAt('/');
-    await userEvent.click(await screen.findByRole('button', { name: t.common.signOut }));
+    await userEvent.click(await screen.findByRole('link', { name: t.common.signOut }));
     await screen.findByRole('heading', { name: t.login.title });
     expect(router.state.location.pathname).toBe('/login');
   });
@@ -142,7 +142,7 @@ describe('failed customers lookup', () => {
 
   it('can sign out', async () => {
     const router = renderAt('/c');
-    await userEvent.click(await screen.findByRole('button', { name: t.common.signOut }));
+    await userEvent.click(await screen.findByRole('link', { name: t.common.signOut }));
     await screen.findByRole('heading', { name: t.login.title });
     expect(router.state.location.pathname).toBe('/login');
   });
@@ -171,9 +171,19 @@ describe('shells', () => {
 
   it('navigates between customer placeholder pages', async () => {
     signedInAs(customer);
-    renderAt('/c');
+    const router = renderAt('/c');
     await userEvent.click(await screen.findByRole('link', { name: t.nav.history }));
     expect(await screen.findByRole('heading', { name: t.customer.historyTitle })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/c/zgodovina');
+  });
+
+  it('signs out from the customer shell through /logout', async () => {
+    signedInAs(customer);
+    const router = renderAt('/c');
+    await userEvent.click(await screen.findByRole('link', { name: t.common.signOut }));
+    await screen.findByRole('heading', { name: t.login.title });
+    expect(fakeSupabase.auth.signOut).toHaveBeenCalledOnce();
+    expect(router.state.location.pathname).toBe('/login');
   });
 
   it('shows the balance from customer_balances and no upcoming appointments', async () => {
@@ -297,7 +307,7 @@ describe('invite flow', () => {
   it('signs up, accepts the invite with the URL token and lands on the customer home', async () => {
     signUpCreatesSession();
     fakeSupabase.rpc.mockImplementation(async () => {
-      db.customer = customer; // what accept_invite does: link the auth user
+      db.customer = customer;
       return { data: customer.id, error: null };
     });
     const router = renderAt('/invite/tok-123');

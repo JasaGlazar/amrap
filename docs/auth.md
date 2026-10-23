@@ -31,7 +31,7 @@ carries the role; auth metadata is never read for it (ADR 0006).
 
 `AuthState` (`useAuth()`) exposes `loading` (true until the session is known and, for a
 signed-in user, the lookup for that user has finished), `session`, `customer`, `lookupFailed`,
-`role` (`customer.role` or null), `refresh` and `signOut` (logs a failure, does not throw).
+`role` (`customer.role` or null) and `refresh`.
 
 ## Role gating
 
@@ -57,8 +57,9 @@ offers sign out only (the trainer has to invite or re-link the record, see ADR 0
 
 `/logout` is a route loader: it calls `supabase.auth.signOut()` and redirects to `/login`. If
 signing out fails, the loader logs it and returns the `fromError` message, and
-`LogoutFailedPage` shows it with a continue link. The sign-out buttons on `NotLinkedPage` and
-`LookupFailedPage` call `signOut()` from the context instead, which only logs a failure.
+`LogoutFailedPage` shows it with a continue link. Every sign-out control links to `/logout`:
+the top bar of both shells, `NotLinkedPage` and `LookupFailedPage`, so a failed sign-out is
+always shown.
 
 ## Invite acceptance
 

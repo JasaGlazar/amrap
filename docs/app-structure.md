@@ -32,9 +32,11 @@ English. `fromError(error)` turns an error into copy:
 2. else a Supabase Auth `error.code` → `sl.authErrors[code]`;
 3. else `sl.genericError`.
 
-`sl.test.ts` checks that `sl.errors` has exactly the `AMRAP_*` tokens of the
-[rpcs.md](rpcs.md#error-tokens) table, that no string is empty, and that no non-test file in
-`src/` outside `src/i18n/` contains `č`, `š` or `ž` (a proxy for hardcoded Slovenian).
+`sl.test.ts` checks that every token in the [rpcs.md](rpcs.md#error-tokens) error table has
+an entry in `sl.errors`, that every `sl.errors` key appears in backticks somewhere in
+`rpcs.md`, that no string is empty, and that no `.ts`, `.tsx` or `.css` file in `src/` outside
+`src/i18n/` (tests and `lib/database.types.ts` excepted) contains `č`, `š` or `ž` (a proxy for
+hardcoded Slovenian).
 
 ## Data layer contract
 
