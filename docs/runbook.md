@@ -4,16 +4,47 @@ Supabase project "AMRAP", ref `etzkbwqgjuipihypokjp`, eu-central-1, Free Plan.
 
 ## Unpause a paused Supabase project
 
-The Free Plan pauses a project after about 7 days of low user-database activity (ADR 0005).
-The app's keep-alive read on every load normally prevents this.
+The Free Plan pauses a project after about 7 days of low user-database activity (ADR 0005;
+Supabase docs checked 2026-10-24: "a few user requests to the database each day" is typically
+enough). The app's keep-alive read on every signed-in load normally prevents this
+([auth.md](auth.md#keep-alive)). Supabase emails the owner roughly a week before pausing and
+again once paused. On the warning email, open the project in the dashboard or the app to
+generate activity; that is enough to prevent the pause.
+
+While paused, the app cannot load data (it shows the lookup-failed page), pg_cron does not run,
+and the edge function is unreachable. To restore:
 
 1. Open the Supabase dashboard and select the project "AMRAP".
-2. Click the restore/unpause button on the paused-project banner.
+2. Click the restore button on the paused-project banner (one click; available for 1 year
+   after the pause).
 3. Wait until the project status is healthy (a few minutes).
 4. Open the app and sign in to confirm data is intact.
+5. In the SQL editor, check that the jobs are back and running:
+   `select jobname, schedule, active from cron.job;` (three jobs) and, after the next quarter
+   hour, `select jobid, status, start_time from cron.job_run_details order by start_time desc
+   limit 10;`.
+6. Catch up by hand instead of waiting: `select public.materialize_recurring();` (creates the
+   instances the nightly runs missed) and `select public.charge_due_appointments();`.
+7. Push: check the Vault rows (`select name from vault.secrets where name like 'amrap_%';`, two
+   rows) and the function secrets (`supabase secrets list --project-ref etzkbwqgjuipihypokjp`);
+   both are project data and survive the pause. Trigger one notification as in
+   [Turn on push notifications](#turn-on-push-notifications) step 6.
 
-If the project stays paused past the restore window, download the backup from the dashboard
-before it is removed.
+What the pause changes for the business:
+
+- Every `booked` appointment whose start passed during the pause is charged by the first
+  charge run after the restore, as the rules say (nobody cancelled it). Customers could not
+  cancel while the app was down, so the trainer reviews those sessions and cancels the ones that
+  did not happen (trainer cancel of a charged appointment refunds it).
+- Reminders whose window passed during the pause are not sent afterwards; the job only looks
+  45 to 75 minutes ahead.
+- Recurring instances are only created from today onward, so occurrences that fell inside the
+  pause stay missing (nothing to charge).
+
+If the project stays paused for more than a year, the one-click restore is gone: download the
+database backup from the project dashboard and restore it into a new project (Supabase guide
+"Restore a project paused for more than 1 year"); that is a new project ref, so the app's
+environment variables, the push secrets and the Vault rows have to be set again.
 
 ## Bootstrap the trainer
 
