@@ -85,7 +85,8 @@ cutoff; no duplicate reminders.
 checklist skill. Branch `stage-4-pilot`.
 **Success Criteria**: Trainer runs one full week on AMRAP without the paper sheet.
 **Tests**: manual E2E on both roles on real phones.
-**Status**: In Progress (plan approved; Tasks 15-18 done, Task 19 not started)
+**Status**: Complete (PR open; trial week pending). Owner actions: "Stage 4 owner actions"
+below; open questions: "Stage 4 open questions".
 
 ## Workflow (from 2026-10-23 evening)
 
@@ -348,6 +349,94 @@ the two Stage 3 migrations (Workflow); exact steps in `docs/runbook.md`.
   `adjustment -2` row with the note "Začetno stanje (papir)", the detail page opened with an
   empty note field; `/t/stranke` with the new field: `scrollWidth` 360, no target under 44 px.
   Not checked in a browser: a positive starting balance and the failure path (unit tests).
+
+- Task 18 review fixes: blocked-period overlap warning (count of live bookings, second
+  **Shrani**; pilot guide and an owner question), unreadable starting balance rejected
+  (`validity.badInput`), failed starting balance prefilled and shown once, pilot wording,
+  invite-flow diagram, release-checklist `--linked` and first-run baseline, stronger dialog tests
+  and the iOS scroll-lock caveat.
+- Task 19 done: end-to-end below; Stage 4 complete, the trial week is open. Local stack stopped.
+  The local VAPID pair for the check is in the gitignored `supabase/functions/.env` and
+  `app/.env.local`.
+
+### Stage 4 end-to-end check (Task 19, 2026-10-24)
+
+Fresh `supabase db reset`, production build with a local VAPID key, headless Google Chrome 155 at
+360×800 (one profile for the trainer, one for the customer), driven over DevTools by script
+(fields set through the native value setter, buttons clicked by their text), following
+`docs/pilot.md` literally. Local time Saturday 24 Oct, 02:15-02:31.
+
+Verified:
+- Prvi dan: cutoff saved (5); three slot templates from the form (today 05:00, today 08:20,
+  Sunday 10:00) next to the seed's; a known blocked period (24-27 Dec); **Nova stranka** "Petra
+  Pilot" with starting balance 5 → detail page with "+5 Začetno stanje (papir)"; recurring rule
+  Sunday 10:00 → "Novih terminov: 4" (25 Oct to 15 Nov); invite created and its link copied.
+- Trainer before day one: **Vklopi obvestila** on **Nastavitve** created a real FCM subscription.
+- Customer, following the forwarded text: the invite link, »Ustvari račun«, landed on `/c` with
+  the install card (Chrome's `beforeinstallprompt` fired, **Namesti aplikacijo** shown);
+  `accept_invite` answered 200 at once (no PGRST303 this time, fetch log at document start);
+  **Vklopi obvestila** on **Domov** (FCM subscription); booked today 05:00 and 08:20 in
+  **Koledar**; cancelled Sunday 10:00 (dialog: "Odpoved je brezplačna.") and today 05:00 (dialog:
+  "Pozna odpoved: zaračunan bo 1 kredit."), balance 5 → 4.
+- Notifications: two `booking_created` for the trainer and one `booking_cancelled`; the reminder
+  job by hand while 08:20's cutoff was 61 minutes away returned 1, then 0; `credit_topup` for
+  the customer. `send-push` answered `{"claimed":1,"sent":1,…}` for the first three (real FCM);
+  then FCM reported both headless registrations gone and `send-push` deleted them
+  (`removed: 1`), so the later late-cancel and waiver recorded no notification, as specified.
+- Trainer daily check: **Danes** with today's slots and names, no debtors. Trainer booked Petra
+  into last Saturday 05:00 in **Koledar** (‹), `charge_due_appointments()` charged it; on her
+  page: top-up 8 with a long note, waiver `+1` »Popravi stanje« with "Oprostitev pozne
+  odpovedi", trainer cancel of the charged appointment (dialog: "Odpoved z vračilom …") →
+  refund. Balance 13 = 5 − 1 − 1 + 8 + 1 + 1. Ledger at 360 px: every amount on one line
+  (24 px), including `+8` beside the long note (the Task 17 open item).
+- After the Task 18 fixes: a blocked period 07:00-09:00 today warned "rezerviranih terminov: 1"
+  and saved on the second **Shrani**; the trainer then cancelled the 08:20 booking in
+  **Koledar** ("Stranki se kredit ne zaračuna.", `cancelled_by_trainer`); **Nova stranka** with
+  `2.5` was refused with `customers.startingInvalid`, with `3` created "+3 Začetno stanje
+  (papir)".
+- The owner checks in `pilot.md` run as written: the job query listed `charge_due_appointments`
+  and `send_cutoff_reminders` succeeding at 02:30; uncharged started bookings 0; the
+  notification and `net._http_response` queries.
+- The pilot guide needed no change from this run beyond the Task 18 review fixes.
+
+Not verified:
+- Real phones (install, push delivered and shown, notification click, iOS); FCM into these
+  headless browsers is dropped after a few pushes, as in Stage 3.
+- Real keyboard input: clicks and typing were scripted (headless input events do not reach the
+  page, see Task 15); an unreadable number from a phone keyboard (`badInput`) is unit-tested.
+- The starting-balance failure path in a browser (unit-tested); PGRST303 did not recur, so the
+  retry was not exercised against the stack.
+
+### Stage 4 owner actions (consolidated)
+
+1. Hosted push first: Stage 3 owner actions 1-8 (VAPID pair and secrets, deploy `send-push`,
+   Vault rows, `VITE_VAPID_PUBLIC_KEY` on Pages, phone check). Without them there are no
+   reminders.
+2. After the Stage 4 merge, release with the `release-checklist` skill (no migration and no
+   function change in Stage 4: Pages deploy and the smoke test).
+3. The trainer answers `docs/copy-review.md` and signs it off; one commit then applies the
+   answers to `sl.ts` and deletes the file (its README entry, `reviewer.md` item 5, harness
+   mention).
+4. Android Chrome: **Namesti aplikacijo** opens the install dialog; accepting hides the card,
+   declining leaves the menu steps; after installing, AMRAP opened in a browser tab shows no
+   card; push from the installed app.
+5. iPhone Safari: the card's Share steps; Add to Home Screen; launched from the home screen there
+   is no card and the toggle offers **Vklopi obvestila**; push from the installed app; the page
+   behind the open cancel dialog does not scroll; the credits amount keyboard has a minus key.
+6. **Ne zdaj** is remembered on each device.
+7. On the trainer's phone: the customer and blocked-period forms do not offer the trainer's own
+   name, phone or email.
+8. The trial week with `docs/pilot.md`; record the outcome in the Stage 4 issue.
+
+### Stage 4 open questions (for the owner and the trainer, not decided)
+
+1. Should a trainer cancel notify the customer? (Stage 3, not built.)
+2. Does the trainer want a veto over self-bookings? (`PLAN.md` open question 1.)
+3. Should adding a blocked period cancel the live bookings inside it (`cancelled_by_trainer`,
+   refund if charged) instead of only warning?
+4. The copy questions in `docs/copy-review.md` (vi or ti, the word "kredit", "Opravljeno" and
+   "Vadba" for a charged session, "Odpovedal trener", "Dolžniki", hour style).
+5. Technical, open: the cause of the PGRST303 401s (`docs/auth.md`); the single retry stays.
 
 ### Stage 4 Task 15 browser check (2026-10-24, local stack, production build)
 
