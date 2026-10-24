@@ -410,3 +410,19 @@ describe('blocked periods', () => {
     expect(db.tables.blocked_periods).toHaveLength(0);
   });
 });
+
+describe('empty sections', () => {
+  it('shows the empty line instead of an empty list', async () => {
+    db.tables.slot_templates = [];
+    db.tables.blocked_periods = [];
+    renderSettings();
+    for (const [name, empty] of [
+      [t.settings.templatesTitle, t.settings.noTemplates],
+      [t.settings.blockedTitle, t.settings.noBlocked],
+    ]) {
+      const section = await screen.findByRole('region', { name });
+      expect(within(section).getByText(empty)).toBeVisible();
+      expect(within(section).queryByRole('list')).toBeNull();
+    }
+  });
+});

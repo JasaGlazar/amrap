@@ -341,18 +341,27 @@ How the guards and the auth state work is in [auth.md](auth.md).
     buttons stay on one line together, and a tag sits next to the text it describes;
   - links are the accent colour (never the browser's default blue);
   - a disabled button is neutral, whatever its kind: surface background, muted text, no
-    outline and no opacity; an enabled secondary button has a 1 px `--control-border` outline,
-    so an enabled and a disabled one are told apart (for example the week arrows);
+    outline and no opacity; on a card it keeps a 1 px `--border` outline so it still reads as a
+    button. An enabled secondary button has a 1 px `--control-border` outline, so an enabled
+    and a disabled one are told apart (for example the week arrows);
   - safe-area insets on the top bar, the page sides, the bottom navigation and the dialog;
   - errors are `role="alert"`, results `role="status"`.
 
 - **Spacing.** One scale in `styles.css`, `--space-1` to `--space-7` (4, 8, 12, 16, 24, 32,
-  48 px). Components carry no outer margins; the context sets the gap: blocks on a page are
-  `--space-6` apart, the page title sits `--space-5` above the first block, a section heading
-  `--space-3` above its content, blocks inside a section `--space-4` apart, form fields
-  `--space-4`. In a card that is not a form, text lines stay together and a form, a notice or a
-  button sits `--space-3` below the text above it. A form's submit button (or its row of buttons) is full width below 480 px and its
-  natural width from 480 px.
+  48 px). Components carry no outer margins; the context sets the gap:
+  - on a page: blocks `--space-6` apart, the back link `--space-2` above the title, the title
+    `--space-5` above the first block, the week navigation `--space-5` above the next block, a
+    page-level heading `--space-3` above its content;
+  - in a section: the heading `--space-3` above its content, blocks `--space-4` apart; a list
+    is shown only when it has items (otherwise the empty line); a form opened inside a list
+    row (**Uredi**) sits `--space-3` from the rows around it;
+  - in a form card: the heading, fields, notices and buttons are all `--space-4` apart (the
+    form gap, so also heading to first field);
+  - in a card that is not a form: text lines stay together, and a form, a notice or a button
+    sits `--space-3` below the text above it.
+
+  A form's submit button (or its row of buttons) is full width below 480 px and its natural
+  width from 480 px.
 
 - **Signed numbers.** Balances and ledger amounts are formatted with `Intl.NumberFormat('sl-SI')`,
   which writes the minus as U+2212 (`−3`), never a hyphen: `formatBalance` for a balance (`4`,
