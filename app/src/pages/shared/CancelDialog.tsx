@@ -20,7 +20,10 @@ function keepFocusInside(dialog: HTMLElement, event: KeyboardEvent) {
   const first = items[0];
   const last = items[items.length - 1];
   const active = document.activeElement;
-  if (event.shiftKey && (active === first || active === dialog)) {
+  if (!dialog.contains(active)) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  } else if (event.shiftKey && (active === first || active === dialog)) {
     event.preventDefault();
     last.focus();
   } else if (!event.shiftKey && active === last) {

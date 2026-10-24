@@ -270,6 +270,27 @@ describe('cancel dialog', () => {
     expect(within(row).getByRole('button', { name: t.slot.cancel })).toHaveFocus();
   });
 
+  it('brings Tab back into the dialog after its focused button was disabled', async () => {
+    const dialog = await openDialog();
+    fakeSupabase.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'AMRAP_NOT_CANCELLABLE: already charged' },
+    });
+    const confirm = within(dialog).getByRole('button', { name: t.cancelDialog.confirm });
+    await userEvent.click(confirm);
+    await within(dialog).findByRole('alert');
+    expect(confirm).toBeDisabled();
+    const outside = screen.getByRole('link', { name: t.common.signOut });
+    outside.focus();
+    expect(dialog).not.toContainElement(document.activeElement as HTMLElement);
+
+    await userEvent.tab();
+    expect(within(dialog).getByRole('button', { name: t.cancelDialog.back })).toHaveFocus();
+    outside.focus();
+    await userEvent.tab({ shift: true });
+    expect(within(dialog).getByRole('button', { name: t.cancelDialog.back })).toHaveFocus();
+  });
+
   it('stops the page behind it from scrolling while it is open', async () => {
     await openDialog();
     expect(document.documentElement.style.overflow).toBe('hidden');

@@ -80,8 +80,9 @@ data.
   cutoff) or `cancelDialog.late` (`zaračunan bo 1 kredit`, from the cutoff on), like `cancel()`.
 - While it is open the page behind it does not scroll (`overflow: hidden` on the root element,
   restored on close).
-- It takes focus when it opens, keeps Tab and Shift+Tab inside, and Escape and **Nazaj** close
-  it; on close, focus returns to the button that opened it (when that button still exists).
+- It takes focus when it opens and keeps Tab and Shift+Tab inside, also when focus has left it
+  (for example the focused **Odpovej termin** was disabled after a server error: the next Tab
+  goes to the first enabled button, Shift+Tab to the last). Escape and **Nazaj** close it; on close, focus returns to the button that opened it (when that button still exists).
 - **Odpovej termin** first re-checks free vs late against the current time. If the answer
   changed since the dialog opened (it stayed open past the cutoff), it only switches the copy
   and does not cancel; a second click confirms. Otherwise it calls `cancel`; on success the
