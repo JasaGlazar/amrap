@@ -20,6 +20,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `20261023215339_event_notifications.sql` | `enqueue_notification()`, the trigger functions `notify_booking_created()`, `notify_booking_cancelled()`, `notify_credit_change()` and their triggers on `appointments` and `credit_transactions`; the https-only check on `push_subscriptions.endpoint`; `save_push_subscription()`; grants ([notifications.md](notifications.md#event-notifications)). |
 | `20261024193349_data_retention.sql` | `prune_cron_history()` and its grants; the `prune_cron_history` schedule that keeps the pg_cron run log to 14 days ([jobs.md](jobs.md), [ADR 0013](adr/0013-data-retention.md)). |
 | `20261024221416_trainer_cancel_reason.sql` | `appointments.cancel_reason` and its check; the `appointment_cancelled_by_trainer` notification kind; `cancel(uuid)` dropped and recreated as `cancel(uuid, text default null)` with the same grants; `notify_cancelled_by_trainer()` and its trigger ([rpcs.md](rpcs.md#cancel), [notifications.md](notifications.md#event-notifications), [ADR 0015](adr/0015-trainer-cancel-notifies-customer.md)). |
+| `20261024222414_cancel_occurrence.sql` | `cancel_occurrence()` and its grants; `book()` and `materialize_rule()` replaced to take the advisory lock before the blocked-period check ([rpcs.md](rpcs.md#cancel_occurrence), [ADR 0016](adr/0016-cancel-occurrence-closes-it.md)). |
 
 ## Enums
 
@@ -149,7 +150,8 @@ Indexes:
 
 ### blocked_periods
 
-A time range (holiday, closure) in which booking is not allowed.
+A time range (holiday, closure) in which booking is not allowed. The trainer adds one in
+Settings, or `cancel_occurrence()` adds one for exactly the occurrence it cancels (ADR 0016).
 
 | Column | Type | Notes |
 |---|---|---|

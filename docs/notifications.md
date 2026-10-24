@@ -43,7 +43,7 @@ the customer's subscription appears while the cutoff is in the window.
 | `booking_cancelled` | the trainer | trigger on a customer's cancel | `appointment_id`, `customer_name`, `starts_at`, `late` (true for `cancelled_late`), `timezone` |
 | `credit_topup` | the customer | trigger on a `topup` row | `transaction_id`, `amount`, `note` (or null), `balance` (after the row) |
 | `credit_adjustment` | the customer | trigger on an `adjustment` row | `transaction_id`, `amount` (signed), `note` (or null), `balance` (after the row) |
-| `appointment_cancelled_by_trainer` | the appointment's customer | trigger on a trainer cancel (`cancel()` by the trainer, `deactivate_rule()`) | `appointment_id`, `starts_at`, `timezone`, `refunded` (true when the appointment was `charged`, so a refund was written), `reason` (the trimmed reason, or null) |
+| `appointment_cancelled_by_trainer` | the appointment's customer | trigger on a trainer cancel (`cancel()` by the trainer, `cancel_occurrence()`, `deactivate_rule()`) | `appointment_id`, `starts_at`, `timezone`, `refunded` (true when the appointment was `charged`, so a refund was written), `reason` (the trimmed reason, or null) |
 
 Appointment kinds set `notifications.appointment_id`; credit kinds set `transaction_id` and
 leave `appointment_id` null.
@@ -132,7 +132,7 @@ knows about push:
 |---|---|---|
 | A customer books (`book()` by a customer) | `after insert on appointments`, `source = 'self_booked'` | the trainer, `booking_created` |
 | A customer cancels (`cancel()` by a customer) | `after update of status`, `booked` → `cancelled` or `cancelled_late` | the trainer, `booking_cancelled` |
-| The trainer cancels (`cancel()` by the trainer, `deactivate_rule()`) | `after update of status`, `booked` or `charged` → `cancelled_by_trainer` | the customer, `appointment_cancelled_by_trainer` |
+| The trainer cancels (`cancel()` by the trainer, `cancel_occurrence()`, `deactivate_rule()`) | `after update of status`, `booked` or `charged` → `cancelled_by_trainer` | the customer, `appointment_cancelled_by_trainer` |
 | The trainer tops up or adjusts | `after insert on credit_transactions`, `type in ('topup', 'adjustment')` | the customer, `credit_topup` / `credit_adjustment` |
 
 Nothing else notifies: trainer bookings (`source = 'trainer'`), materialization
@@ -144,7 +144,9 @@ A trainer cancel tells the customer (issue #18, [ADR 0015](adr/0015-trainer-canc
 `refunded` comes from the old status (`charged`), because `cancel()` inserts the refund after
 the status update, when the row trigger has already run. `deactivate_rule()` cancels a rule's
 future booked instances in one statement and the trigger sends one notification per instance,
-without a reason; materialization keeps four weeks, so that is at most about five. A customer
+without a reason; materialization keeps four weeks, so that is at most about five.
+`cancel_occurrence()` (ADR 0016) cancels a whole session the same way: one notification per
+customer, each with the session's reason and its own `refunded`. A customer
 without push still sees the cancel and its reason in **Zgodovina**
 ([screens.md](screens.md#history-czgodovina)), which reads `appointments.cancel_reason`, not
 this log.

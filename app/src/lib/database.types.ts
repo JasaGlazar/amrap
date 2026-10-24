@@ -449,6 +449,10 @@ export type Database = {
         Args: { p_appointment_id: string; p_reason?: string }
         Returns: undefined
       }
+      cancel_occurrence: {
+        Args: { p_reason?: string; p_starts_at: string; p_template_id: string }
+        Returns: number
+      }
       charge_due_appointments: { Args: never; Returns: number }
       claim_notifications: {
         Args: { p_ids: string[] }
