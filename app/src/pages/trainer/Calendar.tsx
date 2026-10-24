@@ -1,4 +1,4 @@
-import { useCallback, useId, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useId, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { book, type Appointment, type Booking } from '../../data/appointments';
 import { listCustomers } from '../../data/customers';
@@ -92,7 +92,7 @@ export function TrainerCalendar() {
   const chosen = parseLocalDate(params.get(dayParam));
   const shownStart = chosen === null ? null : weekStart(chosen);
   const [loadedWeek, setLoadedWeek] = useState(shownStart);
-  const knownToday = useRef<LocalDate | null>(null);
+  const [today, setToday] = useState<LocalDate | null>(null);
   const load = useCallback(async () => {
     const now = new Date();
     const [week, customers] = await Promise.all([
@@ -100,11 +100,12 @@ export function TrainerCalendar() {
       listCustomers(supabase),
     ]);
     const today = localDateOf(now, week.settings.timeZone);
-    knownToday.current = today;
+    setToday(today);
     return { week, customers, today };
   }, [loadedWeek]);
   const [state, reload] = useLoad(load);
   const wide = useMediaQuery(weekGrid);
+  const [shownWide, setShownWide] = useState(wide);
   const [message, setMessage] = useState<Notice>(null);
   const [pending, setPending] = useState(false);
   const [cancelling, setCancelling] = useState<Appointment | null>(null);
@@ -127,6 +128,10 @@ export function TrainerCalendar() {
   const sameWeek =
     shownStart === loadedWeek || (loadedWeek === null && shownStart === data?.week.start);
   if (!sameWeek) setLoadedWeek(shownStart);
+  if (wide !== shownWide) {
+    setShownWide(wide);
+    setAddingTo(null);
+  }
 
   function selectDay(day: LocalDate) {
     setMessage(null);
@@ -136,15 +141,18 @@ export function TrainerCalendar() {
 
   function goToWeek(step: number) {
     const base = shownStart ?? data?.week.start;
-    if (base === undefined) return;
+    if (base === undefined || today === null) return;
     const target = addDays(base, step * 7);
+    if (parseLocalDate(target) === null) return;
     setAddingAdHoc(false);
-    selectDay(knownToday.current === null ? target : defaultDayOf(target, knownToday.current));
+    selectDay(defaultDayOf(target, today));
   }
 
   const names = new Map(data?.customers.map((customer) => [customer.id, customer.name]));
   const timeZone = data?.week.settings.timeZone ?? '';
   const selected = data === null ? null : (chosen ?? defaultDayOf(data.week.start, data.today));
+  const stripStart = data?.week.start ?? shownStart;
+  const stripDay = selected ?? chosen;
 
   function roster(slot: WeekSlot) {
     if (data === null) return null;
@@ -205,18 +213,13 @@ export function TrainerCalendar() {
       </div>
       <WeekNav
         start={data?.week.start ?? shownStart}
-        disabled={shownStart === null && data === null}
+        disabled={today === null}
         canGoBack
         onPrevious={() => goToWeek(-1)}
         onNext={() => goToWeek(1)}
       />
-      {!wide && data !== null && selected !== null && (
-        <DayStrip
-          start={data.week.start}
-          selected={selected}
-          today={data.today}
-          onSelect={selectDay}
-        />
+      {!wide && stripStart !== null && stripDay !== null && today !== null && (
+        <DayStrip start={stripStart} selected={stripDay} today={today} onSelect={selectDay} />
       )}
       <NoticeLine notice={message} />
       {state.status === 'loading' && <p className="status">{t.common.loading}</p>}

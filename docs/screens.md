@@ -139,7 +139,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 
 - **Week and day in the URL:** `?dan=YYYY-MM-DD` (the selected day, a local date in the gym
   timezone) is the only state in the URL, and its week (Monday to Sunday) is the week shown.
-  Without it, or with a value that is not a real date, the calendar shows the current week.
+  Without it, or with a value that is not a real date in the years 2000-2099, the calendar
+  shows the current week; `›` does nothing in the last week of 2099.
   The **default day** of a week is today when today is in it, otherwise its Monday; it is what
   the day view selects when `dan` is missing, and what `‹` / `›` write. Week navigation and
   the day buttons both write `dan` with `replace` (React Router `setSearchParams(…, { replace:
@@ -149,9 +150,10 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   today.
 - **Week:** like the customer calendar, but `‹` is never disabled: the trainer can open past
   weeks (to record a session after the fact; `book()` lets the trainer book past occurrences).
-  The range under the arrows follows the URL at once, while the new week loads. Before the
-  first week has loaded on a bare `/t/koledar` (and after that load failed) both arrows are
-  disabled: the current week's Monday is not known until the settings give the timezone.
+  The range under the arrows follows the URL at once, while the new week loads, and so does
+  the day view's strip when `dan` is set (the page does not jump on a week change). Until the
+  first week has loaded (and after that load failed) both arrows are disabled: today, and so
+  the default day of the week they open, is not known until the settings give the timezone.
 - **Data:** `loadWeek` with the week's Monday (`start`) and without a customer id (all
   customers' live appointments), and `listCustomers`. Choosing another day in the same week
   does not reload, also when the first press adds `dan` to a bare `/t/koledar`: the loaded
@@ -170,25 +172,32 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     that day's occurrence rows; then **Termini zunaj urnika** with that day's appointments
     outside the grid, only when there are any (as on Today). A day with neither shows
     `trainer.noSlotsOnDay`. Pressing a day closes an open add control and clears the notice.
+    So does crossing 1024 px while the control is open (a resize or a tablet turned), since
+    the other view would mount the control again without its focus.
   - **From 1024 px, the week grid** (`CalendarWeek.tsx`): seven columns in a `wide` box
     ([Wide views](#behaviour-shared-by-all-screens)), each a `section` named by its `h2`
-    ("Ponedeljek 26. 10.", the date on a second line so every heading has the same height); today's column has `aria-current="date"` on its heading, the
+    ("Ponedeljek 26. 10.", the date on a second line so every heading has the same height);
+    today's column has `aria-current="date"` on its heading, the
     `trainer.todayTag` tag ("danes") and a 2 px ink rule under the heading. A column lists its
     occurrences and its appointments outside the grid together, by start time, as compact
-    cards: an occurrence card has the start time, duration, `Prosta mesta`, `Zaprto` as a tag
-    when blocked, and the same roster and add control as a row in the day view; an
+    cards: an occurrence card has the start time, duration, `Prosta mesta` (one unbreakable
+    line each, like the customer row's parts), `Zaprto` as a tag when blocked, and the same roster and add control as a row in the day view; an
     appointment outside the grid shows its time range, its tag (`po dogovoru` or `ni več v
     urniku`) and the customer with **Odpovej** on a grey card, named like a row
     (`{day} ob {from}–{to}`). There is no separate **Termini zunaj urnika** list. Columns are
-    at least 8 rem wide: from about 1170 px the whole week fits (1280 px: 976 px, 136 px a
-    column); at 1024-1169 px the grid scrolls sideways inside its box. A column narrower than
+    at least 8.5 rem wide, the room "Prosta mesta: 0 od 5" needs on one line: from 1280 px the
+    whole week is visible (976 px, 136 px a column); at 1024-1279 px the grid scrolls sideways
+    inside its box. A column narrower than
     8.75 rem drops the `+` icon from **Dodaj stranko**, so the button keeps one line; a
     disabled reason as long as **Ni strank za dodajanje** may wrap inside its card, the one
     exception to buttons never wrapping. A disabled button keeps the card's 1 px `--line`
     outline, the add control's select stays 16 px, and a card's focus ring is drawn inside it,
-    so the `wide` box never clips it. Names in a
-    card wrap between words, and **Odpovej** moves under a name that leaves it no room; the
-    open add control puts the select on its own line and **Dodaj** and **Prekliči** under it.
+    so the `wide` box never clips it. Each roster row in a card is a two-column grid (name,
+    then `opravljeno` under it, on the left; **Odpovej** on the right, centred against
+    them), so the button never drops under the name; the name wraps inside its column (13 px,
+    with a tighter card and button padding, so the demo names wrap between words at 1280 px).
+    The open add control puts the select on its own line and **Dodaj** and **Prekliči** under
+    it.
 - **Unchanged in both views:** **Dodaj stranko** and its disabled reasons, the cancel dialog,
   **Nov termin po dogovoru**, past weeks, `Zaprto` and `Polno`. Occurrences are bucketed by
   their local date (`occurrenceInWeek`) and appointments outside the grid by

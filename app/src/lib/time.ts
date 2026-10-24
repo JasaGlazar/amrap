@@ -56,7 +56,7 @@ export function weekStart(date: LocalDate): LocalDate {
 }
 
 export function parseLocalDate(value: string | null): LocalDate | null {
-  if (value === null || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  if (value === null || !/^20\d{2}-\d{2}-\d{2}$/.test(value)) return null;
   return addDays(value, 0) === value ? value : null;
 }
 

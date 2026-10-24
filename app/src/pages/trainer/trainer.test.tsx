@@ -200,6 +200,8 @@ describe('today', () => {
 });
 
 describe('appointments outside the slot grid', () => {
+  beforeEach(() => showView('day'));
+
   const retired = { ...todayTemplate, id: 'tpl-retired', start_time: '09:00:00', active: false };
   const retiredStart = occurrenceInWeek(retired, weekStart(today), tz)!.startsAt;
 
@@ -569,6 +571,43 @@ describe('trainer calendar day view', () => {
     );
   });
 
+  it('ignores › past the last week of 2099', async () => {
+    const router = renderAt('/t/koledar?dan=2099-12-28');
+    await screen.findByRole('group', { name: t.trainer.days });
+    await userEvent.click(screen.getByRole('button', { name: t.calendar.nextWeek }));
+    expect(router.state.location.search).toBe('?dan=2099-12-28');
+  });
+
+  it('keeps the arrows disabled until the first week has loaded, also with a day in the URL', async () => {
+    const release = holdTable('slot_templates');
+    renderAt(`/t/koledar?dan=${addDays(monday, -7)}`);
+    expect(await screen.findByRole('button', { name: t.calendar.nextWeek })).toBeDisabled();
+    release();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: t.calendar.nextWeek })).toBeEnabled(),
+    );
+    await userEvent.click(screen.getByRole('button', { name: t.calendar.nextWeek }));
+    await waitFor(() => expect(dayButton(today)).toHaveAttribute('aria-pressed', 'true'));
+  });
+
+  it('keeps the day strip while the next week loads', async () => {
+    renderAt(`/t/koledar?dan=${today}`);
+    await screen.findByRole('group', { name: t.trainer.days });
+    const release = holdTable('slot_templates');
+    await userEvent.click(screen.getByRole('button', { name: t.calendar.nextWeek }));
+    expect(screen.getByText(t.common.loading)).toBeInTheDocument();
+    expect(dayButton(addDays(monday, 7))).toHaveAttribute('aria-pressed', 'true');
+    release();
+    await waitFor(() => expect(screen.queryByText(t.common.loading)).not.toBeInTheDocument());
+  });
+
+  it('defaults the ad-hoc date to the selected day', async () => {
+    const thursday = addDays(monday, 3);
+    renderAt(`/t/koledar?dan=${thursday}`);
+    const form = await openAdHoc();
+    expect(within(form).getByLabelText(t.trainer.date)).toHaveValue(thursday);
+  });
+
   it('opens the day and the week named in the URL', async () => {
     const day = addDays(monday, 10);
     renderAt(`/t/koledar?dan=${day}`);
@@ -814,5 +853,45 @@ describe('trainer calendar across the autumn DST change', () => {
     ).toBeInTheDocument();
     expect(within(column).getByText(nameOf('c-bor'))).toBeInTheDocument();
     expect(within(dayColumn(saturday)).queryByText(nameOf('c-bor'))).not.toBeInTheDocument();
+  });
+});
+
+describe('trainer calendar when the window crosses 1024 px', () => {
+  let wide = false;
+  const listeners = new Set<() => void>();
+
+  beforeEach(() => {
+    wide = false;
+    listeners.clear();
+    window.matchMedia = vi.fn(
+      (query: string) =>
+        ({
+          matches: query === '(min-width: 64rem)' && wide,
+          addEventListener: (_: string, listener: () => void) => listeners.add(listener),
+          removeEventListener: (_: string, listener: () => void) => listeners.delete(listener),
+        }) as unknown as MediaQueryList,
+    );
+  });
+
+  function resize(toWide: boolean) {
+    act(() => {
+      wide = toWide;
+      listeners.forEach((listener) => listener());
+    });
+  }
+
+  it.each([
+    ['day view to week grid', false],
+    ['week grid to day view', true],
+  ])('closes an open add control when it switches from the %s', async (_, startWide) => {
+    wide = startWide;
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await userEvent.click(within(row).getByRole('button', { name: t.trainer.addCustomer }));
+    expect(within(row).getByRole('combobox')).toHaveFocus();
+    resize(!startWide);
+    const moved = screen.getByRole('listitem', { name: slotLabel(startsAt) });
+    expect(within(moved).queryByRole('combobox')).not.toBeInTheDocument();
+    expect(within(moved).getByRole('button', { name: t.trainer.addCustomer })).toBeVisible();
   });
 });

@@ -50,6 +50,11 @@ describe('parseLocalDate', () => {
     expect(parseLocalDate('2028-02-29')).toBe('2028-02-29');
   });
 
+  it('accepts the first and last day of the years 2000-2099', () => {
+    expect(parseLocalDate('2000-01-01')).toBe('2000-01-01');
+    expect(parseLocalDate('2099-12-31')).toBe('2099-12-31');
+  });
+
   it.each([
     null,
     '',
@@ -59,6 +64,10 @@ describe('parseLocalDate', () => {
     '2026-13-01',
     '2026-02-30',
     '2026-10-32',
+    '1999-12-31',
+    '2100-01-01',
+    '9999-12-31',
+    '0000-01-01',
   ])('rejects %s', (value) => {
     expect(parseLocalDate(value)).toBeNull();
   });
