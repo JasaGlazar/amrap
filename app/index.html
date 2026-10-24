@@ -10,7 +10,7 @@
     <title>AMRAP</title>
     <script>
       try {
-        var theme = localStorage.getItem('amrap.theme');
+        const theme = localStorage.getItem('amrap.theme');
         if (theme === 'light' || theme === 'dark') {
           document.documentElement.setAttribute('data-theme', theme);
           document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {

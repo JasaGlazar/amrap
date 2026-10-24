@@ -82,7 +82,7 @@ describe('the script in index.html', () => {
 
   function runWith(storage: Pick<Storage, 'getItem'>) {
     vi.stubGlobal('localStorage', storage);
-    new Function(source)();
+    (0, eval)(source);
   }
 
   beforeEach(addThemeColorMetas);
@@ -100,6 +100,13 @@ describe('the script in index.html', () => {
     runWith(memoryStorage());
     expect(document.documentElement).not.toHaveAttribute('data-theme');
     expect(themeColors()).toEqual(['#ffffff', '#000000']);
+  });
+
+  it('leaves no global behind', () => {
+    const storage = memoryStorage();
+    storage.setItem('amrap.theme', 'light');
+    runWith(storage);
+    expect('theme' in globalThis).toBe(false);
   });
 
   it('does not throw when storage cannot be read', () => {
