@@ -304,8 +304,9 @@ the two Stage 3 migrations (Workflow); exact steps in `docs/runbook.md`.
   "Rezervacija za ta termin že obstaja.".
 - Task 17 done (UI polish and accessibility). `web-design-guidelines` findings and decisions:
   - fixed: no `:focus-visible` style (3 px accent ring added); tap targets under 44 px
-    (`.button.small` 33 px, top-bar **Odjava**, customer list links, debtor chips, selects
-    36 px, the checkbox row, **Nazaj na stranke** 18 px; all now `--tap` 44 px); muted text on
+    (from the stylesheet: `.button.small` about 33 px, selects about 36 px, top-bar
+    **Odjava**, customer list links, debtor chips, the checkbox row; measured: **Nazaj na
+    stranke** 18 px; all now `--tap` 44 px); muted text on
     cards 4.39:1 (`--muted` #6b7280 → #4b5563: 7.56 on white, 6.87 on cards); greyed slot rows
     by opacity 0.5 (3.38:1 time, 1.98:1 info; now the muted colour); input and select borders
     1.47:1 (`--control-border` #6b7280, 4.83:1); the credits amount used `inputMode="numeric"`,
@@ -327,8 +328,9 @@ the two Stage 3 migrations (Workflow); exact steps in `docs/runbook.md`.
     pages (a 54-character name with a 66-character email, a 103-character top-up note) and
     `/t/nastavitve`: `scrollWidth` 360 on every page, no target under 44 px, the last content
     48-277 px above the bottom navigation. The cancel dialog fits (buttons 148×48 and 74×48)
-    and takes focus. Screenshots showed and then confirmed the fix for a wrapping **Odpovej**
-    and a split `+8`.
+    and takes focus. Screenshots showed a wrapping **Odpovej** and a split `+8` in the ledger
+    next to the long note; after the fix the **Odpovej** screenshot is confirmed. The `+8` fix
+    (`.row .amount` never wraps) was not seen in a screenshot; Task 19's end-to-end looks at it.
   - Not verified in a browser: keyboard Tab order (input events do not reach the page in these
     headless sessions, see Task 15); it is the DOM order (no positive `tabindex` anywhere) and
     the dialog's trap is unit-tested. The state pages (not linked, lookup failed, start-up
@@ -1101,7 +1103,8 @@ Branch `stage-4-pilot` off `main` (Stage 3 merged as #4). Rulings proposed for t
   until the trainer signs it off. Until then every commit that changes `sl.ts` updates its
   rows in the same commit (Tasks 17 and 18 included). The sign-off commit applies the answers
   to `sl.ts`, moves lasting decisions into `docs/app-structure.md` (i18n rule) and deletes
-  `copy-review.md` with its README entry and links.
+  `copy-review.md` with its README entry and every mention: `.claude/agents/reviewer.md` item 5
+  and the reviewer gate in `docs/harness.md`.
 - **Starting balances from the paper sheet** are ledger rows with a fixed note
   (`sl.customerDetail.startingNote`, "Začetno stanje (papir)"): a positive balance is a top-up,
   a negative one an adjustment (`top_up` rejects ≤ 0), zero needs nothing. No bulk import: the

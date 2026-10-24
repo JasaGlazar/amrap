@@ -9,7 +9,8 @@ before the pilot. The copy lives in `app/src/i18n/sl.ts` (the only place it may 
 - **At sign-off** (an owner action): one commit applies the trainer's answers to `sl.ts`, moves
   any lasting decision (for example "vi" or "ti") into
   [app-structure.md](app-structure.md#i18n-rule), and deletes this file together with its
-  entry in [README.md](README.md) and every link to it.
+  entry in [README.md](README.md) and every mention of it (`.claude/agents/reviewer.md` item 5,
+  the reviewer gate in [harness.md](harness.md#reviewer-gate)).
 
 ## Za trenerja: kako odgovoriti
 
