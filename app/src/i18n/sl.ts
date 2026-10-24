@@ -114,7 +114,7 @@ export const sl = {
     phone: 'Telefon',
     email: 'E-poštni naslov',
     create: 'Dodaj stranko',
-    startingBalance: 'Začetno stanje kreditov (s papirja)',
+    startingBalance: 'Začetno stanje kreditov',
     startingHint: 'Neobvezno. Pozitivno število doda kredite, negativno vpiše dolg.',
     startingInvalid: 'Začetno stanje mora biti celo število (lahko negativno) ali prazno.',
     nameRequired: 'Vpišite ime.',

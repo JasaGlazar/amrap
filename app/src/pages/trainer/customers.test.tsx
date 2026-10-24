@@ -183,6 +183,13 @@ describe('customer list', () => {
     expect(ledgerOf('Dora')).toEqual([]);
   });
 
+  it('labels the starting balance without a reference to the paper sheet', async () => {
+    renderAt('/t/stranke');
+    const form = await openNewCustomer();
+    const starting = within(form).getByLabelText('Začetno stanje kreditov');
+    expect(starting).toHaveAccessibleDescription(t.customers.startingHint);
+  });
+
   it('rejects a starting balance that is not a whole number and creates nobody', async () => {
     const { form } = await createWithStart('Dora', '2.5');
     expect(within(form).getByRole('alert')).toHaveTextContent(t.customers.startingInvalid);
