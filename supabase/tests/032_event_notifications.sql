@@ -81,7 +81,13 @@ create temp table times (key text primary key, ts timestamptz not null) on commi
 insert into times
   select 'tomorrow', ((today + 1) + time '09:00') at time zone tz from gym
   union all
-  select 'next_week', ((today + 8) + time '09:00') at time zone tz from gym;
+  select 'next_week', ((today + 8) + time '09:00') at time zone tz from gym
+  union all
+  select 'in_2_weeks', ((today + 15) + time '09:00') at time zone tz from gym
+  union all
+  select 'in_3_weeks', ((today + 22) + time '09:00') at time zone tz from gym
+  union all
+  select 'in_4_weeks', ((today + 29) + time '09:00') at time zone tz from gym;
 
 -- Appointments the customer and trainer cancel, and one the charge job charges.
 create temp table appts (key text primary key, id uuid not null) on commit drop;
@@ -326,7 +332,7 @@ set local client_min_messages = error;
 select tests.authenticate_as((select id from fx where key = 'user_a'));
 select lives_ok(
   $$insert into appts select 'booked_dispatch_failing',
-    public.book((select id from fx where key = 'cust_a'), (select ts from times where key = 'next_week') + interval '14 days',
+    public.book((select id from fx where key = 'cust_a'), (select ts from times where key = 'in_3_weeks'),
                 (select id from fx where key = 't'))$$,
   'a booking succeeds when its push request cannot be queued');
 select tests.clear_authentication();
@@ -360,7 +366,7 @@ set local client_min_messages = error;
 select tests.authenticate_as((select id from fx where key = 'user_a'));
 select lives_ok(
   $$insert into appts select 'booked_while_failing',
-    public.book((select id from fx where key = 'cust_a'), (select ts from times where key = 'next_week') + interval '7 days',
+    public.book((select id from fx where key = 'cust_a'), (select ts from times where key = 'in_2_weeks'),
                 (select id from fx where key = 't'))$$,
   'a booking succeeds when its notification fails');
 select lives_ok($$select public.cancel((select id from appts where key = 'booked_while_failing'))$$,
@@ -372,7 +378,7 @@ select tests.authenticate_as((select id from fx where key = 'trainer_user'));
 select lives_ok($$select public.top_up((select id from fx where key = 'cust_a'), 1)$$,
   'a top-up succeeds when its notification fails');
 insert into appts select 'trainer_cancel_failing',
-  public.book((select id from fx where key = 'cust_a'), (select ts from times where key = 'next_week') + interval '21 days',
+  public.book((select id from fx where key = 'cust_a'), (select ts from times where key = 'in_4_weeks'),
               (select id from fx where key = 't'));
 select lives_ok($$select public.cancel((select id from appts where key = 'trainer_cancel_failing'), 'Bolezen')$$,
   'a trainer cancel succeeds when its notification fails');
