@@ -585,7 +585,13 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   - Commit trailer is `Claude Fable 5.1` as the Global Constraints say, though this stage ran on
     Opus 5.5.
 - Left for the owner: the visual review of the PR; a phone check of the installed icon (Android
-  maskable crop, iOS home screen) and the status bar colour.
+  maskable crop, iOS home screen), the status bar colour, and the Android launch screen with the
+  manifest `theme_color` `#ffffff` (try `#000000` if it looks wrong).
+- Fix list 1 done (`.superpowers/fixes-1.md`, items 1-10): the account menu closes on its button
+  in Safari and Firefox on macOS, the account button edge is `--control-line`, no dialog shadow
+  in dark, the inline theme script leaves no global, the wordmark crop is the frame's outer edge
+  (shown at 28 px, lined up with the page text; icons regenerated), dead selectors and docs
+  tidied.
 
 ---
 
