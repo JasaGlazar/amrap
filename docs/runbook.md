@@ -148,6 +148,9 @@ trainer, create a new auth user as in "Bootstrap the trainer" step 1, then run
 ## Deploy migrations after merge
 
 Migrations reach the remote project only after the PR is merged. Never from a feature branch.
+The whole post-merge release (these steps, the function deploy, the Pages check, a smoke test
+and the release record) is the `release-checklist` skill
+(`.claude/skills/release-checklist/SKILL.md`).
 
 1. `git checkout main && git pull`
 2. `supabase link --project-ref etzkbwqgjuipihypokjp` (once per machine)
