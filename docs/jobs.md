@@ -2,8 +2,9 @@
 
 Scheduled work that runs without a user. The functions are Postgres functions; pg_cron
 schedules them, set up in `20261023192556_recurring_and_jobs.sql`,
-`20261023214654_notifications_and_reminders.sql` and `20261024193349_data_retention.sql`. Push delivery (the `send-push` edge function
-that pg_net calls) is described in [notifications.md](notifications.md).
+`20261023214654_notifications_and_reminders.sql` and `20261024193349_data_retention.sql`.
+Push delivery (the `send-push` edge function that pg_net calls) is described in
+[notifications.md](notifications.md).
 
 ## Schedules
 

@@ -46,17 +46,23 @@ export function PagedList<T extends { id: string }>({ first, fetchPage, children
     const update = (change: (current: Shown<T>) => Shown<T>) =>
       setState((current) => (current?.first === shown.first ? change(current) : current));
     try {
-      const page = await fetchPage(shown.next);
-      const known = new Set(shown.rows.map((row) => row.id));
-      const added = page.rows.filter((row) => !known.has(row.id));
-      if (currentFirst.current === shown.first) focusNext.current = added[0]?.id ?? null;
-      update((current) => ({
-        ...current,
-        rows: [...current.rows, ...added],
-        next: current.next + page.rows.length,
-        more: page.more,
-        loading: false,
-      }));
+      const from = shown.next;
+      const page = await fetchPage(from);
+      const shownIds = new Set(shown.rows.map((row) => row.id));
+      const firstNew = page.rows.find((row) => !shownIds.has(row.id));
+      if (currentFirst.current === shown.first) focusNext.current = firstNew?.id ?? null;
+      update((current) => {
+        const known = new Set(current.rows.map((row) => row.id));
+        const end = from + page.rows.length;
+        const furthest = end >= current.next;
+        return {
+          ...current,
+          rows: [...current.rows, ...page.rows.filter((row) => !known.has(row.id))],
+          next: furthest ? end : current.next,
+          more: furthest ? page.more : current.more,
+          loading: false,
+        };
+      });
     } catch (error) {
       console.warn('load failed', error);
       update((current) => ({ ...current, loading: false, failed: true }));

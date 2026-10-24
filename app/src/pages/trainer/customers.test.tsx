@@ -193,7 +193,8 @@ describe('customer list', () => {
   it('labels the starting balance without a reference to the paper sheet', async () => {
     renderAt('/t/stranke');
     const form = await openNewCustomer();
-    const starting = within(form).getByLabelText('Začetno stanje kreditov');
+    const starting = within(form).getByLabelText(t.customers.startingBalance);
+    expect(t.customers.startingBalance).not.toMatch(/papir/i);
     expect(starting).toHaveAccessibleDescription(t.customers.startingHint);
   });
 

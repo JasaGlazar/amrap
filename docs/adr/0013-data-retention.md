@@ -92,8 +92,12 @@ Retention per table:
   stay until sign-out, one per device, which is small. `auth.audit_log_entries` is never
   deleted by Supabase and is the fastest-growing relation in the projection, but even at three
   app opens a day it takes years to reach the 250 MB warning line. No job writes into `auth`
-  now: it is Supabase's schema. The monthly size check (runbook) lists it; when it passes
-  50 MB, a new ADR decides how to trim it.
+  now: it is Supabase's schema. The monthly size check (runbook) lists it. When it passes
+  50 MB, the cheapest remedy is an owner action in the dashboard: Authentication, Audit Logs
+  (under Configuration), turn off "Write audit logs to the database" (Supabase docs, "Auth
+  Audit Logs", checked 2026-10-25). New entries then go only to Supabase's log storage, which
+  costs nothing on the Free Plan; the rows already written stay, and a new ADR decides
+  whether to trim them.
 
 ## Consequences
 

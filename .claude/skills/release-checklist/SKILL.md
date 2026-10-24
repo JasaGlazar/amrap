@@ -61,13 +61,16 @@ In the dashboard SQL editor:
 select version from supabase_migrations.schema_migrations order by version desc limit 5;
 select jobname, schedule, active from cron.job order by jobname;
 select extnamespace::regnamespace from pg_extension where extname = 'pg_net';
+select public.prune_cron_history();
 ```
 
 - The newest versions are this release's migrations.
 - `cron.job` has `charge_due_appointments` and `send_cutoff_reminders` (`*/15 * * * *`) and
   `materialize_recurring` (`0 2 * * *`) and `prune_cron_history` (`7 3 * * *`), all active,
-  plus any job the release added
-  (`docs/jobs.md`).
+  plus any job the release added (`docs/jobs.md`).
+- `select public.prune_cron_history();` returns an integer (the rows it deleted), not an error
+  such as `42501`. Run once after the release that adds it: it proves that `postgres` may
+  delete from `cron.job_run_details` on the hosted project before the first 03:07 UTC run.
 - pg_net is in `extensions`.
 - Any table, function or trigger the release added exists (the migration's entry in
   `docs/schema.md` / `docs/rpcs.md` lists them).

@@ -164,6 +164,10 @@ and the release record) is the `release-checklist` skill
    `select extnamespace::regnamespace from pg_extension where extname = 'pg_net';` and
    `select jobname, schedule from cron.job;`. Until the push Vault rows are set the job runs
    and does nothing ([notifications.md](notifications.md#configuration)).
+7. After the retention migration (`20261024193349_data_retention.sql`), run `select
+   public.prune_cron_history();` once in the SQL editor: it returns the number of cron runs it
+   deleted (an integer). A `42501` means `postgres` may not delete from `cron.job_run_details`
+   there, and the daily job would fail the same way ([jobs.md](jobs.md#prune_cron_history-daily)).
 
 ## Database size check
 
@@ -205,7 +209,7 @@ select count(*), min(start_time) from cron.job_run_details;
 | under 250 MB | nothing |
 | 250 MB (half the quota) | find what grew in the largest-tables query and compare it with ADR 0013's projection; write the finding on a GitHub issue |
 | 400 MB | act now: prune the relation that grew (a new migration and ADR if it is not a log) |
-| `auth.audit_log_entries` over 50 MB | decide in a new ADR how to trim it (ADR 0013) |
+| `auth.audit_log_entries` over 50 MB | owner action, free: in the dashboard, Authentication, Audit Logs (under Configuration), turn off "Write audit logs to the database"; the logs stay in Supabase's log storage, and rows already written stay until a new ADR decides how to trim them (ADR 0013) |
 | `cron.job_run_details` over 3,000 rows or older than 15 days | check `prune_cron_history` in `cron.job` and its runs ([jobs.md](jobs.md#prune_cron_history-daily)) |
 
 Never upgrade the plan or add a payment method to get room (ADR 0005). If the project does go

@@ -27,12 +27,12 @@ create temp table fx (key text primary key, runid bigint not null, old boolean n
   on commit drop;
 
 -- Negative run ids: postgres may not use cron.runid_seq, and they never collide with a real run.
-with runs (runid, key, started, ended) as (
-  values (-1, 'ended_15_days_ago', now() - interval '15 days 1 minute', now() - interval '15 days'),
-         (-2, 'ended_13_days_ago', now() - interval '13 days 1 minute', now() - interval '13 days'),
-         (-3, 'ended_exactly_14_days_ago', now() - interval '14 days 1 minute', now() - interval '14 days'),
-         (-4, 'started_15_days_ago_never_ended', now() - interval '15 days', null),
-         (-5, 'started_13_days_ago_never_ended', now() - interval '13 days', null)
+with runs (runid, key, old, started, ended) as (
+  values (-1, 'ended_15_days_ago', true, now() - interval '15 days 1 minute', now() - interval '15 days'),
+         (-2, 'ended_13_days_ago', false, now() - interval '13 days 1 minute', now() - interval '13 days'),
+         (-3, 'ended_exactly_14_days_ago', false, now() - interval '14 days 1 minute', now() - interval '14 days'),
+         (-4, 'started_15_days_ago_never_ended', true, now() - interval '15 days', null),
+         (-5, 'started_13_days_ago_never_ended', false, now() - interval '13 days', null)
 ),
 inserted as (
   insert into cron.job_run_details
@@ -40,11 +40,10 @@ inserted as (
   select (select jobid from cron.job where jobname = 'prune_cron_history'), runid, 'postgres',
          'postgres', 'select 1 -- ' || key, 'succeeded', '1 row', started, ended
   from runs
-  returning runid, command, coalesce(end_time, start_time) as finished
+  returning runid
 )
 insert into fx
-select replace(command, 'select 1 -- ', ''), runid, finished < now() - interval '14 days'
-from inserted;
+select runs.key, runs.runid, runs.old from inserted join runs using (runid);
 
 create temp table expected on commit drop as
 select count(*)::int as pruned from cron.job_run_details

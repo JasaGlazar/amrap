@@ -166,7 +166,8 @@ vi.mock('./lib/supabase', async () => ({
   `credit_transactions`, `blocked_periods` and `push_subscriptions`. The query fake supports
   `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `or` (comma-separated `column.operator.value`),
   `order`, `limit` and `range(from, to)` (both ends inclusive, as in PostgREST), and applies
-  them the way PostgREST would (timestamps compared as instants), so a test fails when the app selects the wrong rows; an unexpected table throws.
+  them the way PostgREST would (timestamps compared as instants), so a test fails when the
+  app selects the wrong rows; an unexpected table throws.
   `insert` (with `.select().single()`), `update` and `delete` with filters change `db.tables`
   (inserts get an id and the column defaults the app relies on).
 - `fakeSupabase.rpc` simulates `book` (inserts a booked appointment and counts it in

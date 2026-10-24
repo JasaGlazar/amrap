@@ -669,7 +669,8 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
 ### Handoff state (2026-10-25, Stage 8)
 
 - Branch `stage-8-small-data` off `main` (d22cd71); issues #20, #12, #13 done in that order, one
-  commit each, PR open against `main`, not merged. Vitest 410, `supabase test db` 449,
+  feature commit each, then a review-fix commit, the plan commit and the fix-list-1 commit;
+  PR #22 open against `main`, not merged. Vitest 410, `supabase test db` 449,
   `supabase db lint`, lint, typecheck, build and `check-docs.sh` green. One migration,
   `20261024193349_data_retention.sql`, applied locally with `supabase migration up --local`
   (no reset); the hosted push is the orchestrator's after merge.
@@ -724,7 +725,19 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   no longer leaves a row waiting for focus.
 - Owner actions: none new. After merge the release checklist expects the fourth cron job
   (`prune_cron_history`, `7 3 * * *`) on the hosted project; the first monthly "Database size
-  check" records the hosted baseline.
+  check" records the hosted baseline. If `auth.audit_log_entries` passes 50 MB, the owner can
+  turn off "Write audit logs to the database" (Authentication, Audit Logs; free).
+- Fix list 1 done (`.superpowers/fixes-1.md`, items 1-7): the release checklist (step 4) and the
+  runbook (deploy step 7) run `select public.prune_cron_history();` once after the push to
+  prove the hosted delete permission; `PagedList` merges a page against the rows in state (not
+  the rows at click time) and only a page that reaches furthest moves the offset and `more`;
+  `033_retention.sql` marks each fixture old or not by hand instead of reusing the function's
+  predicate; the label test reads `t.customers.startingBalance` and checks it has no "papir";
+  ADR 0013 and the runbook name the Auth setting that stops audit-log writes to the database
+  as the owner's remedy at 50 MB (Supabase docs "Auth Audit Logs"); this handoff's commit
+  count; two over-long doc lines rewrapped. Item 2 is a refactor that no test can reach
+  through the UI (the loading guard stops a second press), so it has no new red test; the page
+  tests stay green.
 
 ---
 
