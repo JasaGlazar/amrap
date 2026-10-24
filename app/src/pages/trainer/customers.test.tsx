@@ -76,6 +76,62 @@ describe('customer list', () => {
     expect(router.state.location.pathname).toBe(`/t/stranke/${created?.id}`);
   });
 
+  async function createWithStart(name: string, starting: string) {
+    const router = renderAt('/t/stranke');
+    const form = await screen.findByRole('form', { name: t.customers.newTitle });
+    await userEvent.type(within(form).getByLabelText(t.customers.name), name);
+    if (starting !== '') {
+      await userEvent.type(within(form).getByLabelText(t.customers.startingBalance), starting);
+    }
+    await userEvent.click(within(form).getByRole('button', { name: t.customers.create }));
+    return { router, form };
+  }
+
+  const ledgerOf = (name: string) => {
+    const created = db.tables.customers.find((row) => row.name === name);
+    return db.tables.credit_transactions.filter((row) => row.customer_id === created?.id);
+  };
+
+  it.each([
+    ['a positive starting balance as a top-up', '8', 'topup', 8],
+    ['a negative starting balance as an adjustment', '-3', 'adjustment', -3],
+  ])('records %s with the starting note', async (_name, starting, type, amount) => {
+    await createWithStart('Dora', starting);
+    expect(await screen.findByRole('heading', { name: 'Dora' })).toBeVisible();
+    expect(ledgerOf('Dora')).toEqual([
+      expect.objectContaining({ type, amount, note: t.customerDetail.startingNote }),
+    ]);
+  });
+
+  it.each([
+    ['empty', ''],
+    ['zero', '0'],
+  ])('records nothing for a starting balance that is %s', async (_name, starting) => {
+    await createWithStart('Dora', starting);
+    expect(await screen.findByRole('heading', { name: 'Dora' })).toBeVisible();
+    expect(ledgerOf('Dora')).toEqual([]);
+  });
+
+  it('rejects a starting balance that is not a whole number and creates nobody', async () => {
+    const { form } = await createWithStart('Dora', '2.5');
+    expect(within(form).getByRole('alert')).toHaveTextContent(t.customers.startingInvalid);
+    expect(db.tables.customers.some((row) => row.name === 'Dora')).toBe(false);
+  });
+
+  it('opens the new customer once and explains a failed starting balance there', async () => {
+    fakeSupabase.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'AMRAP_FORBIDDEN: not a trainer' },
+    });
+    await createWithStart('Dora', '8');
+    const credits = await screen.findByRole('region', { name: t.customerDetail.creditsTitle });
+    expect(within(credits).getByRole('alert')).toHaveTextContent(
+      fill(t.customerDetail.startingFailed, { error: t.errors.AMRAP_FORBIDDEN }),
+    );
+    expect(db.tables.customers.filter((row) => row.name === 'Dora')).toHaveLength(1);
+    expect(ledgerOf('Dora')).toEqual([]);
+  });
+
   it('requires a name', async () => {
     renderAt('/t/stranke');
     const form = await screen.findByRole('form', { name: t.customers.newTitle });
@@ -85,6 +141,19 @@ describe('customer list', () => {
 });
 
 describe('customer detail', () => {
+  beforeEach(() => {
+    db.tables.credit_transactions = [
+      {
+        id: 'tx-ana',
+        customer_id: ana.id,
+        amount: 4,
+        type: 'topup',
+        note: null,
+        created_at: new Date().toISOString(),
+      },
+    ];
+  });
+
   it('tops up with the amount and note', async () => {
     renderAt(`/t/stranke/${ana.id}`);
     const credits = await screen.findByRole('region', { name: t.customerDetail.creditsTitle });
@@ -114,6 +183,20 @@ describe('customer detail', () => {
       p_amount: -1,
       p_note: undefined,
     });
+  });
+
+  it('suggests the starting note while the customer has no credits yet', async () => {
+    renderAt(`/t/stranke/${cvet.id}`);
+    const credits = await screen.findByRole('region', { name: t.customerDetail.creditsTitle });
+    expect(within(credits).getByLabelText(t.customerDetail.note)).toHaveValue(
+      t.customerDetail.startingNote,
+    );
+  });
+
+  it('leaves the note empty once the customer has credits', async () => {
+    renderAt(`/t/stranke/${ana.id}`);
+    const credits = await screen.findByRole('region', { name: t.customerDetail.creditsTitle });
+    expect(within(credits).getByLabelText(t.customerDetail.note)).toHaveValue('');
   });
 
   it('asks phones for a keyboard with a minus sign in the amount field', async () => {

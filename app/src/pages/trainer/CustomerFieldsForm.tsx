@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import type { CustomerFields } from '../../data/customers';
 import { t } from '../../i18n';
 
@@ -9,7 +9,8 @@ type Props = {
   busy: boolean;
   error: string | null;
   notice?: string | null;
-  onSubmit: (fields: CustomerFields) => void;
+  withStartingBalance?: boolean;
+  onSubmit: (fields: CustomerFields, startingBalance: number | null) => void;
 };
 
 function orNull(value: string): string | null {
@@ -24,18 +25,25 @@ export function CustomerFieldsForm({
   busy,
   error,
   notice,
+  withStartingBalance = false,
   onSubmit,
 }: Props) {
   const [name, setName] = useState(initial.name);
   const [phone, setPhone] = useState(initial.phone ?? '');
   const [email, setEmail] = useState(initial.email ?? '');
-  const [invalid, setInvalid] = useState(false);
+  const [starting, setStarting] = useState('');
+  const startingHintId = useId();
+  const [invalid, setInvalid] = useState<string | null>(null);
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (name.trim() === '') return setInvalid(true);
-    setInvalid(false);
-    onSubmit({ name: name.trim(), phone: orNull(phone), email: orNull(email) });
+    if (name.trim() === '') return setInvalid(t.customers.nameRequired);
+    const startingBalance = starting.trim() === '' ? null : Number(starting);
+    if (startingBalance !== null && !Number.isInteger(startingBalance)) {
+      return setInvalid(t.customers.startingInvalid);
+    }
+    setInvalid(null);
+    onSubmit({ name: name.trim(), phone: orNull(phone), email: orNull(email) }, startingBalance);
   }
 
   return (
@@ -63,9 +71,27 @@ export function CustomerFieldsForm({
           onChange={(e) => setEmail(e.target.value)}
         />
       </label>
-      {invalid && (
+      {withStartingBalance && (
+        <div>
+          <label>
+            {t.customers.startingBalance}
+            <input
+              type="number"
+              step="1"
+              autoComplete="off"
+              aria-describedby={startingHintId}
+              value={starting}
+              onChange={(e) => setStarting(e.target.value)}
+            />
+          </label>
+          <p id={startingHintId} className="detail">
+            {t.customers.startingHint}
+          </p>
+        </div>
+      )}
+      {invalid !== null && (
         <p role="alert" className="error">
-          {t.customers.nameRequired}
+          {invalid}
         </p>
       )}
       {error !== null && (

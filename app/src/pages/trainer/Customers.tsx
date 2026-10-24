@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { allBalances } from '../../data/credits';
+import { adjust, allBalances, topUp } from '../../data/credits';
 import {
   createCustomer,
   inviteStatus,
@@ -25,12 +25,22 @@ export function TrainerCustomers() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function create(draft: CustomerFields) {
+  async function create(draft: CustomerFields, startingBalance: number | null) {
     setBusy(true);
     const result = await createCustomer(supabase, draft);
+    if (!result.ok || result.data === null) {
+      setBusy(false);
+      return setError(result.ok ? null : result.message);
+    }
+    const { id } = result.data;
+    let startingError: string | null = null;
+    if (startingBalance !== null && startingBalance !== 0) {
+      const record = startingBalance > 0 ? topUp : adjust;
+      const credit = await record(supabase, id, startingBalance, t.customerDetail.startingNote);
+      if (!credit.ok) startingError = credit.message;
+    }
     setBusy(false);
-    if (!result.ok) return setError(result.message);
-    if (result.data !== null) void navigate(`/t/stranke/${result.data.id}`);
+    void navigate(`/t/stranke/${id}`, { state: startingError === null ? null : { startingError } });
   }
 
   return (
@@ -72,7 +82,8 @@ export function TrainerCustomers() {
         initial={{ name: '', phone: null, email: null }}
         busy={busy}
         error={error}
-        onSubmit={(draft) => void create(draft)}
+        withStartingBalance
+        onSubmit={(draft, startingBalance) => void create(draft, startingBalance)}
       />
     </>
   );

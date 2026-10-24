@@ -251,6 +251,9 @@ is a question below.
 | `customers.phone` | Telefon |  |
 | `customers.email` | E-poštni naslov |  |
 | `customers.create` | Dodaj stranko |  |
+| `customers.startingBalance` | Začetno stanje kreditov (s papirja) | Novo (Stage 4). Razumljivo? |
+| `customers.startingHint` | Neobvezno. Pozitivno število doda kredite, negativno vpiše dolg. | Novo. |
+| `customers.startingInvalid` | Začetno stanje mora biti celo število (lahko negativno) ali prazno. | Novo. |
 | `customers.nameRequired` | Vpišite ime. |  |
 | `customers.noCustomers` | Ni strank. |  |
 | `customers.listTitle` | Vse stranke |  |
@@ -274,6 +277,8 @@ is a question below.
 | `customerDetail.topUpInvalid` | Za dodajanje kreditov vpišite pozitivno celo število. |  |
 | `customerDetail.adjustInvalid` | Za popravek vpišite celo število, različno od 0 (negativno odšteje). |  |
 | `customerDetail.creditsSaved` | Stanje je posodobljeno. |  |
+| `customerDetail.startingNote` | Začetno stanje (papir) | Novo: opomba pri začetnem stanju v zgodovini kreditov; vidijo jo tudi stranke. V redu? |
+| `customerDetail.startingFailed` | Stranka je dodana, začetnega stanja pa ni bilo mogoče vpisati ({error}). Vpišite ga tukaj. | Novo. |
 | `customerDetail.inviteTitle` | Povabilo |  |
 | `customerDetail.createInvite` | Ustvari povabilo |  |
 | `customerDetail.newInvite` | Ustvari novo povabilo |  |

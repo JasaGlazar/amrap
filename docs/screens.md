@@ -150,7 +150,13 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   (`customers.inviteStatus`: linked, pending = an unexpired token, none) and the balance (red
   when negative).
 - **Nova stranka:** name (required, `customers.nameRequired`), phone and email (empty becomes
-  null). Submit inserts the record through RLS (`createCustomer`) and opens its detail page.
+  null), and an optional starting balance from the paper sheet (`customers.startingBalance`, a
+  whole number that may be negative, else `customers.startingInvalid`; nothing is created then).
+  Submit inserts the record through RLS (`createCustomer`). A positive starting balance is then
+  recorded with `top_up`, a negative one with `adjust`, both with the note
+  `customerDetail.startingNote`; empty or 0 records nothing. Then the detail page opens. If the
+  credit call fails, the detail page still opens (the customer exists once) and its **Krediti**
+  section shows `customerDetail.startingFailed` with the error, so the trainer enters it there.
 
 ### Customer detail (`/t/stranke/:id`)
 
@@ -161,7 +167,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Krediti:** one amount field and a note. **Dodaj kredite** calls `top_up` (a positive whole
   number, else `customerDetail.topUpInvalid`); **Popravi stanje** calls `adjust` (any non-zero
   whole number, negative subtracts; else `customerDetail.adjustInvalid`). Waiving a late
-  cancel is an adjustment of +1.
+  cancel is an adjustment of +1. While the customer has no ledger rows the note is prefilled
+  with `customerDetail.startingNote`, so a starting balance entered here is marked the same
+  way; it can be edited or cleared.
 - **Povabilo:** for an unlinked record, **Ustvari povabilo** calls `create_invite` and shows the
   full link `${location.origin}/invite/<token>` in a read-only field (focus selects it) with
   **Kopiraj** (clipboard; `customerDetail.copied`, or `customerDetail.copyFailed` when the

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useLocation, useParams } from 'react-router';
 import { chargedSince, upcomingAppointments, type Appointment } from '../../data/appointments';
 import type { ActionResult } from '../../data/client';
 import { adjust, balanceOf, ledgerOf, topUp } from '../../data/credits';
@@ -37,10 +37,20 @@ export function TrainerCustomerDetail() {
     return { now, customer, settings, balance, ledger, upcoming, recent, rules, templates };
   }, [id]);
   const [state, reload] = useLoad(load);
+  const startingError = (useLocation().state as { startingError?: string } | null)?.startingError;
   const [busy, setBusy] = useState(false);
-  const [notices, setNotices] = useState<Record<string, Notice>>({});
+  const [notices, setNotices] = useState<Record<string, Notice>>((): Record<string, Notice> =>
+    startingError === undefined
+      ? {}
+      : {
+          credits: {
+            error: true,
+            text: fill(t.customerDetail.startingFailed, { error: startingError }),
+          },
+        },
+  );
   const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState<string | null>(null);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [chosenTemplate, setChosenTemplate] = useState('');
   const [cancelling, setCancelling] = useState<{
@@ -95,6 +105,7 @@ export function TrainerCustomerDetail() {
       time: template.start_time.slice(0, 5),
     });
   };
+  const noteShown = note ?? (ledger.length === 0 ? t.customerDetail.startingNote : '');
   const ruleTemplates = new Set(rules.map((rule) => rule.slotTemplateId));
   const addableTemplates = templates.filter(
     (template) => template.active && !ruleTemplates.has(template.id),
@@ -164,7 +175,7 @@ export function TrainerCustomerDetail() {
       }));
       return;
     }
-    const noteValue = note.trim() === '' ? null : note.trim();
+    const noteValue = noteShown.trim() === '' ? null : noteShown.trim();
     const ok = await run(
       'credits',
       () => (kind === 'topUp' ? topUp : adjust)(supabase, customer.id, value, noteValue),
@@ -172,7 +183,7 @@ export function TrainerCustomerDetail() {
     );
     if (ok) {
       setAmount('');
-      setNote('');
+      setNote(null);
     }
   }
 
@@ -204,7 +215,7 @@ export function TrainerCustomerDetail() {
         </label>
         <label>
           {t.customerDetail.note}
-          <input autoComplete="off" value={note} onChange={(e) => setNote(e.target.value)} />
+          <input autoComplete="off" value={noteShown} onChange={(e) => setNote(e.target.value)} />
         </label>
         <NoticeLine notice={notices.credits} />
         <div className="actions">
