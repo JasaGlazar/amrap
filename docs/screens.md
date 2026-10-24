@@ -235,9 +235,14 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   reload that leaves any of these closes an open control. Past occurrences keep the button (the trainer records a session after the fact).
 - **Odpovej termin** (`trainer.cancelOccurrence`, issue #19, [ADR
   0016](adr/0016-cancel-occurrence-closes-it.md)): at the foot of every occurrence that is not
-  `Zaprto`, under **Dodaj stranko** and right-aligned (full width in a grid card), a small
-  secondary button with red text, so it neither looks like the black primary nor competes with
-  **Dodaj stranko**. Past and empty occurrences have it too (refunding a missed session that was
+  `Zaprto`, a quiet text button (`button quiet`: no border or fill, `--muted` text at 0.8125
+  rem, 44 px tall, `--debt` only on hover, press and keyboard focus, which also draws the focus
+  ring), so it never competes with **Dodaj stranko**. In the day view it shares a right-aligned
+  group with **Dodaj stranko** (`.roster-actions`), on the same row when there is room (an
+  occurrence with bookings, or 390 px and wider with **Polno**) and right-aligned under it when
+  not (an empty occurrence at 360-390 px, next to `Ni prijavljenih strank.`, which stays level
+  with **Dodaj stranko**); in a grid card it sits left-aligned at the card's foot under the
+  full-width **Dodaj stranko**, never full width itself. Past and empty occurrences have it too (refunding a missed session that was
   already charged; closing a session nobody booked). It opens a dialog with the cancel dialog's
   layout and focus rules (`OccurrenceCancelDialog.tsx`): the title **Odpoved celega termina**,
   the occurrence (`{day} ob {time}`), `Prijavljenih strank: {count}` and their names

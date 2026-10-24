@@ -871,7 +871,8 @@ describe.each<View>(['day', 'week'])('cancelling a whole occurrence in the %s vi
     const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
     const action = within(row).getByRole('button', { name: t.trainer.cancelOccurrence });
     expect(action).toBeEnabled();
-    expect(action).not.toHaveClass('danger');
+    expect(action).toHaveClass('quiet');
+    expect(action).not.toHaveClass('danger', 'secondary');
     expect(within(row).getAllByRole('button', { name: t.slot.cancel })).toHaveLength(2);
   });
 

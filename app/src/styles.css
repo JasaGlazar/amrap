@@ -831,23 +831,53 @@ input[type='checkbox'] {
   margin: 0;
 }
 
-.roster > .roster-list,
-.roster > .on-demand {
+.roster > .roster-list {
   flex-basis: 100%;
 }
 
-.roster > .button {
-  margin-left: auto;
-}
-
-.roster > .roster-foot {
+.roster > .detail {
   display: flex;
-  flex-basis: 100%;
-  justify-content: flex-end;
+  align-self: flex-start;
+  align-items: center;
+  min-height: var(--tap);
 }
 
-.button.danger-text {
+.roster-actions {
+  display: flex;
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.roster-actions:has(> .on-demand),
+.roster-actions > .on-demand {
+  flex-basis: 100%;
+}
+
+.button.quiet {
+  padding: 0 var(--space-2);
+  background: none;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.button.quiet:focus-visible {
   color: var(--debt);
+}
+
+.button.quiet:not(:disabled, [aria-disabled='true']):active {
+  background: none;
+  color: var(--debt);
+}
+
+@media (hover: hover) {
+  .button.quiet:not(:disabled, [aria-disabled='true']):hover {
+    background: none;
+    color: var(--debt);
+  }
 }
 
 .roster-list {
@@ -1569,16 +1599,22 @@ section:not(.form, .card) > .day-group {
   gap: var(--space-1);
 }
 
-.week-card .roster > .button {
+.week-card .roster > .detail {
+  min-height: 0;
+}
+
+.week-card .roster-actions {
+  flex-direction: column;
   flex-basis: 100%;
-  margin-left: 0;
+  align-items: stretch;
 }
 
-.week-card .roster-foot > .button {
-  flex: 1 1 auto;
+.week-card .roster-actions > .button.quiet {
+  align-self: flex-start;
+  padding-inline: 0;
 }
 
-.week-card .roster > .on-demand {
+.week-card .roster-actions > .on-demand {
   min-width: 0;
 }
 

@@ -85,27 +85,29 @@ export function SlotRoster({ appointments, names, onCancel, add, onCancelOccurre
           ))}
         </ul>
       )}
-      {add !== undefined && (
-        <OnDemand
-          label={reason ?? t.trainer.addCustomer}
-          className="button secondary small"
-          add={reason === null}
-          disabled={reason !== null || add.pending}
-          open={add.open && reason === null}
-          onOpen={add.onOpen}
-        >
-          <AddControl add={add} choices={choices} />
-        </OnDemand>
-      )}
-      {onCancelOccurrence !== undefined && (
-        <div className="roster-foot">
-          <button
-            type="button"
-            className="button secondary small danger-text"
-            onClick={(event) => onCancelOccurrence(event.currentTarget)}
-          >
-            {t.trainer.cancelOccurrence}
-          </button>
+      {(add !== undefined || onCancelOccurrence !== undefined) && (
+        <div className="roster-actions">
+          {add !== undefined && (
+            <OnDemand
+              label={reason ?? t.trainer.addCustomer}
+              className="button secondary small"
+              add={reason === null}
+              disabled={reason !== null || add.pending}
+              open={add.open && reason === null}
+              onOpen={add.onOpen}
+            >
+              <AddControl add={add} choices={choices} />
+            </OnDemand>
+          )}
+          {onCancelOccurrence !== undefined && (
+            <button
+              type="button"
+              className="button quiet"
+              onClick={(event) => onCancelOccurrence(event.currentTarget)}
+            >
+              {t.trainer.cancelOccurrence}
+            </button>
+          )}
         </div>
       )}
     </div>
