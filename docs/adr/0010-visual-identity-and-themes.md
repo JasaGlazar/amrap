@@ -38,7 +38,9 @@ build tools for images.
 - **No new image tools.** The wordmark (`public/brand-mark.png`) and the PWA icons are cropped
   and padded from the logo with macOS `sips`; the hand-written icon generator
   (`scripts/generate-icons.mjs`) is removed. The light theme shows the white-on-black mark
-  through `filter: invert(1)`, so there is one image for both themes.
+  through `filter: invert(1)`, so there is one image for both themes; a `contrast(1.1)` in the
+  same filter takes the logo's near-black background (`#060807`) to the pure black of the
+  paper.
 
 ## Consequences
 

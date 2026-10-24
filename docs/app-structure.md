@@ -21,7 +21,7 @@ screens are in [screens.md](screens.md), sign-in and role gating in [auth.md](au
 | `src/lib/` | `supabase.ts` (the one client; retries a `PGRST303` answer once, [auth.md](auth.md#token-refused-as-issued-in-the-future)), `database.types.ts` (generated), `keepAlive.ts`, `time.ts` ([time.md](time.md)), `useLoad.ts`, `device.ts` (`deviceEnvironment()`: iOS, Android, standalone; used by push support and the install card). |
 | `src/test/` | `fakeSupabase.ts`, `fakePush.ts` (a fake `PushPlatform`), `fakeInstall.ts` (a fake `InstallPlatform`, a prompt event, in-memory storage) and the Vitest setup (`setup.ts`: jest-dom matchers, cleanup after each test). |
 | `src/styles.css` | Plain CSS for the whole app. |
-| `public/` | The gym logo, the wordmark and the icons cut from it ([Brand assets](#brand-assets)), and `_redirects` (SPA fallback). `scripts/generate-icons.mjs` (`npm run icons`) regenerates the icons. |
+| `public/` | The gym logo, the wordmark and the icons cut from it ([Brand assets](#brand-assets)), and `_redirects` (SPA fallback). |
 
 `start.tsx` takes `RouterProvider` from `react-router`, not `react-router/dom`, so the app and
 the tests render the same component (the `/dom` variant only adds `flushSync` for transitions).
@@ -74,10 +74,17 @@ black) with macOS `sips`, so no image tool is added to the build
 | File | Command | Used by |
 |---|---|---|
 | `brand-mark.png` (280 × 90) | `sips -c 90 280 --cropOffset 166 84 public/logo.png --out public/brand-mark.png` | `pages/shared/BrandMark.tsx`: the top bar (1.75 rem high) and the `h1` of `/login` and `/invite/:token` (3 rem), alt text `app.name` |
+| `icon-512.png` | `sips -Z 400 public/brand-mark.png --out public/icon-512.png && sips -p 512 512 --padColor 060807 public/icon-512.png` | the manifest (`any` and `maskable`) |
+| `icon-192.png` | `sips -Z 150 public/brand-mark.png --out public/icon-192.png && sips -p 192 192 --padColor 060807 public/icon-192.png` | the manifest, the favicon and `apple-touch-icon` |
 
-`sips -c` takes height then width, and `--cropOffset` y then x. The crop keeps the frame with a
-6-8 px black margin on every side. The mark is white on black: the light theme shows it through
-`filter: var(--mark-filter)` (`invert(1)`, so black on white paper), the dark theme as is.
+`sips -c` and `-p` take height then width, and `--cropOffset` y then x. The crop keeps the frame
+with a 6-8 px margin on every side. The logo's black is `#060807`, not pure black: the icons are
+padded with that colour so there is no seam, and `filter: var(--mark-filter)` on the mark adds
+`contrast(1.1)`, which takes it to `#000000` on black paper (the light theme also inverts it,
+so it is black on white). In the icons the wordmark is about 380 px of 512, its corners at
+38.5 % of the size from the centre, inside the 40 % maskable safe zone. The manifest's
+`background_color` is black (the splash screen matches the icon) and `theme_color` the light
+paper; at run time the `theme-color` meta tags follow the theme ([Theme](#theme)).
 
 ## i18n rule
 

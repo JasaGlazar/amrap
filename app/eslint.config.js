@@ -37,7 +37,7 @@ export default tseslint.config(
     rules: { 'no-restricted-syntax': noHardcodedUiStrings },
   },
   {
-    files: ['scripts/**/*.mjs', 'vite.config.ts', 'eslint.config.js'],
+    files: ['vite.config.ts', 'eslint.config.js'],
     languageOptions: { globals: globals.node },
   },
 );

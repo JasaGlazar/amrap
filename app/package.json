@@ -14,8 +14,7 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "icons": "node scripts/generate-icons.mjs"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",

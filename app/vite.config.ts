@@ -12,7 +12,7 @@ if (!process.env.VITEST) {
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
-      includeAssets: ['icon-192.png'],
+      includeAssets: ['icon-192.png', 'brand-mark.png'],
       manifest: {
         name: 'AMRAP',
         short_name: 'AMRAP',
@@ -20,8 +20,8 @@ if (!process.env.VITEST) {
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        theme_color: '#0f766e',
-        background_color: '#ffffff',
+        theme_color: '#ffffff',
+        background_color: '#000000',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
