@@ -267,6 +267,7 @@ export function TrainerCustomerDetail() {
           <h2>{t.customerDetail.rulesTitle}</h2>
           <OnDemand
             label={t.customerDetail.addRule}
+            className="button secondary"
             add
             open={addingRule}
             onOpen={() => setAddingRule(true)}

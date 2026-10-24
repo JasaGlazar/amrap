@@ -306,8 +306,13 @@ stranko** on each
 occurrence of the trainer calendar (a small secondary button at the right of the occurrence).
 
 - **Closed:** one button named after the action, at the right of the heading the form belongs
-  to (a primary button with a `+` for "new" actions). On a narrow screen it wraps below the
-  heading.
+  to; on a narrow screen it wraps below the heading. Its weight follows the heading: a
+  page-level action in the page head is the one primary (black) button (**Nova stranka**,
+  **Nov termin po dogovoru**; on customer detail the always-open **Dodaj kredite** plays that
+  part), a section-level one is secondary, outlined (**Nov termin**, **Novo zaprto obdobje**,
+  **Dodaj stalni termin**, **Uredi podatke**, the calendar's small **Dodaj stranko**). "New"
+  actions carry a `+`, **Uredi podatke** does not. So a screen never has two black buttons
+  competing for the main action.
 - **Open:** pressing it replaces the button with the form, as a card under the heading,
   above the list; focus moves to the form's first field. The form has **Prekliči** next to
   its submit button (`settings.cancelEdit` in Nastavitve, `common.cancel` elsewhere).

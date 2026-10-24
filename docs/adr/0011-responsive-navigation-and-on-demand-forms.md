@@ -37,11 +37,15 @@ tokens, type and account menu stay as they are.
   screen's usual notice. The parent owns the open state, so it can close the form on success
   and keep one open at a time where that matters. Focus goes back to the button only when the
   close removed the focused control, so closing one control because another opened does not
-  pull focus back. The button sits at the heading rather than under the list (as the first
+  pull focus back. Button weight follows the heading: a page-level action in the page head is
+  primary (black), a section-level one secondary (outlined), both with a `+` for "new", so each
+  screen has one black main action (on customer detail that is **Dodaj kredite**). The button
+  sits at the heading rather than under the list (as the first
   sketch had it) so the main action is visible without scrolling on every screen.
 - **The trainer calendar's add control** is one small **Dodaj stranko** per occurrence that
   opens the select for that occurrence only. When the occurrence cannot take anyone, the button
-  is disabled and says why with the customer calendar's words, **Zaprto** or **Polno**.
+  is disabled and says why: **Zaprto** or **Polno** (the customer calendar's words), or **Ni
+  strank za dodajanje** when every customer is already booked there or there are none yet.
 - **Customer detail** follows the trainer's order of use: the balance with the credits form
   beside it from 768 px, then appointments, recurring rules, recent sessions and the ledger,
   with the invite and the details lower down.

@@ -85,7 +85,13 @@ export function SettingsBlocked() {
     <section aria-label={t.settings.blockedTitle}>
       <div className="head">
         <h2>{t.settings.blockedTitle}</h2>
-        <OnDemand label={t.settings.newBlocked} add open={adding} onOpen={() => setAdding(true)}>
+        <OnDemand
+          label={t.settings.newBlocked}
+          className="button secondary"
+          add
+          open={adding}
+          onOpen={() => setAdding(true)}
+        >
           <BlockedForm
             title={t.settings.newBlocked}
             initial={null}

@@ -81,7 +81,13 @@ export function SettingsTemplates() {
     <section aria-label={t.settings.templatesTitle}>
       <div className="head">
         <h2>{t.settings.templatesTitle}</h2>
-        <OnDemand label={t.settings.newTemplate} add open={adding} onOpen={() => setAdding(true)}>
+        <OnDemand
+          label={t.settings.newTemplate}
+          className="button secondary"
+          add
+          open={adding}
+          onOpen={() => setAdding(true)}
+        >
           <TemplateForm
             title={t.settings.newTemplate}
             initial={newTemplate}
