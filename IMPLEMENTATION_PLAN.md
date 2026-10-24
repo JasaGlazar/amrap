@@ -191,6 +191,38 @@ column, the URL's week); add, one control open, Polno and both cancels in each v
 Sunday (a 10:00 slot and an ad-hoc at 00:30, 22:30 UTC on Saturday) in both views.
 **Status**: Complete (PR open)
 
+## Stage 11: Trainer cancel reason and notification, cancel a whole session
+**Goal**: Issues #18 and #19: a trainer cancel tells the customer (push, best effort) with an
+optional reason that the customer's history also shows; the trainer cancels a whole slot
+occurrence in one action, which refunds charged bookings, notifies everyone and closes the
+occurrence. Branch `stage-11-cancellation` off `main` (d911b63, after Stage 10).
+**Success Criteria**: `cancel(id, reason default null)` stores a trimmed reason (≤ 200, blank →
+none) for the trainer and refuses one from a customer; one `cancel` function, so the
+customer's one-argument call is unchanged; every `booked`/`charged` → `cancelled_by_trainer`
+enqueues `appointment_cancelled_by_trainer` for the customer with `starts_at`, `timezone`,
+`refunded` and `reason`, and a failing notification never fails the cancel; `send-push` opens
+`/c/zgodovina` for it and the service worker renders the start, "Kredit je vrnjen." and the
+reason; the trainer's cancel dialog has **Razlog (neobvezno)** (no autofill, 200 characters);
+**Zgodovina** and the trainer's customer detail show `Razlog: …` under **Odpovedal trener**.
+`cancel_occurrence(template, start, reason)` cancels every live booking of a real, active,
+open occurrence (refunding charged ones), closes it with a blocked period of its duration and
+returns the count, under `book()`'s lock, which `book()` and materialization now take before
+their blocked check; the Koledar's day view and week grid offer **Odpovej termin** on every
+occurrence that is not **Zaprto**, with a confirm dialog, a status line and the **Zaprto** state.
+**Tests**: pgTAP `011_cancel.sql` (signature, reason trimmed/blank/200/201, customer refused,
+table check), `030_notifications.sql` (six kinds), `032_event_notifications.sql` (trainer cancel
+payload with and without refund and reason, no device or account, `deactivate_rule` once per
+instance, failing notification), new `034_cancel_occurrence.sql` (36: grants, rejections,
+cancel and refunds with balances from the fixture, untouched rows, the blocked period, the lock
+held and its order in three functions, `book()` and a second call rejected, past and empty
+occurrences, materialization skipping it, notifications, failing notification, missing
+settings); Deno payload for the new kind; Vitest for the push copy, the reason field (trainer
+only, trimmed, blank not sent), both history rows with and without a reason, the new
+**Zgodovina terminov** list and its pages, and **Odpovej termin** in both views (offered,
+hidden on **Zaprto**, dialog content with and without charged bookings, reason passed, success
+line and **Zaprto**, empty occurrence, server error, Escape and focus).
+**Status**: Complete (PR open)
+
 ## Workflow (from 2026-10-23 evening)
 
 - Orchestrator session runs on Opus. Per stage: a Herdr worktree with a fresh session does the
@@ -982,6 +1014,93 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   the change. Browser (`f2-*`): Monday 26 Oct's five-name roster at 1024x768, 1280x800 and
   1440x900, the current week's tagged rows at 1280 and 1440, and the day view at 390 after
   `›` (strip kept, focus on `›`, no page scroll), each in both themes.
+
+### Handoff state (2026-10-25, Stage 11)
+
+- Branch `stage-11-cancellation` off `main` (d911b63, after Stage 10); issue #18 in three
+  commits (DB, push rendering, app), issue #19 in two (DB, app), then a review-fix commit and
+  this plan commit; PR open against `main`, not merged. pgTAP 504 (449 at Stage 10), Vitest
+  567 (536), Deno 20, `supabase db lint`, lint, typecheck, build and `check-docs.sh` green.
+  Two migrations, `20261024221416_trainer_cancel_reason.sql` and
+  `20261024222414_cancel_occurrence.sql`, applied locally with `supabase migration up --local`
+  (no reset; the second was undone by hand and re-applied once for a comment-only review fix).
+  PostgREST resolved `cancel` with and without `p_reason` (curl as the trainer:
+  `AMRAP_NOT_FOUND`, not `PGRST202`).
+- Test first (watched red): 011 failed on the missing `cancel(uuid, text)`, 030 on the
+  missing enum value, 032 on the missing `notify_cancelled_by_trainer()`; 034 on the missing
+  `cancel_occurrence`; the Deno payload test on the unknown kind; the render tests on the
+  missing copy; the dialog-field, history-reason and detail-list tests and all 18 **Odpovej
+  termin** tests (9 per view) before their code. "The customer's dialog has no reason field"
+  passed at once (it pins existing behaviour).
+- Pre-existing local failure fixed: 021 (and 032, which aborted at its first booking) failed
+  on the local stack because a demo blocked period ("Idk", Mon 26 Oct 09:00-10:00) closes
+  their "tomorrow 09:00" fixture slot; 021, 032 and 034 now delete `blocked_periods` inside
+  their rolled-back transaction (`docs/harness.md` "How to write a test"). CI was not
+  affected (fresh DB).
+- Race check with two real sessions (not committable as pgTAP): a throwaway template (Sunday
+  05:00, id `27b49f7f-0fee-4094-92ae-4d358fd8e5ad`) and `cancel_occurrence` holding the lock
+  for 4 s in one psql session; a concurrent trainer `book()` of that occurrence waited about
+  3 s and then failed with `AMRAP_BLOCKED`, with no booking. Template and period deleted by id
+  (11 templates, 2 blocked periods again). pgTAP pins the order (lock before the blocked
+  check in `book`, `materialize_rule`, `cancel_occurrence`) and that the lock is held.
+- Browser check (Vite dev server on 5181, local stack, agent-browser sessions `s11-trainer`,
+  `s11-ana`): the trainer cancel dialog with **Razlog (neobvezno)** at 390 and 1440 in both
+  themes (16 px, `autocomplete="off"`, `maxlength` 200; closed with Escape, never confirmed);
+  **Odpovej termin** in the day view at 390 and 768 and the week grid at 1440 and 1024 in both
+  themes (Friday's **Zaprto** has none); its dialog at 360, 390, 768 and 1440 (**Nazaj** puts
+  focus back on the action); confirmed at 1440 with "Bolezen trenerja": "Termin je odpovedan,
+  obveščenih strank: 2.", the card **Zaprto** with focus on it, the day view at 390 closed;
+  Ana's **Zgodovina** at 390, 768 and 1440 and the trainer's **Zgodovina terminov** for Ana at
+  390, 768 and 1440, both with "Razlog: Bolezen trenerja" under **Odpovedal trener**. At 360 px
+  `scrollWidth` 360 and the action 44 px tall; at 1024 the grid scrolls inside its box (976 in
+  848) and "Odpovej termin" fits on one line. Screenshots `t1-*` (#18) and `t2-*` (#19) in the
+  gitignored `.superpowers/shots/`.
+- Demo data: two bookings made through the UI for the check, Ana Novak
+  (`6fa1cccb-4ad6-4c0b-b853-ed4988325b9f`) and Eva Kos (`0eb5bcbe-c826-4f4e-a3a3-2357243d5c08`)
+  on Thursday 29 Oct 19:00, then cancelled with **Odpovej termin**; they stay as
+  `cancelled_by_trainer` with the reason (they show in Ana's history). The blocked period it
+  created was deleted in **Nastavitve → Zaprta obdobja**. Both were booked, not charged, so
+  no ledger row was written; `customer_balances` equals the pre-check snapshot for every
+  customer. No notification rows (no local push subscriptions). The owner's existing bookings
+  were not touched.
+- Judged beyond the issues:
+  - A customer passing a reason is refused (`AMRAP_FORBIDDEN`, even an empty one) rather than
+    ignored; the app sends `p_reason` only when the trimmed reason is not blank. Trimming
+    covers spaces, tabs and line breaks; the table's check mirrors it (ADR 0015).
+  - `refunded` is `old.status = 'charged'`, since the refund row is inserted after the row
+    trigger runs. `deactivate_rule` notifies once per instance (at most about five), no summary.
+  - The new kind opens `/c/zgodovina`; the body puts "Kredit je vrnjen." before the reason, so
+    a reason ending in punctuation reads well.
+  - The trainer's customer detail had no list that could show a cancelled appointment, so it
+    gained **Zgodovina terminov**: the customer's own paged history (`AppointmentHistory.tsx`,
+    shared with **Zgodovina**), between **Opravljeni termini** and **Zgodovina kreditov**,
+    without actions.
+  - `cancel_occurrence`: an occurrence already overlapping a blocked period is rejected with
+    `AMRAP_BLOCKED` (not idempotent): it is closed already, and the UI hides **Odpovej termin**
+    on **Zaprto**; bookings a Settings period stranded there are cancelled one by one. Past
+    and empty occurrences are allowed. Existing tokens and copy cover every rejection. Booked
+    rows are cancelled before charged ones so a concurrent charge run cannot slip through.
+  - `book()` and `materialize_rule()` were replaced (`create or replace`, grants kept) to take
+    the advisory lock before the blocked-period check; without it a booking that passed the
+    check and then waited on the lock would land in the closed occurrence (ADR 0016).
+  - The status line keeps the owner's wording "obveščenih strank: {count}" with the number of
+    cancelled bookings (the "label: {count}" form needs no plural, `app-structure.md`); only
+    customers with push get a device notification, so `copy-review.md` asks the trainer about
+    it. With nobody booked it says "Termin je odpovedan in zaprt."
+  - **Odpovej termin** sits at the foot of `SlotRoster`, right-aligned under **Dodaj
+    stranko** (full width in grid cards), secondary with red text (`danger-text`). The dialog
+    stays open until the week has reloaded, so focus can go to the occurrence. The reason
+    field is one component (`ReasonField.tsx`) in both dialogs.
+- Project `reviewer`: approve, no Critical or Important. Five Minor items done in e1cb809
+  (one-line comments in the replaced functions, two counts in 034 derived from the fixture,
+  `cancel_occurrence` in the push sequence diagram, 034 in the harness note, a long header line
+  in 032).
+- Owner and orchestrator actions after merge: `supabase db push` for the two migrations (the
+  release checklist); redeploy `send-push` (its payload table gained the new kind; until then a
+  trainer-cancel push opens `/`) once push is turned on (issue #5, an owner step); comment on
+  issue #7 that open question 1 is answered by #18 (closed by this PR) and that #19 relates to
+  open question 3 (a Settings blocked period still only warns); the trainer answers the new
+  `copy-review.md` questions (`occurrenceDialog.done`, `occurrenceDialog.notify`).
 
 ---
 
