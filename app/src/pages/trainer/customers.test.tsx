@@ -38,6 +38,11 @@ function renderAt(path: string) {
   return router;
 }
 
+async function openNewCustomer() {
+  await userEvent.click(await screen.findByRole('button', { name: t.customers.newTitle }));
+  return screen.getByRole('form', { name: t.customers.newTitle });
+}
+
 beforeEach(() => {
   resetFake({ session: makeSession('user-t'), customer: trainer });
   db.tables.customers = [cvet, ana, bor];
@@ -88,9 +93,34 @@ describe('customer list', () => {
     }
   });
 
+  it('shows Nova stranka as a button in the page header until it is pressed', async () => {
+    renderAt('/t/stranke');
+    const button = await screen.findByRole('button', { name: t.customers.newTitle });
+    expect(screen.queryByRole('form', { name: t.customers.newTitle })).not.toBeInTheDocument();
+    expect(button.parentElement).toContainElement(
+      screen.getByRole('heading', { level: 1, name: t.trainer.customersTitle }),
+    );
+    await userEvent.click(button);
+    const form = screen.getByRole('form', { name: t.customers.newTitle });
+    expect(within(form).getByLabelText(t.customers.name)).toHaveFocus();
+  });
+
+  it('drops the input on Prekliči and puts focus back on Nova stranka', async () => {
+    renderAt('/t/stranke');
+    const form = await openNewCustomer();
+    await userEvent.type(within(form).getByLabelText(t.customers.name), 'Dora');
+    await userEvent.click(within(form).getByRole('button', { name: t.common.cancel }));
+    expect(form).not.toBeInTheDocument();
+    const button = screen.getByRole('button', { name: t.customers.newTitle });
+    expect(button).toHaveFocus();
+    await userEvent.click(button);
+    expect(screen.getByLabelText(t.customers.name)).toHaveValue('');
+    expect(db.tables.customers.some((row) => row.name === 'Dora')).toBe(false);
+  });
+
   it('creates a customer and opens the detail page', async () => {
     const router = renderAt('/t/stranke');
-    const form = await screen.findByRole('form', { name: t.customers.newTitle });
+    const form = await openNewCustomer();
     await userEvent.type(within(form).getByLabelText(t.customers.name), 'Dora');
     await userEvent.click(within(form).getByRole('button', { name: t.customers.create }));
     const created = db.tables.customers.find((row) => row.name === 'Dora');
@@ -101,7 +131,7 @@ describe('customer list', () => {
 
   async function createWithStart(name: string, starting: string) {
     const router = renderAt('/t/stranke');
-    const form = await screen.findByRole('form', { name: t.customers.newTitle });
+    const form = await openNewCustomer();
     await userEvent.type(within(form).getByLabelText(t.customers.name), name);
     if (starting !== '') {
       await userEvent.type(within(form).getByLabelText(t.customers.startingBalance), starting);
@@ -143,7 +173,7 @@ describe('customer list', () => {
 
   it('rejects a starting balance the browser could not read as a number', async () => {
     renderAt('/t/stranke');
-    const form = await screen.findByRole('form', { name: t.customers.newTitle });
+    const form = await openNewCustomer();
     await userEvent.type(within(form).getByLabelText(t.customers.name), 'Dora');
     const starting = within(form).getByLabelText(t.customers.startingBalance);
     Object.defineProperty(starting, 'validity', { value: { badInput: true }, configurable: true });
@@ -173,7 +203,7 @@ describe('customer list', () => {
 
   it('requires a name', async () => {
     renderAt('/t/stranke');
-    const form = await screen.findByRole('form', { name: t.customers.newTitle });
+    const form = await openNewCustomer();
     await userEvent.click(within(form).getByRole('button', { name: t.customers.create }));
     expect(within(form).getByRole('alert')).toHaveTextContent(t.customers.nameRequired);
   });

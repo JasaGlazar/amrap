@@ -103,6 +103,7 @@ is a question below.
 | `common.loadFailed` | Podatkov ni mogoče naložiti. |  |
 | `common.signOut` | Odjava |  |
 | `common.continue` | Nadaljuj |  |
+| `common.cancel` | Prekliči | Zapre odprt obrazec brez shranjevanja (nova stranka, termin po dogovoru, stalni termin, podatki, dodajanje stranke v termin). |
 | `notLinked.title` | Račun ni povezan |  |
 | `notLinked.body` | Vaš račun še ni povezan s stranko. Za povezavo se obrnite na trenerja. | »povezan s stranko« zveni nerodno. Predlog: »Vaš račun še ni povezan z vašimi podatki pri trenerju.« |
 | `lookupFailed.title` | Podatkov ni mogoče naložiti |  |

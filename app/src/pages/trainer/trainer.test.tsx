@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -49,6 +49,11 @@ function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   render(<RouterProvider router={router} />);
   return router;
+}
+
+async function openAdHoc() {
+  await userEvent.click(await screen.findByRole('button', { name: t.trainer.adHocFormTitle }));
+  return screen.getByRole('form', { name: t.trainer.adHocFormTitle });
 }
 
 function appointment(id: string, customerId: string, status: string) {
@@ -205,9 +210,30 @@ describe('trainer calendar', () => {
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', { p_appointment_id: 'a-ana' });
   });
 
+  it('shows Nov termin po dogovoru as a button until it is pressed', async () => {
+    renderAt('/t/koledar');
+    const button = await screen.findByRole('button', { name: t.trainer.adHocFormTitle });
+    expect(screen.queryByRole('form', { name: t.trainer.adHocFormTitle })).not.toBeInTheDocument();
+    await userEvent.click(button);
+    const form = screen.getByRole('form', { name: t.trainer.adHocFormTitle });
+    expect(within(form).getByLabelText(t.trainer.customer)).toHaveFocus();
+  });
+
+  it('drops the ad-hoc input on Prekliči and puts focus back on the button', async () => {
+    renderAt('/t/koledar');
+    const form = await openAdHoc();
+    await userEvent.type(within(form).getByLabelText(t.trainer.start), '16:00');
+    await userEvent.click(within(form).getByRole('button', { name: t.common.cancel }));
+    expect(form).not.toBeInTheDocument();
+    const button = screen.getByRole('button', { name: t.trainer.adHocFormTitle });
+    expect(button).toHaveFocus();
+    await userEvent.click(button);
+    expect(screen.getByLabelText(t.trainer.start)).toHaveValue('');
+  });
+
   it('creates an ad-hoc appointment in the gym timezone', async () => {
     renderAt('/t/koledar');
-    const form = await screen.findByRole('form', { name: t.trainer.adHocFormTitle });
+    const form = await openAdHoc();
     const date = addDays(weekStart(today), 3);
     await userEvent.selectOptions(within(form).getByLabelText(t.trainer.customer), 'c-cvet');
     await userEvent.clear(within(form).getByLabelText(t.trainer.date));
@@ -220,11 +246,14 @@ describe('trainer calendar', () => {
       p_starts_at: new Date(`${date}T14:00:00Z`).toISOString(),
       p_ends_at: new Date(`${date}T15:30:00Z`).toISOString(),
     });
+    expect(await screen.findByRole('status')).toHaveTextContent(t.trainer.added);
+    await waitFor(() => expect(form).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: t.trainer.adHocFormTitle })).toHaveFocus();
   });
 
   it('rejects an ad-hoc appointment that ends before it starts', async () => {
     renderAt('/t/koledar');
-    const form = await screen.findByRole('form', { name: t.trainer.adHocFormTitle });
+    const form = await openAdHoc();
     await userEvent.selectOptions(within(form).getByLabelText(t.trainer.customer), 'c-cvet');
     await userEvent.type(within(form).getByLabelText(t.trainer.start), '17:00');
     await userEvent.type(within(form).getByLabelText(t.trainer.end), '16:00');

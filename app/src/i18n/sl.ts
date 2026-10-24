@@ -7,6 +7,7 @@ export const sl = {
     loadFailed: 'Podatkov ni mogoče naložiti.',
     signOut: 'Odjava',
     continue: 'Nadaljuj',
+    cancel: 'Prekliči',
   },
   nav: {
     customerLabel: 'Glavni meni',

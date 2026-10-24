@@ -8,6 +8,7 @@ import { formatLongDay, formatTime } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
 import { CancelDialog } from '../shared/CancelDialog';
 import { NoticeLine, type Notice } from '../shared/NoticeLine';
+import { OnDemand } from '../shared/OnDemand';
 import { WeekNav } from '../shared/WeekNav';
 import { WeekSlots } from '../shared/WeekSlots';
 import { AdHocForm } from './AdHocForm';
@@ -27,6 +28,7 @@ export function TrainerCalendar() {
   const [message, setMessage] = useState<Notice>(null);
   const [pending, setPending] = useState(false);
   const [cancelling, setCancelling] = useState<Appointment | null>(null);
+  const [addingAdHoc, setAddingAdHoc] = useState(false);
 
   async function addBooking(booking: Booking) {
     setPending(true);
@@ -37,6 +39,7 @@ export function TrainerCalendar() {
     );
     await reload();
     setPending(false);
+    return result.ok;
   }
 
   function goToWeek(offset: number) {
@@ -50,7 +53,30 @@ export function TrainerCalendar() {
 
   return (
     <>
-      <h1>{t.trainer.calendarTitle}</h1>
+      <div className="head">
+        <h1>{t.trainer.calendarTitle}</h1>
+        <OnDemand
+          label={t.trainer.adHocFormTitle}
+          add
+          disabled={data === null}
+          open={addingAdHoc}
+          onOpen={() => setAddingAdHoc(true)}
+        >
+          {data !== null && (
+            <AdHocForm
+              key={data.week.start}
+              customers={data.customers}
+              defaultDate={data.week.start}
+              timeZone={timeZone}
+              disabled={pending}
+              onSubmit={(booking) =>
+                void addBooking(booking).then((ok) => ok && setAddingAdHoc(false))
+              }
+              onCancel={() => setAddingAdHoc(false)}
+            />
+          )}
+        </OnDemand>
+      </div>
       <WeekNav
         start={data?.week.start ?? null}
         canGoBack
@@ -99,14 +125,6 @@ export function TrainerCalendar() {
             names={names}
             timeZone={timeZone}
             onCancel={setCancelling}
-          />
-          <AdHocForm
-            key={data.week.start}
-            customers={data.customers}
-            defaultDate={data.week.start}
-            timeZone={timeZone}
-            disabled={pending}
-            onSubmit={(booking) => void addBooking(booking)}
           />
         </>
       )}

@@ -11,6 +11,7 @@ import { t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { useLoad } from '../../lib/useLoad';
 import { Amount } from '../shared/Amount';
+import { OnDemand } from '../shared/OnDemand';
 import { CustomerFieldsForm } from './CustomerFieldsForm';
 
 export function TrainerCustomers() {
@@ -25,6 +26,7 @@ export function TrainerCustomers() {
   const [state] = useLoad(load);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   async function create(draft: CustomerFields, startingBalance: number | null) {
     setBusy(true);
@@ -48,7 +50,29 @@ export function TrainerCustomers() {
 
   return (
     <>
-      <h1>{t.trainer.customersTitle}</h1>
+      <div className="head">
+        <h1>{t.trainer.customersTitle}</h1>
+        <OnDemand
+          label={t.customers.newTitle}
+          add
+          open={adding}
+          onOpen={() => {
+            setError(null);
+            setAdding(true);
+          }}
+        >
+          <CustomerFieldsForm
+            title={t.customers.newTitle}
+            submitLabel={t.customers.create}
+            initial={{ name: '', phone: null, email: null }}
+            busy={busy}
+            error={error}
+            withStartingBalance
+            onSubmit={(draft, startingBalance) => void create(draft, startingBalance)}
+            onCancel={() => setAdding(false)}
+          />
+        </OnDemand>
+      </div>
       {state.status === 'loading' && <p className="status">{t.common.loading}</p>}
       {state.status === 'error' && (
         <p role="alert" className="error">
@@ -79,15 +103,6 @@ export function TrainerCustomers() {
           )}
         </section>
       )}
-      <CustomerFieldsForm
-        title={t.customers.newTitle}
-        submitLabel={t.customers.create}
-        initial={{ name: '', phone: null, email: null }}
-        busy={busy}
-        error={error}
-        withStartingBalance
-        onSubmit={(draft, startingBalance) => void create(draft, startingBalance)}
-      />
     </>
   );
 }

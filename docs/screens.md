@@ -150,12 +150,14 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   (`appointmentsOutsideSlots`): ad-hoc ones (`po dogovoru`) and bookings left behind by a
   deactivated or moved template (`ni več v urniku`), with day, time range and name, each with
   **Odpovej**. None: `trainer.noOther`.
-- **Nov termin po dogovoru:** a form with customer, date
-  (defaults to the week's Monday), start and end time. The date and times are converted with
+- **Nov termin po dogovoru:** a button at the right of the title opens, under the title, a
+  form ([on demand](#forms-on-demand)) with customer, date (defaults to the shown week's
+  Monday; moving to another week starts the form again for that week), start and end time.
+  The button is disabled while a week loads. The date and times are converted with
   `zonedInstant` in the gym timezone ([time.md](time.md)); a time that does not exist that day
   shows `trainer.invalidTime`, an end not after the start `trainer.invalidRange`, no customer
-  `trainer.missingCustomer`. Submit calls `book` without a template (`p_ends_at`); ad-hoc
-  appointments have no capacity.
+  `trainer.missingCustomer`. **Dodaj termin** calls `book` without a template (`p_ends_at`);
+  ad-hoc appointments have no capacity. Success closes the form and shows `trainer.added`.
 - **Cancel:** the cancel dialog in trainer mode: the customer's name, no cutoff, and
   `cancelDialog.noCharge` for a booked appointment or `cancelDialog.refund` ("z vračilom",
   +1 credit) for a charged one, matching what `cancel()` does for the trainer.
@@ -168,7 +170,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   negative, green when positive, neutral at 0). A tag shows the invite status only while the
   customer has no account (`customers.inviteStatus`: pending = an unexpired token, none); a
   linked account is the normal end state and has no tag.
-- **Nova stranka:** name (required, `customers.nameRequired`), phone and email (empty becomes
+- **Nova stranka:** a button at the right of the page title opens, under the title, a form
+  ([on demand](#forms-on-demand)): name (required, `customers.nameRequired`), phone and email (empty becomes
   null), and an optional starting balance from the paper sheet (`customers.startingBalance`, a
   whole number that may be negative, else `customers.startingInvalid`; nothing is created then).
   A value the browser cannot read as a number (`validity.badInput`, for example `2,5` or `3-`
@@ -273,18 +276,20 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 
 A form that creates something, or edits details that rarely change, is not on the screen
 until it is asked for (`pages/shared/OnDemand.tsx`). Where it is used: **Nov termin**
-(Urnik), **Novo zaprto obdobje** (Zaprta obdobja).
+(Urnik), **Novo zaprto obdobje** (Zaprta obdobja), **Nova stranka** (Stranke, at the page
+title), **Nov termin po dogovoru** (Koledar, at the page title).
 
 - **Closed:** one button named after the action, at the right of the heading the form belongs
   to (a primary button with a `+` for "new" actions). On a narrow screen it wraps below the
   heading.
 - **Open:** pressing it replaces the button with the form, as a card under the heading,
   above the list; focus moves to the form's first field. The form has **Prekliči** next to
-  its submit button.
+  its submit button (`settings.cancelEdit` in Nastavitve, `common.cancel` elsewhere).
 - **Prekliči** closes it, drops what was typed (the next open starts empty) and returns focus
   to the button.
 - **A successful save** closes it, returns focus to the button and shows the screen's usual
-  result notice (`settings.saved`, …). A rejected save or a warning that asks for a second
+  result notice (`settings.saved`, `trainer.added`, …); **Nova stranka** opens the new
+  customer's page instead. A rejected save or a warning that asks for a second
   **Shrani** keeps it open.
 - Closing one form because another opened (the trainer calendar's add control, one open at a
   time) leaves focus in the form that opened.

@@ -11,6 +11,7 @@ type Props = {
   notice?: string | null;
   withStartingBalance?: boolean;
   onSubmit: (fields: CustomerFields, startingBalance: number | null) => void;
+  onCancel?: () => void;
 };
 
 function orNull(value: string): string | null {
@@ -27,6 +28,7 @@ export function CustomerFieldsForm({
   notice,
   withStartingBalance = false,
   onSubmit,
+  onCancel,
 }: Props) {
   const [name, setName] = useState(initial.name);
   const [phone, setPhone] = useState(initial.phone ?? '');
@@ -107,9 +109,16 @@ export function CustomerFieldsForm({
           {notice}
         </p>
       )}
-      <button type="submit" className="button" disabled={busy}>
-        {submitLabel}
-      </button>
+      <div className="actions">
+        <button type="submit" className="button" disabled={busy}>
+          {submitLabel}
+        </button>
+        {onCancel !== undefined && (
+          <button type="button" className="button secondary" onClick={onCancel}>
+            {t.common.cancel}
+          </button>
+        )}
+      </div>
     </form>
   );
 }
