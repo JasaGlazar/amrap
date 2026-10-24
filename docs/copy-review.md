@@ -113,6 +113,16 @@ is a question below.
 | `logoutFailed.title` | Odjava ni uspela |  |
 | `genericError` | Nekaj je šlo narobe. Poskusite znova. |  |
 
+### Račun (meni v zgornji vrstici)
+
+| Ključ | Besedilo | Vprašanje |
+|---|---|---|
+| `account.menu` | Račun | Ime gumba z ikono osebe (bralniki zaslona ga preberejo). V redu? |
+| `account.appearance` | Videz |  |
+| `account.theme.system` | Sistem | Sledi nastavitvi telefona. Raje »Kot naprava«? |
+| `account.theme.light` | Svetlo |  |
+| `account.theme.dark` | Temno |  |
+
 ### Navigacija
 
 | Ključ | Besedilo | Vprašanje |

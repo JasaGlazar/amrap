@@ -15,10 +15,10 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/` | signed in | Redirects to `/t` for the trainer or `/c` for a customer. | none | Stage 1 |
 | (any route below `/`) | signed in, customer lookup failed | Error page with a retry button and a sign-out link to `/logout`. | `lookupFailed`, `common.signOut` | Stage 1 |
 | (any route below `/`) | signed in, no `customers` row | "Account not linked" page with a sign-out link to `/logout`. Shown instead of the route, URL unchanged. | `notLinked`, `common.signOut` | Stage 1 |
-| `/c` | customer | Customer shell: top bar with the app name and a sign-out link to `/logout`, the [install card](#install-card), bottom navigation (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `install`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle` | Stage 2, push Stage 3, install Stage 4 |
+| `/c` | customer | Customer shell: top bar with the framed wordmark and the [account menu](#account-menu) (theme, sign-out), the [install card](#install-card), bottom navigation (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `account`, `install`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle` | Stage 2, push Stage 3, install Stage 4, account menu Stage 6 |
 | `/c/koledar` | customer | Week calendar: book open slots, cancel own bookings. | `customer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
-| `/t` | trainer | Trainer shell: the same top bar with sign-out, the [install card](#install-card), bottom navigation (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4 |
+| `/t` | trainer | Trainer shell: the same top bar with the [account menu](#account-menu), the [install card](#install-card), bottom navigation (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `account`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4, account menu Stage 6 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; create a customer. | `trainer`, `customers` | Stage 2 |
 | `/t/stranke/:id` | trainer | One customer: credits, invite link, recurring rules, upcoming appointments, details, ledger. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType` | Stage 2 |
@@ -35,8 +35,9 @@ data.
 ### Home (`/c`)
 
 - **Data:** `getSettings`, `balanceOf`, `upcomingAppointments` (mine, `booked`, in the future).
-- **Balance:** the number from `customer_balances` (a [signed number](#behaviour-shared-by-all-screens),
-  `−3`); when negative it is red with a `dolg` tag (`customer.debt`).
+- **Balance:** the label, then the number from `customer_balances` (a
+  [signed number](#behaviour-shared-by-all-screens), `−3`) in the frame, 3.5 rem condensed;
+  when negative it is red with a `dolg` tag (`customer.debt`).
 - **Next appointment:** the soonest upcoming one, `slot.when` (`ponedeljek, 26. oktober ob
   07:00`) and the time left (`čez 2 d 9 h`, computed when the page loaded). Hidden when there is
   none.
@@ -160,7 +161,7 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Data:** `listCustomers` (customer records only, not the trainer's own row) and
   `allBalances`.
 - **List:** by name; each row links to the detail page and shows the balance (red when
-  negative, accent when positive, neutral at 0). A tag shows the invite status only while the
+  negative, green when positive, neutral at 0). A tag shows the invite status only while the
   customer has no account (`customers.inviteStatus`: pending = an unexpired token, none); a
   linked account is the normal end state and has no tag.
 - **Nova stranka:** name (required, `customers.nameRequired`), phone and email (empty becomes
@@ -182,8 +183,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Data:** `getCustomer`, `getSettings`, `balanceOf`, `ledgerOf`, `upcomingAppointments`,
   `rulesOf`, `allTemplates`. A missing record (or the trainer's own id) shows the load error
   with the back link.
-- **Header:** name, then a card with the label `Stanje kreditov` and the invite status tag on
-  one line and the balance below (red with `dolg` when negative).
+- **Header:** name, then the label `Stanje kreditov` and the invite status tag on one line and
+  the framed balance below (red with `dolg` when negative), on the page rather than in a card.
 - **Krediti:** one amount field and a note. **Dodaj kredite** calls `top_up` (a positive whole
   number, else `customerDetail.topUpInvalid`); **Popravi stanje** calls `adjust` (any non-zero
   whole number, negative subtracts; else `customerDetail.adjustInvalid`). Waiving a late
@@ -252,6 +253,25 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   the same range. A changed range is counted again; a failed count shows the error and saves
   nothing; **Prekliči** on an edit clears the warning, so the next save counts again.
 - **Obvestila:** the notifications toggle with the trainer hint (`pushToggle.trainerHint`).
+
+## Account menu
+
+`pages/shared/AccountMenu.tsx`, at the right end of the top bar in both shells: a square button
+named `account.menu` (**Račun**, a person icon) that opens a small panel below it with:
+
+- **Videz** (`account.appearance`): a radio group **Sistem** / **Svetlo** / **Temno**
+  (`account.theme`). Choosing one applies it at once and remembers it on this device
+  ([app-structure.md](app-structure.md#theme)); **Sistem** follows the device setting. The
+  panel stays open, so the change is seen in place.
+- **Odjava** (`common.signOut`): a link to `/logout`, as the bare link in the top bar was
+  before.
+
+Keyboard and pointer: Enter or Space on the button opens the panel and puts focus on the chosen
+theme (arrow keys move within the group, Tab goes on to **Odjava**). Escape closes it and returns
+focus to the button; pressing the button again, a click or tap outside it, or Tab out of it also
+closes it (focus then stays where the user put it). The button has `aria-expanded` and
+`aria-controls`; the panel is a plain disclosure, not an ARIA menu, so the radios and the link
+keep their native roles.
 
 ## Install card
 
@@ -329,10 +349,10 @@ How the guards and the auth state work is in [auth.md](auth.md).
   - no horizontal scroll at 360 px wide; the fixed bottom navigation never covers the last item;
   - every tap target (buttons, links outside running text, inputs, selects, checkbox labels)
     is at least 44 × 44 px (`--tap` in `styles.css`);
-  - everything focusable shows a 3 px accent ring on `:focus-visible` (not the dialog box
+  - everything focusable shows a 3 px `--ink` ring on `:focus-visible` (not the dialog box
     itself, which only receives focus so screen readers start there);
-  - text contrast at least 4.5:1, control borders at least 3:1 (`--muted` #4b5563,
-    `--control-border` #6b7280); greyed rows use the muted colour, never opacity;
+  - text contrast at least 4.5:1, control borders at least 3:1, in both themes (see
+    [Colour and themes](#colour-and-themes)); greyed rows use the muted colour, never opacity;
   - inputs are 16 px, so iOS does not zoom on focus; a number that may be negative uses
     `type="number"` without `inputMode="numeric"` (the iOS numeric pad has no minus key);
     fields the trainer fills in about someone else (customer name, phone, email, credit note,
@@ -340,13 +360,55 @@ How the guards and the auth state work is in [auth.md](auth.md).
     managers ignore it;
   - in a row, text wraps anywhere but buttons and amounts never wrap or shrink; a row's
     buttons stay on one line together, and a tag sits next to the text it describes;
-  - links are the accent colour (never the browser's default blue);
+  - links are `--ink` and underlined (never the browser's default blue);
   - a disabled button is neutral, whatever its kind: surface background, muted text, no
-    outline and no opacity; on a card it keeps a 1 px `--border` outline so it still reads as a
-    button. An enabled secondary button has a 1 px `--control-border` outline, so an enabled
+    outline and no opacity; on a card it keeps a 1 px `--line` outline so it still reads as a
+    button. An enabled secondary button has a 1 px `--control-line` outline, so an enabled
     and a disabled one are told apart (for example the week arrows);
   - safe-area insets on the top bar, the page sides, the bottom navigation and the dialog;
   - errors are `role="alert"`, results `role="status"`.
+
+- **Brand mark.** The framed AMRAP wordmark (`public/brand-mark.png`, alt `app.name`) replaces
+  the plain "AMRAP" text: at the left of the top bar in both shells, and as the `h1` above the
+  heading on `/login` and `/invite/:token`. It is black on white in the light theme and white on
+  black in the dark theme.
+
+- **Type.** One family, Archivo ([app-structure.md](app-structure.md#font)), tabular figures
+  everywhere so times and amounts line up. Scale (tokens `--text-xs` to `--text-2xl`): 0.8125
+  rem tags, 0.875 secondary text, small buttons and the bottom navigation, 1 body and `h3`,
+  1.25 `h2` (weight 700) and slot times, 1.75 `h1` (2 from 768 px), 3.5 the balance. The
+  display treatment, width 75 and weight 800 in `--ink`, echoes the wordmark and is kept for
+  page titles (`h1`), the balance and slot times; everything else is width 100, weight 400 with
+  600 for emphasis (labels, buttons, amounts). Sentence case throughout: no all-caps or
+  letter-spaced labels.
+
+- **The frame.** The logo's rectangle, 2 px `--ink` with square corners, is the one strong
+  element: it is in the wordmark and around the balance on customer Home and customer detail
+  (the balance sits on the page, not in a card). Everything else is quiet: controls, cards,
+  tags and the dialog have a 6 px radius (`--radius`), only the dialog has a shadow (in the
+  light theme; in the dark theme `--shadow` is transparent and the dialog's `--line` edge shows
+  it), and there are no gradients.
+
+- **Colour and themes.** Black, white and grey from the gym logo
+  ([ADR 0010](adr/0010-visual-identity-and-themes.md)); red only for debt, late cancels and
+  destructive buttons, green only for "opravljeno", added credits and saved notices. Every
+  colour is a token on `:root` in `styles.css`; no component sets a colour of its own. The dark
+  values apply under `prefers-color-scheme: dark` unless `<html data-theme="light">`, and
+  always under `data-theme="dark"`; `color-scheme` follows, so native controls and scroll
+  bars match. Contrast of the pairs the app uses (WCAG ratio, light / dark):
+
+  | Pair | Light | Dark | Needs |
+  |---|---|---|---|
+  | `--text` on `--paper` / `--surface` | 17.0 / 15.4 | 17.9 / 15.5 | 4.5 |
+  | `--ink` on `--paper` / `--surface` (headings, primary button text reversed) | 21 / 18.9 | 21 / 18.1 | 4.5 |
+  | `--muted` on `--paper` / `--surface` | 6.4 / 5.8 | 8.3 / 7.2 | 4.5 |
+  | `--debt` on `--paper` / `--surface` / `--debt-bg` | 6.1 / 5.5 / 5.4 | 8.3 / 7.2 / 6.4 | 4.5 |
+  | `--paper` on `--debt` (destructive button) | 6.1 | 8.3 | 4.5 |
+  | `--done` on `--paper` / `--surface` / `--done-bg` | 5.4 / 4.8 / 4.7 | 10.3 / 8.8 / 7.6 | 4.5 |
+  | `--control-line` on `--paper` / `--surface` (input, select, secondary button and account button edges) | 3.7 / 3.3 | 4.4 / 3.8 | 3 |
+
+  `--line` (row dividers, card and dialog edges, tags, the debtor chips on Danes, whose text
+  identifies them) is decorative and needs no ratio.
 
 - **Spacing.** One scale in `styles.css`, `--space-1` to `--space-7` (4, 8, 12, 16, 24, 32,
   48 px). Components carry no outer margins; the context sets the gap:
@@ -367,7 +429,7 @@ How the guards and the auth state work is in [auth.md](auth.md).
 - **Signed numbers.** Balances and ledger amounts are formatted with `Intl.NumberFormat('sl-SI')`,
   which writes the minus as U+2212 (`−3`), never a hyphen: `formatBalance` for a balance (`4`,
   `0`, `−3`) and `formatAmount` for a change (`+8`, `−1`), both in `i18n/fill.ts`. The shared
-  `Amount` span colours them: negative red, positive accent, zero neutral.
+  `Amount` span colours them: negative `--debt`, positive `--done`, zero neutral.
 
 - **Keep-alive.** Once per signed-in user per page load, `AuthProvider` runs
   `select id from settings limit 1` (ADR 0005). A failure is logged with `console.warn` and
@@ -381,7 +443,8 @@ How the guards and the auth state work is in [auth.md](auth.md).
   build, serves `index.html` for every navigation (deep links work offline), updates itself
   (`skipWaiting` + `clientsClaim`, the `autoUpdate` behaviour) and shows push notifications
   ([notifications.md](notifications.md#service-worker)). `display: standalone`, manifest
-  language `sl`, icons 192 and 512 px. The [install card](#install-card) guides installing it.
+  language `sl`, icons 192 and 512 px (the framed wordmark on black), the font precached so
+  the app looks the same offline. The [install card](#install-card) guides installing it.
   Cloudflare Pages falls back to `index.html` for unknown paths natively;
   `app/public/_redirects` is a belt-and-braces measure
   ([runbook.md](runbook.md#cloudflare-pages-build-settings)).

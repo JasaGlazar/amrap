@@ -65,6 +65,31 @@ describe('unauthenticated visitor', () => {
   });
 });
 
+describe('brand mark', () => {
+  it.each(['/login', '/invite/abc'])('heads %s with the framed wordmark', async (path) => {
+    renderAt(path);
+    const heading = await screen.findByRole('heading', { level: 1, name: t.app.name });
+    expect(within(heading).getByRole('img', { name: t.app.name })).toHaveAttribute(
+      'src',
+      '/brand-mark.png',
+    );
+  });
+
+  it.each([
+    ['customer', customer, '/c'],
+    ['trainer', trainer, '/t'],
+  ])('shows the framed wordmark in the %s top bar', async (_name, row, path) => {
+    signedInAs(row);
+    renderAt(path);
+    const banner = await screen.findByRole('banner');
+    expect(within(banner).getByRole('img', { name: t.app.name })).toHaveAttribute(
+      'src',
+      '/brand-mark.png',
+    );
+    expect(within(banner).queryByText(t.app.name)).not.toBeInTheDocument();
+  });
+});
+
 describe('role gating', () => {
   it('sends a trainer from / to /t', async () => {
     signedInAs(trainer);
@@ -215,10 +240,14 @@ describe('shells', () => {
     expect(router.state.location.pathname).toBe('/c/zgodovina');
   });
 
-  it('signs out from the customer shell through /logout', async () => {
-    signedInAs(customer);
-    const router = renderAt('/c');
-    await userEvent.click(await screen.findByRole('link', { name: t.common.signOut }));
+  it.each([
+    ['customer', customer, '/c'],
+    ['trainer', trainer, '/t'],
+  ])('signs out from the %s account menu through /logout', async (_name, row, path) => {
+    signedInAs(row);
+    const router = renderAt(path);
+    await userEvent.click(await screen.findByRole('button', { name: t.account.menu }));
+    await userEvent.click(screen.getByRole('link', { name: t.common.signOut }));
     await screen.findByRole('heading', { name: t.login.title });
     expect(fakeSupabase.auth.signOut).toHaveBeenCalledOnce();
     expect(router.state.location.pathname).toBe('/login');

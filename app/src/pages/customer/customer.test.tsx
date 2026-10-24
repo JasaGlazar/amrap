@@ -280,7 +280,7 @@ describe('cancel dialog', () => {
     await userEvent.click(confirm);
     await within(dialog).findByRole('alert');
     expect(confirm).toBeDisabled();
-    const outside = screen.getByRole('link', { name: t.common.signOut });
+    const outside = screen.getByRole('button', { name: t.account.menu });
     outside.focus();
     expect(dialog).not.toContainElement(document.activeElement as HTMLElement);
 
@@ -304,7 +304,7 @@ describe('cancel dialog', () => {
     const dialog = await openDialog();
     const confirm = within(dialog).getByRole('button', { name: t.cancelDialog.confirm });
     const back = within(dialog).getByRole('button', { name: t.cancelDialog.back });
-    const outside = screen.getByRole('link', { name: t.common.signOut });
+    const outside = screen.getByRole('button', { name: t.account.menu });
 
     outside.focus();
     await userEvent.tab();

@@ -1,5 +1,6 @@
-import { Link, NavLink, Outlet } from 'react-router';
-import { t } from '../i18n';
+import { NavLink, Outlet } from 'react-router';
+import { AccountMenu } from './shared/AccountMenu';
+import { BrandMark } from './shared/BrandMark';
 import { InstallCard } from './shared/InstallCard';
 
 export type NavItem = { to: string; label: string; end?: boolean };
@@ -16,8 +17,8 @@ export function AppShell({
   return (
     <div className="shell">
       <header className="topbar">
-        <span className="brand">{t.app.name}</span>
-        <Link to="/logout">{t.common.signOut}</Link>
+        <BrandMark />
+        <AccountMenu />
       </header>
       <main className="page">
         <InstallCard audience={audience} />
