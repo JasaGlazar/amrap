@@ -39,8 +39,11 @@ sequenceDiagram
         T->>Auth: delete the customer's auth user (dashboard)
         Auth->>DB: on delete set null clears customers.auth_user_id
     end
-    T->>App: Stranke: Nova stranka (name, phone, email)
+    T->>App: Stranke: Nova stranka (name, phone, email, optional starting balance)
     App->>DB: insert customers row (trainer RLS)
+    opt starting balance not 0
+        App->>DB: top_up (positive) or adjust (negative), with the starting note
+    end
     T->>App: customer page: Ustvari povabilo
     App->>DB: create_invite(customer_id)
     DB->>DB: is_trainer(), record exists and not linked, else AMRAP_FORBIDDEN / AMRAP_NOT_FOUND / AMRAP_ALREADY_LINKED

@@ -30,7 +30,8 @@ Vse na telefonu, v aplikaciji AMRAP, prijavljeni kot trener. Papirnati list imej
 1. **Nastavitve → Rok za brezplačno odpoved:** koliko ur pred začetkom lahko stranka še
    brezplačno odpove (privzeto 5). Tapnite »Shrani«.
 2. **Nastavitve → Termini v tednu → Nov termin:** za vsak redni termin v tednu vpišite dan,
-   začetek, trajanje (min) in število mest; »Aktiven« naj ostane označen. Tapnite »Shrani«.
+   začetek, trajanje (min) in število mest; »Aktiven (stranke ga vidijo in rezervirajo)« naj
+   ostane označen. Tapnite »Shrani«.
    Ponovite za vse termine z whiteboarda.
 3. **Nastavitve → Zaprta obdobja → Novo zaprto obdobje:** dopust ali zaprtje, ki ga že poznate
    (od, do, razlog). V tem času rezervacije niso mogoče. Novo zaprto obdobje ne odpove že
@@ -42,10 +43,10 @@ Vse na telefonu, v aplikaciji AMRAP, prijavljeni kot trener. Papirnati list imej
    - je dolžna (npr. 2): vpišite `-2`;
    - stanje je 0: pustite prazno.
 
-   Tapnite »Dodaj stranko«. Odpre se stran stranke; v »Zgodovina kreditov« je vrstica z opombo
-   »Začetno stanje (papir)«. Če se pokaže sporočilo, da začetnega stanja ni bilo mogoče vpisati,
-   ga vpišite v »Krediti« (število, opomba je že izpolnjena) z »Dodaj kredite« (pozitivno) ali
-   »Popravi stanje« (negativno).
+   Tapnite »Dodaj stranko«. Odpre se stran stranke. Če ste vpisali začetno stanje, je v razdelku
+   »Zgodovina kreditov« vrstica z opombo »Začetno stanje (papir)«. Če se pokaže sporočilo, da
+   začetnega stanja ni bilo mogoče vpisati, sta število in opomba v razdelku »Krediti« že
+   izpolnjena: tapnite »Dodaj kredite« (pozitivno) ali »Popravi stanje« (negativno).
 5. **Stalni termini** (na strani stranke): izberite termin in tapnite »Dodaj stalni termin«.
    Aplikacija takoj rezervira ta termin za naslednje 4 tedne (sporočilo pove, koliko terminov).
 6. **Povabilo** (na strani stranke, za vsako stranko, ki bo uporabljala aplikacijo): »Ustvari
@@ -65,11 +66,11 @@ Na koncu primerjajte **Stranke** (stanje vsake stranke) s papirnatim listom.
 >    nujno, sicer obvestila ne delujejo.
 > 2. Na zaslonu **Domov** tapnite »Vklopi obvestila«. Uro pred rokom za brezplačno odpoved
 >    dobite opomnik.
-> 3. V **Koledarju** rezervirate prost termin (»Rezerviraj«), na **Domov** ga odpoveste
+> 3. V **Koledarju** rezervirate prost termin (»Rezerviraj«), na zaslonu **Domov** ga odpoveste
 >    (»Odpovej«).
 >
 > Odpoved do roka (5 ur pred začetkom) je brezplačna. Kasnejša odpoved ali termin, na katerega ne
-> pridete, se zaračuna (1 kredit). Stanje in zgodovino kreditov vidite na **Domov** in v
+> pridete, se zaračuna (1 kredit). Stanje in zgodovino kreditov vidite na zaslonu **Domov** in v
 > **Zgodovini**.
 >
 > Povezava: <povezava za povabilo>
