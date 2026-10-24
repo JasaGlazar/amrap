@@ -6,7 +6,7 @@ off stage N until it merges.
 
 ## Global Constraints
 
-- Supabase Free Plan and Cloudflare Pages free tier only. No paid add-ons, no custom SMTP.
+- Supabase Free Plan and Cloudflare Workers Free plan only. No paid add-ons, no custom SMTP.
 - Ledger-first: no mutable balance column; balance = `SUM(credit_transactions.amount)`.
 - All credit/capacity mutations go through `SECURITY DEFINER` RPCs with explicit role checks.
 - Partial unique index on `credit_transactions(appointment_id) WHERE type IN ('session','late_cancel')`.

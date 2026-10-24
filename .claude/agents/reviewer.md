@@ -35,7 +35,7 @@ confirmed) and the "Binding constraints" section of `docs/harness.md`.
    partial unique index is intact.
 7. **No blocking hooks.** No git hooks or Claude hooks that block mid-turn.
 8. **Free tier only.** No paid add-ons, no custom SMTP, no services outside Supabase Free
-   Plan and Cloudflare Pages free tier.
+   Plan and Cloudflare Workers Free plan.
 9. **Comments.** No explanatory comments; behaviour documented in the layer doc
    (`docs/auth.md`, `docs/app-structure.md`, `docs/schema.md`, `docs/rpcs.md`,
    `docs/jobs.md`). A comment is at most one line giving a non-obvious *why*. A migration
