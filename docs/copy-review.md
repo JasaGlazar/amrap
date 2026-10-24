@@ -278,6 +278,16 @@ is a question below.
 | `customers.inviteStatus.linked` | Povezan račun | V redu? |
 | `customers.inviteStatus.pending` | Povabilo čaka | Spremenjeno (prej »Povabljen«, moška oblika). V redu? |
 | `customers.inviteStatus.none` | Brez računa |  |
+| `customers.search` | Išči stranko | Novo (iskanje po imenu, telefonu in e-pošti). |
+| `customers.searchPlaceholder` | Ime, telefon ali e-pošta | Novo. |
+| `customers.filterLabel` | Prikaži | Novo: ime skupine gumbov za filtre (bralnik zaslona). |
+| `customers.filters.vsi` | Vsi | Novo. |
+| `customers.filters.dolzniki` | Dolžniki | Novo. |
+| `customers.filters.brez` | Brez računa | Novo. Vključuje tudi stranke s čakajočim povabilom. |
+| `customers.total` | 1 stranka, 2 stranki, 3 stranke, 5 strank | Novo. |
+| `customers.shown` | Prikazana 1 od 9, Prikazani 2 od 9, Prikazane 3 od 9, Prikazanih 5 od 9 | Novo. V redu, ali raje »Prikazanih: 5 od 9« za vsa števila? |
+| `customers.noMatches` | Ni strank, ki bi ustrezale iskanju. | Novo. |
+| `customers.clearSearch` | Počisti iskanje | Novo: počisti iskanje in filter. |
 
 ### Trener: Stranka (podrobnosti)
 

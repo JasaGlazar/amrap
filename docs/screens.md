@@ -20,7 +20,7 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
 | `/t` | trainer | Trainer shell: the same top bar with the [account menu](#account-menu), the [install card](#install-card), the [main navigation](#main-navigation) (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `account`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog`, `common` | Stage 2, add control and forms on demand Stage 7 |
-| `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; create a customer. | `trainer`, `customers`, `common` | Stage 2, form on demand Stage 7 |
+| `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; search and filters kept in the query (`?q=…&f=…`); create a customer. | `trainer`, `customers`, `common` | Stage 2, form on demand Stage 7, search and filters Stage 9 |
 | `/t/stranke/:id` | trainer | One customer: balance and credits, upcoming appointments, recurring rules, recent sessions, ledger, invite link, details. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType`, `common` | Stage 2, order and forms on demand Stage 7 |
 | `/t/nastavitve` | trainer | Settings, one tab per topic ([Settings](#settings-tnastavitve)); the bare path redirects to `/t/nastavitve/urnik`. | `settings` | Stage 2, tabs Stage 7 |
 | `/t/nastavitve/urnik` | trainer | Tab **Urnik**: slot templates. | `settings`, `trainer` | Stage 2, own route Stage 7 |
@@ -179,10 +179,36 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 
 - **Data:** `listCustomers` (customer records only, not the trainer's own row) and
   `allBalances`.
-- **List:** by name; each row links to the detail page and shows the balance (red when
+- **List:** by name in Slovenian order (`localeCompare(…, 'sl')`, so Č follows C); each row
+  links to the detail page and shows the balance (red when
   negative; a positive or zero balance is plain ink, so debtors stand out). A tag shows the invite status only while the
   customer has no account (`customers.inviteStatus`: pending = an unexpired token, none); a
   linked account is the normal end state and has no tag.
+- **Search** (`customers.search`, a `role="search"` block under the title, so **Nova stranka**
+  keeps the title row to itself on a phone): one `type="search"` field, 16 px,
+  `autoComplete="off"`, filtering the list already loaded as the trainer types
+  (`lib/customerSearch.ts`). Case and diacritics are ignored (`normalize('NFD')` without the
+  combining marks, and đ as d), so "zupancic" finds "Zupančič". A query of words matches when
+  every word is in the name or the email ("novak ana" finds "Ana Novak"). A query of digits
+  (spaces, `+`, `-`, `/`, `.` and brackets allowed) matches the phone instead, ignoring spaces,
+  with `+386` and `00386` read as a leading 0, so "040111" finds "+386 40 111 111".
+- **Filters:** a segmented control (`customers.filterLabel`, buttons with `aria-pressed`):
+  **Vsi**, **Dolžniki** (balance below 0) and **Brez računa** (no account; a customer with
+  a pending invite is in it too and keeps the **Povabilo čaka** tag, so there is no separate
+  filter for invites). A filter combines with the search. The pressed segment is framed in
+  `--ink` on paper, not filled, so the screen keeps one black button.
+- **Count and empty state:** above the list, `customers.total` ("9 strank") or, while a
+  search or filter narrows it, `customers.shown` ("Prikazanih 7 od 9"), both plural forms of
+  the shown count, in a `role="status"` line. When nothing matches, `customers.noMatches`
+  and **Počisti iskanje**, which empties the search, returns to **Vsi** and puts focus in
+  the search field. With no customers at all the list says `customers.noCustomers`.
+- **List state in the URL:** the search is `q` and the filter `f` (`dolzniki`, `brez`; none
+  for **Vsi**), written with `replace`, so typing never adds history entries and the browser's
+  back button leaves the list as a whole. Each row link carries the list's query string in its
+  navigation state, so both the browser's back button and **Nazaj na stranke** on the detail
+  page return to the same search and filter. The field keeps its own value while typing (the
+  URL follows), so the caret stays where the trainer types; a navigation the search did not
+  make (for example **Stranke** in the main navigation) resets it from the URL.
 - **Nova stranka:** a button at the right of the page title opens, under the title, a form
   ([on demand](#forms-on-demand)): name (required, `customers.nameRequired`), phone and email (empty becomes
   null), and an optional starting balance from the paper sheet (`customers.startingBalance`, a
@@ -203,6 +229,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Data:** `getCustomer`, `getSettings`, `balanceOf`, `ledgerOf` and `chargedSince` (the
   first page of each), `upcomingAppointments`, `rulesOf`, `allTemplates`. A missing record (or the trainer's own id) shows the load error
   with the back link.
+- **Back link:** **Nazaj na stranke** returns to the list with the search and filter it was
+  opened from (the list's query string in the navigation state, kept when the page clears its
+  starting-balance message).
 - **Order:** the back link and the name, then the balance with **Krediti** beside it, then
   **Prihajajoči termini**, **Stalni termini**, **Opravljeni termini**, **Zgodovina kreditov**,
   and lower down **Povabilo** and **Podatki** (set up once, rarely changed).

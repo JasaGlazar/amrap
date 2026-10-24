@@ -121,6 +121,28 @@ export const sl = {
     nameRequired: 'Vpišite ime.',
     noCustomers: 'Ni strank.',
     listTitle: 'Vse stranke',
+    search: 'Išči stranko',
+    searchPlaceholder: 'Ime, telefon ali e-pošta',
+    filterLabel: 'Prikaži',
+    filters: {
+      vsi: 'Vsi',
+      dolzniki: 'Dolžniki',
+      brez: 'Brez računa',
+    },
+    total: {
+      one: '{count} stranka',
+      two: '{count} stranki',
+      few: '{count} stranke',
+      other: '{count} strank',
+    },
+    shown: {
+      one: 'Prikazana {count} od {total}',
+      two: 'Prikazani {count} od {total}',
+      few: 'Prikazane {count} od {total}',
+      other: 'Prikazanih {count} od {total}',
+    },
+    noMatches: 'Ni strank, ki bi ustrezale iskanju.',
+    clearSearch: 'Počisti iskanje',
     inviteStatus: {
       linked: 'Povezan račun',
       pending: 'Povabilo čaka',
