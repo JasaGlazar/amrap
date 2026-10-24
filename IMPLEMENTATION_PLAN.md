@@ -119,7 +119,7 @@ screen shows a "new X" form until its button is pressed; a trainer week in the c
 no longer one long column of customer pickers.
 **Tests**: routing tests for the settings sub-routes; Vitest for open/close of each
 on-demand form and for the per-slot add control.
-**Status**: Not Started
+**Status**: Complete (PR open)
 
 ## Workflow (from 2026-10-23 evening)
 
@@ -592,6 +592,55 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   in dark, the inline theme script leaves no global, the wordmark crop is the frame's outer edge
   (shown at 28 px, lined up with the page text; icons regenerated), dead selectors and docs
   tidied.
+
+### Handoff state (2026-10-24, Stage 7)
+
+- Branch `stage-7-nav-structure` off `stage-6-brand-theme`; all 6 Stage 7 tasks done, PR open
+  against `stage-6-brand-theme`, not merged. Vitest 380, lint, typecheck, build and
+  `check-docs.sh` green. No DB change.
+- Test first (watched red): one navigation inside the top bar (both shells); the settings
+  redirect and each tab with `aria-current` on the tab and on **Nastavitve**; per screen, the
+  on-demand form closed until its button is pressed, focus in its first field, **Prekliči**
+  drops the input and returns focus, a save closes it (Nov termin, Novo zaprto obdobje, Nova
+  stranka, Nov termin po dogovoru, Dodaj stalni termin, Uredi podatke); the calendar's one
+  **Dodaj stranko** per occurrence, one control open at a time, **Polno** and **Zaprto**; the
+  customer detail heading order and the balance/credits grid.
+- Browser check (Vite dev server on 5177, local stack, agent-browser sessions `s7-trainer`,
+  `s7-ana`): every screen at 390, 768 and 1440 px in both system themes, each on-demand form
+  opened and cancelled with focus checked; the account menu and the cancel dialog (closed with
+  Escape, never confirmed) next to the new nav at 1440. At 360 px `scrollWidth` 360 on every
+  trainer and customer screen and no tap target under 44 px on the trainer screens. No form
+  was saved: demo data unchanged. Screenshots in the gitignored `.superpowers/shots/` (`t1-*`
+  … `t5-*` per task, `final-*` for the full pass; the 390 px `--full` shots of a customer
+  detail draw the fixed bottom nav mid-page, a capture artifact).
+- Judged beyond the task list:
+  - The on-demand buttons sit at the right of the heading the form belongs to (the page title
+    for **Nova stranka** and **Nov termin po dogovoru**, the section heading otherwise) and the
+    form opens under that heading, above the list, not under the list as the ASCII sketch
+    shows: one pattern everywhere, visible without scrolling (ADR 0011).
+  - Settings tabs spread across the column below 768 px (left aligned they did not fit at
+    360 px with the 44 px minimum on "Urnik"); left aligned from 768 px.
+  - From 768 px the top bar spans the window with a hairline below it; its content keeps the
+    46 rem column, and the active link's underline sits on the hairline.
+  - The **Krediti** card stays always open (the detail page's main action); **Podatki** shows
+    phone and email as text until **Uredi podatke**, and its success line moved to the section
+    so it survives the form closing.
+  - The section headings under the tabs stay (Termini v tednu, Rok za brezplačno odpoved,
+    Zaprta obdobja, Obvestila); two repeat the tab's name.
+  - Editing an existing template or blocked period (**Uredi** in a row) is unchanged: it already
+    opened in place with **Prekliči**; it does not move focus.
+- Wide screens: at 1440 the 46 rem column holds every screen except that the trainer calendar
+  stays a long single column of days; a wider calendar (days side by side) would need its own
+  design decision.
+- Project `reviewer`: approve with fixes. Done in the fix commit: the settings tabs wrap
+  instead of scrolling (the scroll box clipped the focus ring), Prekliči on a new template
+  clears the section notice like a new blocked period, opening **Uredi podatke** drops the old
+  saved line, and the calendar's add control closes when a rejected booking's reload shows
+  the occurrence full or blocked. Not changed: the nav stays between the wordmark and the
+  account menu in the DOM (right for the top bar; below 768 px Tab reaches the bottom tabs
+  before the account button); **Dodaj stranko** still opens an empty select when every
+  customer is already booked on an occurrence with free places (rare; would need new copy).
+- Left for the owner: the visual review of the PR.
 
 ---
 
