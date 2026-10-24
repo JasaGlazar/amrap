@@ -1,8 +1,8 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fill, formatAmount, formatBalance, t } from '../../i18n';
+import { fill, formatAmount, formatBalance, plural, t } from '../../i18n';
 import { formatLongDay, formatTime, weekdayName } from '../../lib/time';
 import { routes } from '../../routes';
 import { PAGE_SIZE } from '../../data/page';
@@ -239,6 +239,235 @@ describe('customer list', () => {
     const form = await openNewCustomer();
     await userEvent.click(within(form).getByRole('button', { name: t.customers.create }));
     expect(within(form).getByRole('alert')).toHaveTextContent(t.customers.nameRequired);
+  });
+});
+
+describe('customer search and filters', () => {
+  const firstNames = ['Ana', 'Bor', 'Čedo', 'Eva', 'Jure', 'Luka', 'Maja', 'Nina', 'Špela', 'Žiga'];
+  const lastNames = [
+    'Novak',
+    'Horvat',
+    'Kovačič',
+    'Krajnc',
+    'Zupančič',
+    'Potočnik',
+    'Mlakar',
+    'Kos',
+    'Vidmar',
+    'Golob',
+  ];
+  const crowd = firstNames.flatMap((first, i) =>
+    lastNames.map((last, j) =>
+      makeCustomer({
+        id: `c-${i}-${j}`,
+        name: `${first} ${last}`,
+        phone: j % 4 === 3 ? null : `+386 40 ${i}${j}0 ${String(100 + i * 10 + j)}`,
+        email: j % 5 === 0 ? `${i}-${j}@amrap.local` : null,
+        auth_user_id: (i + j) % 3 === 0 ? null : `u-${i}-${j}`,
+        invite_token: (i + j) % 6 === 0 ? `token-${i}-${j}` : null,
+        invite_expires_at: (i + j) % 6 === 0 ? later : null,
+      }),
+    ),
+  );
+  const balanceOf = (index: number) => (index % 9 === 4 ? -(index % 5) - 1 : index % 7);
+
+  beforeEach(() => {
+    db.tables.customers = [...crowd];
+    db.tables.customer_balances = crowd.map((row, index) => ({
+      customer_id: row.id,
+      balance: balanceOf(index),
+    }));
+  });
+
+  const expectedNames = (keep: (row: (typeof crowd)[number], balance: number) => boolean) =>
+    crowd
+      .filter((row, index) => keep(row, balanceOf(index)))
+      .map((row) => row.name)
+      .sort((a, b) => a.localeCompare(b, 'sl'));
+
+  async function list() {
+    return screen.findByRole('region', { name: t.customers.listTitle });
+  }
+
+  function shownNames(region: HTMLElement) {
+    return within(region)
+      .queryAllByRole('link')
+      .map((link) => link.textContent);
+  }
+
+  function shownLine(count: number) {
+    return fill(plural(t.customers.shown, count), { total: crowd.length });
+  }
+
+  it('shows the search only once the list has loaded', async () => {
+    const release = holdTable('customer_balances');
+    renderAt('/t/stranke');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: t.trainer.customersTitle }),
+    ).toBeVisible();
+    expect(screen.getByText(t.common.loading)).toBeVisible();
+    expect(screen.queryByRole('searchbox', { name: t.customers.search })).toBeNull();
+    release();
+    expect(await screen.findByRole('searchbox', { name: t.customers.search })).toBeVisible();
+  });
+
+  it('labels a search field that phones do not autofill or zoom', async () => {
+    renderAt('/t/stranke');
+    const search = await screen.findByRole('searchbox', { name: t.customers.search });
+    expect(search).toHaveAttribute('type', 'search');
+    expect(search).toHaveAttribute('autocomplete', 'off');
+  });
+
+  it('lists everyone in Slovenian order with the total', async () => {
+    renderAt('/t/stranke');
+    const region = await list();
+    expect(shownNames(region)).toEqual(expectedNames(() => true));
+    expect(screen.getByRole('status')).toHaveTextContent(plural(t.customers.total, crowd.length));
+  });
+
+  it('finds names without typing the diacritics', async () => {
+    renderAt('/t/stranke');
+    const region = await list();
+    await userEvent.type(screen.getByRole('searchbox', { name: t.customers.search }), 'zupancic');
+    const expected = expectedNames((row) => row.name.includes('Zupančič'));
+    expect(expected.length).toBeGreaterThan(0);
+    expect(shownNames(region)).toEqual(expected);
+    expect(screen.getByRole('status')).toHaveTextContent(shownLine(expected.length));
+  });
+
+  it('finds a phone number typed without spaces, in the national form', async () => {
+    const target = crowd.find((row) => row.phone !== null && row.phone.endsWith('112'));
+    if (target?.phone === null || target === undefined) throw new Error('no fixture phone');
+    const national = `0${target.phone.replace(/\D/g, '').slice(3)}`;
+    renderAt('/t/stranke');
+    const region = await list();
+    await userEvent.type(screen.getByRole('searchbox', { name: t.customers.search }), national);
+    expect(shownNames(region)).toEqual([target.name]);
+  });
+
+  it.each([
+    ['dolzniki', (_row: (typeof crowd)[number], balance: number) => balance < 0],
+    ['brez', (row: (typeof crowd)[number]) => row.auth_user_id === null],
+    ['vsi', () => true],
+  ] as const)('shows only the %s filter and marks it pressed', async (filter, keep) => {
+    renderAt('/t/stranke?f=dolzniki');
+    const region = await list();
+    const group = screen.getByRole('group', { name: t.customers.filterLabel });
+    await userEvent.click(within(group).getByRole('button', { name: t.customers.filters[filter] }));
+    expect(
+      within(group).getByRole('button', { name: t.customers.filters[filter] }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(shownNames(region)).toEqual(expectedNames(keep));
+  });
+
+  it('keeps pending invites inside Brez računa, with their own tag', async () => {
+    renderAt('/t/stranke?f=brez');
+    const region = await list();
+    const pending = crowd.filter((row) => row.invite_token !== null && row.auth_user_id === null);
+    expect(pending.length).toBeGreaterThan(0);
+    for (const row of pending) {
+      const item = within(region)
+        .getByRole('link', { name: row.name })
+        .closest('li') as HTMLElement;
+      expect(item).toHaveTextContent(t.customers.inviteStatus.pending);
+    }
+  });
+
+  it('combines a filter with the search', async () => {
+    renderAt('/t/stranke');
+    const region = await list();
+    await userEvent.click(screen.getByRole('button', { name: t.customers.filters.dolzniki }));
+    await userEvent.type(screen.getByRole('searchbox', { name: t.customers.search }), 'maja');
+    const expected = expectedNames((row, balance) => row.name.startsWith('Maja') && balance < 0);
+    expect(expected.length).toBeGreaterThan(0);
+    expect(shownNames(region)).toEqual(expected);
+  });
+
+  it('says nothing matches and clears the search and filter on request', async () => {
+    renderAt('/t/stranke?f=dolzniki');
+    const region = await list();
+    const search = screen.getByRole('searchbox', { name: t.customers.search });
+    await userEvent.type(search, 'nobody here');
+    expect(within(region).getByRole('status')).toHaveTextContent(t.customers.noMatches);
+    expect(within(region).queryByRole('list')).toBeNull();
+    await userEvent.click(within(region).getByRole('button', { name: t.customers.clearSearch }));
+    expect(search).toHaveValue('');
+    expect(search).toHaveFocus();
+    expect(screen.getByRole('button', { name: t.customers.filters.vsi })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(shownNames(region)).toHaveLength(crowd.length);
+  });
+
+  it('keeps the caret where the trainer types inside the search', async () => {
+    renderAt('/t/stranke');
+    await list();
+    const search = screen.getByRole('searchbox', { name: t.customers.search });
+    await userEvent.type(search, 'zupancic');
+    await userEvent.type(search, 'ab', { initialSelectionStart: 3, initialSelectionEnd: 3 });
+    expect(search).toHaveValue('zupabancic');
+  });
+
+  it('starts over when Stranke in the main navigation is pressed', async () => {
+    renderAt('/t/stranke?f=brez');
+    const region = await list();
+    await userEvent.type(screen.getByRole('searchbox', { name: t.customers.search }), 'novak');
+    const nav = screen.getByRole('navigation', { name: t.nav.trainerLabel });
+    await userEvent.click(within(nav).getByRole('link', { name: t.nav.customers }));
+    expect(screen.getByRole('searchbox', { name: t.customers.search })).toHaveValue('');
+    expect(shownNames(region)).toHaveLength(crowd.length);
+  });
+
+  it('shows the search again when going back to it after the main navigation reset it', async () => {
+    const router = renderAt('/t/stranke');
+    const region = await list();
+    await userEvent.type(screen.getByRole('searchbox', { name: t.customers.search }), 'novak');
+    const nav = screen.getByRole('navigation', { name: t.nav.trainerLabel });
+    await userEvent.click(within(nav).getByRole('link', { name: t.nav.customers }));
+    await act(() => router.navigate(-1));
+    expect(screen.getByRole('searchbox', { name: t.customers.search })).toHaveValue('novak');
+    expect(shownNames(region)).toEqual(expectedNames((row) => row.name.endsWith('Novak')));
+  });
+
+  it('keeps the search and filter in the URL without a history entry per keystroke', async () => {
+    const router = renderAt('/t/stranke');
+    await list();
+    await userEvent.click(screen.getByRole('button', { name: t.customers.filters.dolzniki }));
+    await userEvent.type(screen.getByRole('searchbox', { name: t.customers.search }), 'ana');
+    const params = new URLSearchParams(router.state.location.search);
+    expect(params.get('q')).toBe('ana');
+    expect(params.get('f')).toBe('dolzniki');
+    expect(router.state.historyAction).toBe('REPLACE');
+  });
+
+  it('restores the list when going back from a customer', async () => {
+    const router = renderAt('/t/stranke');
+    const region = await list();
+    await userEvent.click(screen.getByRole('button', { name: t.customers.filters.brez }));
+    await userEvent.type(screen.getByRole('searchbox', { name: t.customers.search }), 'novak');
+    const expected = expectedNames(
+      (row) => row.name.endsWith('Novak') && row.auth_user_id === null,
+    );
+    await userEvent.click(within(region).getByRole('link', { name: expected[0] }));
+    await screen.findByRole('heading', { level: 1, name: expected[0] });
+    await act(() => router.navigate(-1));
+    expect(await screen.findByRole('searchbox', { name: t.customers.search })).toHaveValue('novak');
+    expect(shownNames(await list())).toEqual(expected);
+  });
+
+  it('restores the list through the back link on the customer page', async () => {
+    renderAt('/t/stranke?q=novak&f=brez');
+    const region = await list();
+    const expected = shownNames(region);
+    await userEvent.click(within(region).getByRole('link', { name: expected[0] as string }));
+    await userEvent.click(await screen.findByRole('link', { name: t.customerDetail.back }));
+    expect(await screen.findByRole('searchbox', { name: t.customers.search })).toHaveValue('novak');
+    expect(screen.getByRole('button', { name: t.customers.filters.brez })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(shownNames(await list())).toEqual(expected);
   });
 });
 

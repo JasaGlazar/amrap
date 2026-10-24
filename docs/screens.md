@@ -20,10 +20,10 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
 | `/t` | trainer | Trainer shell: the same top bar with the [account menu](#account-menu), the [install card](#install-card), the [main navigation](#main-navigation) (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `account`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog`, `common` | Stage 2, add control and forms on demand Stage 7 |
-| `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; create a customer. | `trainer`, `customers`, `common` | Stage 2, form on demand Stage 7 |
+| `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; search and filters kept in the query (`?q=…&f=…`); create a customer. | `trainer`, `customers`, `common` | Stage 2, form on demand Stage 7, search and filters Stage 9 |
 | `/t/stranke/:id` | trainer | One customer: balance and credits, upcoming appointments, recurring rules, recent sessions, ledger, invite link, details. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType`, `common` | Stage 2, order and forms on demand Stage 7 |
 | `/t/nastavitve` | trainer | Settings, one tab per topic ([Settings](#settings-tnastavitve)); the bare path redirects to `/t/nastavitve/urnik`. | `settings` | Stage 2, tabs Stage 7 |
-| `/t/nastavitve/urnik` | trainer | Tab **Urnik**: slot templates. | `settings`, `trainer` | Stage 2, own route Stage 7 |
+| `/t/nastavitve/urnik` | trainer | Tab **Urnik**: slot templates, a week grid from 768 px and day groups below. | `settings`, `trainer` | Stage 2, own route Stage 7, week grid Stage 9 |
 | `/t/nastavitve/odpoved` | trainer | Tab **Odpoved**: cutoff hours. | `settings` | Stage 2, own route Stage 7 |
 | `/t/nastavitve/zaprto` | trainer | Tab **Zaprta obdobja**: blocked periods. | `settings`, `trainer`, `slot` | Stage 2, own route Stage 7 |
 | `/t/nastavitve/obvestila` | trainer | Tab **Obvestila**: notifications toggle. | `pushToggle` | Stage 3, own route Stage 7 |
@@ -179,10 +179,40 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 
 - **Data:** `listCustomers` (customer records only, not the trainer's own row) and
   `allBalances`.
-- **List:** by name; each row links to the detail page and shows the balance (red when
+- **List:** by name in Slovenian order (`localeCompare(…, 'sl')`, so Č follows C); each row
+  links to the detail page and shows the balance (red when
   negative; a positive or zero balance is plain ink, so debtors stand out). A tag shows the invite status only while the
   customer has no account (`customers.inviteStatus`: pending = an unexpired token, none); a
   linked account is the normal end state and has no tag.
+- **Search** (`customers.search`, a `role="search"` block under the title, so **Nova stranka**
+  keeps the title row to itself on a phone): one `type="search"` field, 16 px,
+  `autoComplete="off"`, filtering the list already loaded as the trainer types
+  (`lib/customerSearch.ts`). Case and diacritics are ignored (`normalize('NFD')` without the
+  combining marks, and đ as d), so "zupancic" finds "Zupančič". A query of words matches when
+  every word is in the name or the email ("novak ana" finds "Ana Novak"). A query of digits
+  (spaces, `+`, `-`, `/`, `.` and brackets allowed) matches the phone instead, ignoring spaces,
+  with `+386` and `00386` read as a leading 0 (only after `+` or `00`, so "386 111" still
+  finds "040 386 111" and "386" alone is not every number), so "040111" finds
+  "+386 40 111 111".
+- **Filters:** a segmented control (`customers.filterLabel`, buttons with `aria-pressed`):
+  **Vsi**, **Dolžniki** (balance below 0) and **Brez računa** (no account; a customer with
+  a pending invite is in it too and keeps the **Povabilo čaka** tag, so there is no separate
+  filter for invites). A filter combines with the search. The pressed segment is framed in
+  `--ink` on paper, not filled, so the screen keeps one black button.
+- **Count and empty state:** above the list, `customers.total` ("9 strank") or, while a
+  search or filter narrows it, `customers.shown` ("Prikazanih 7 od 9"), both plural forms of
+  the shown count, in a `role="status"` line that stays in place, so a screen reader hears
+  the new count as the trainer types. When nothing matches, the same line says
+  `customers.noMatches`, with **Počisti iskanje** under it, which empties the search, returns to **Vsi** and puts focus in
+  the search field. With no customers at all the list says `customers.noCustomers`.
+- **List state in the URL:** the search is `q` and the filter `f` (`dolzniki`, `brez`; none
+  for **Vsi**), written with `replace`, so typing never adds history entries and the browser's
+  back button leaves the list as a whole. Each row link carries the list's query string in its
+  navigation state, so both the browser's back button and **Nazaj na stranke** on the detail
+  page return to the same search and filter. The field keeps its own value while typing (the
+  URL follows), so the caret stays where the trainer types; any navigation other than the
+  field's own replace (for example **Stranke** in the main navigation, or the browser's back
+  button to a list that was searched) sets it from the URL.
 - **Nova stranka:** a button at the right of the page title opens, under the title, a form
   ([on demand](#forms-on-demand)): name (required, `customers.nameRequired`), phone and email (empty becomes
   null), and an optional starting balance from the paper sheet (`customers.startingBalance`, a
@@ -203,6 +233,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Data:** `getCustomer`, `getSettings`, `balanceOf`, `ledgerOf` and `chargedSince` (the
   first page of each), `upcomingAppointments`, `rulesOf`, `allTemplates`. A missing record (or the trainer's own id) shows the load error
   with the back link.
+- **Back link:** **Nazaj na stranke** returns to the list with the search and filter it was
+  opened from (the list's query string in the navigation state, kept when the page clears its
+  starting-balance message).
 - **Order:** the back link and the name, then the balance with **Krediti** beside it, then
   **Prihajajoči termini**, **Stalni termini**, **Opravljeni termini**, **Zgodovina kreditov**,
   and lower down **Povabilo** and **Podatki** (set up once, rarely changed).
@@ -265,16 +298,81 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   **Odpoved** `getSettings`, **Zaprta obdobja** `getSettings` (the timezone) and
   `upcomingBlocked` (periods that have not ended). Every write goes through RLS and shows
   `settings.saved` or the error.
-- **Termini v tednu** (tab **Urnik**): each template as `{weekday} ob {time} · {minutes} min · {places}`, the
-  capacity in its Slovenian plural form (`settings.places`: 1 mesto, 2 mesti, 3 mesta, 5 mest),
-  inactive ones greyed with a `neaktiven` tag right after the text, each with **Uredi** (the
-  form inline). **Nov termin** at the right of the section heading opens the same form empty
+- **Termini v tednu** (tab **Urnik**): every template, active and inactive, in one of two
+  layouts chosen by the window width (`useMediaQuery('(min-width: 48rem)')`, so only one is
+  in the page and a screen reader or a test never meets both):
+  - **From 768 px, a week grid** (`TemplateWeek.tsx`, `WeekGrid`): seven columns,
+    **Ponedeljek** to **Nedelja** (`weekdayHeading`, each an `h3` naming its column, a
+    `section`, so a screen reader can move day by day), and a time axis on the left from the
+    earliest start to the latest end, rounded out to the hour (`axisRange` in
+    `lib/schedule.ts`), with a hairline per hour. Each template is a block placed by its start
+    and sized by its duration (5 rem an hour, so a 60-minute block holds its text), showing
+    `settings.timeRange` ("07:00–08:00", breaking only after the dash) and the places
+    (`settings.places`). Blocks that overlap in time sit side by side within the column
+    (`dayLanes`: a group of slots that overlap one another shares the column in lanes, a lane
+    is reused once it is free; touching slots do not share). An inactive template is muted
+    (paper background, a dotted edge, muted text) with the `neaktiven` tag. Each block is a
+    `button` whose name says everything its position shows (`settings.blockLabel`:
+    "Ponedeljek 07:00, 60 min, 5 mest, uredi", with ", neaktiven" when inactive and
+    ", prekrivanje" when it overlaps). The axis is `aria-hidden`.
+  - **Overlap mark:** an active template that overlaps another active one on the same day
+    (`overlappingIds`, the same rule as the warning below) has a 2 px dashed `--ink` edge
+    instead of the solid one and the tag `settings.overlapping` ("prekrivanje"), in both
+    themes and not by colour. A line above the grid explains the edges that are in it:
+    `settings.overlapLegend` while any slots overlap, `settings.inactiveLegend` while any
+    template is inactive. The block's tags are set in the condensed cut; a lane too
+    narrow for them (under 4.75 rem, which slots side by side usually are) hides its tags
+    by a container query, and the dashed or dotted edge and the
+    button's name still carry them.
+  - **Tap size:** every block is at least 44 × 44 px (`--tap`). Height: a block shorter
+    than that (a 15- or 30-minute slot) is drawn 44 px tall and may cover the top of a slot
+    right after it; the focused block is drawn above its neighbours. Width: the grid passes
+    the most slots side by side on any day (`--max-lanes`) and every day column is at least
+    that many lanes of 44 px plus their 4 px gaps (and never under 7 rem), so a lane is never
+    narrower than a tap target. The grid is a [wide view](#behaviour-shared-by-all-screens):
+    from 1024 px it starts at the title's left edge and grows to the right; when its columns
+    need more room than it has (768-1023 px, or many lanes), it scrolls sideways inside its
+    own box, the hours column staying in place, and the page itself never scrolls sideways.
+  - **Clicking a block** opens the edit form (`settings.editTemplate`) in a dialog
+    (`TemplateDialog.tsx`, the cancel dialog's overlay and focus rules through
+    `pages/shared/modal.ts`): focus moves to its first field (**Dan**), Tab stays inside,
+    **Prekliči** or Escape closes it (not while a save or count runs) and focus returns to
+    the block; a successful save closes it, the section shows `settings.saved` and focus is on
+    the block again (found by its template id if the save moved it to another day). A
+    rejected save shows its error inside the dialog only (not again behind it). The dialog
+    never grows past the window (`max-height` with its own scroll), so **Shrani** stays
+    reachable with both warnings on a phone held sideways, which is past 768 px. Empty cells do nothing; **Nov termin**
+    stays the way to add a template.
+  - **Below 768 px, day groups** (`DayGroups`): one `h3` per day that has templates
+    (**Ponedeljek** first, days without templates left out), then compact rows by start time:
+    the start in the display type, `settings.slotDetails` ("60 min · 5 mest", capacity in its
+    plural form: 1 mesto, 2 mesti, 3 mesta, 5 mest), the `neaktiven` or `prekrivanje` tag next
+    to the text, and
+    **Uredi** (named like the grid's block), which opens the form in place of the row with
+    focus in its first field (**Dan**); **Prekliči** or a successful save puts focus back on
+    that row's **Uredi** (found by its template id, as the form replaced it).
+- **Nov termin** at the right of the section heading opens the same form empty
   ([on demand](#forms-on-demand)): weekday, start time, duration in minutes, capacity and
   an active checkbox. Validation: start time required, duration and capacity positive whole
   numbers (`settings.durationInvalid`, `settings.capacityInvalid`). There is no delete: a
   template that has appointments or rules cannot be deleted, so it is deactivated (customers no
   longer see or book it, materialization skips it). Changing a template's time or weekday does
   not move appointments already booked.
+- **Overlapping slots:** saving a template (new or edited) that is active first looks for
+  other active templates on the same weekday whose range `[start, start + duration)`
+  intersects its own (`overlapsWith` in `lib/schedule.ts`, over the templates already loaded;
+  there is no database rule, since two groups at once can be intended). Touching ranges
+  (07:00-08:00 and 08:00-09:00) do not overlap, inactive templates are ignored on both sides,
+  and an edited template is never compared with itself. An edit warns only about overlaps
+  the save would add: a slot that already overlapped another keeps that without asking
+  again, so changing the capacity of an intended overlap saves at once. If there are any, the
+  form shows `settings.overlapWarning` naming the other slots (`settings.overlapSlot`,
+  "ponedeljek ob 07:00 (60 min)", joined with `Intl.ListFormat('sl')`; `single`, `pair` or
+  `several` for terminom, terminoma, termini), followed by `settings.confirmAgain`, and saves
+  only when **Shrani** is clicked again with the same values; changed values are checked
+  again. Together with stranded bookings (below) both warnings show at once, overlap first,
+  and one more **Shrani** saves; the "tap Shrani again" sentence then comes once, at the end
+  of the stranded warning.
 - **Stranded bookings:** saving a deactivation, or a weekday or start-time change, of an
   active template first counts its future `booked` appointments (`futureBookedCount`). If there
   are any, the form shows `settings.strandedWarning` with the count (they stay booked and
@@ -496,6 +594,16 @@ How the guards and the auth state work is in [auth.md](auth.md).
   - safe-area insets on the top bar, the page sides, the bottom navigation and the dialog;
     the top bar's sides take the larger of the inset and the page column's edge;
   - errors are `role="alert"`, results `role="status"`.
+
+- **Wide views.** Pages keep the 46 rem column (`--content`) at every width, and the top bar
+  lines up with it. A week view that needs more room (the Urnik week grid, Stage 9) carries
+  the class `wide`: from 1024 px it starts at the column's left edge, in line with the title,
+  and grows to the right only, to `--content-wide` (80 rem) or up to one page gutter from the
+  window's right edge, whichever is smaller; the title, tabs and section heading above it stay
+  on the column ([ADR 0014](adr/0014-wide-week-views.md)). At any width, when its content
+  needs more room than that, it scrolls sideways inside its own box (`.wide` carries the
+  `overflow-x`), so the page itself never does. `wide` assumes its parent is the content
+  column.
 
 - **Brand mark.** The framed AMRAP wordmark (`public/brand-mark.png`, alt `app.name`) replaces
   the plain "AMRAP" text: at the left of the top bar in both shells, and as the `h1` above the

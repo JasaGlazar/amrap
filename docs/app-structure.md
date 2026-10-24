@@ -12,13 +12,13 @@ screens are in [screens.md](screens.md), sign-in and role gating in [auth.md](au
 | `src/routes.tsx` | The route tree (React Router v7 data router). The tests render the same tree. |
 | `src/data/` | Typed reads and RPC wrappers ([data-layer.md](data-layer.md)). |
 | `src/auth/` | `AuthProvider`, `useAuth()`, the route guards ([auth.md](auth.md)). |
-| `src/pages/` | One component per screen or state page. The shells (`CustomerPages.tsx`, `TrainerPages.tsx`) use `AppShell`: a top bar with the framed wordmark, the main navigation and the account menu (theme and sign-out), then the install card and the page. The navigation is one `nav` that CSS places: in the top bar from 768 px, a fixed bar at the bottom below that ([screens.md](screens.md#main-navigation)). The settings screen is a small layout of its own (`trainer/Settings.tsx`: title, tab row, `Outlet`) over one component per tab (`SettingsTemplates`, `SettingsCutoff`, `SettingsBlocked`, `SettingsNotifications`), each a child route ([ADR 0011](adr/0011-responsive-navigation-and-on-demand-forms.md)). Customer screens are in `pages/customer/`, trainer screens in `pages/trainer/`; the pieces several screens use (`WeekNav`, `WeekSlots`, `CancelDialog`, `LedgerList`, `Amount`, `NoticeLine`, `PushToggle`, `InstallCard`, `AccountMenu`, `BrandMark`, `OnDemand`) are in `pages/shared/` ([screens.md](screens.md#customer-screens)). |
+| `src/pages/` | One component per screen or state page. The shells (`CustomerPages.tsx`, `TrainerPages.tsx`) use `AppShell`: a top bar with the framed wordmark, the main navigation and the account menu (theme and sign-out), then the install card and the page. The navigation is one `nav` that CSS places: in the top bar from 768 px, a fixed bar at the bottom below that ([screens.md](screens.md#main-navigation)). The settings screen is a small layout of its own (`trainer/Settings.tsx`: title, tab row, `Outlet`) over one component per tab (`SettingsTemplates`, `SettingsCutoff`, `SettingsBlocked`, `SettingsNotifications`), each a child route ([ADR 0011](adr/0011-responsive-navigation-and-on-demand-forms.md)). Customer screens are in `pages/customer/`, trainer screens in `pages/trainer/`; the pieces several screens use (`WeekNav`, `WeekSlots`, `CancelDialog`, `LedgerList`, `Amount`, `NoticeLine`, `PushToggle`, `InstallCard`, `AccountMenu`, `BrandMark`, `OnDemand`, and `modal.ts` with `useModal`, the dialogs' focus, Escape and scroll lock) are in `pages/shared/` ([screens.md](screens.md#customer-screens)). |
 | `src/i18n/` | `sl.ts` (all copy), `errors.ts` (`fromError`), `fill.ts` (`fill` for `{name}` placeholders, `formatTimeUntil`, `plural`, the signed numbers `formatAmount` and `formatBalance`), `index.ts` (exports `t` and the helpers). |
 | `src/install/` | Install onboarding: the `beforeinstallprompt` capture and store, the install mode, the per-device dismissal ([Install onboarding](#install-onboarding)). |
 | `src/theme/` | The per-device theme preference and applying it to the page ([Theme](#theme)). |
 | `src/push/` | Web push in the browser: `render.ts` (notification copy, used by the service worker), `support.ts`, `browser.ts`, `subscribe.ts` ([notifications.md](notifications.md#subscribing-in-the-app)). |
 | `src/sw.ts` | The service worker: precache, outdated-cache cleanup, `index.html` for navigations, self-update, push and notification click ([notifications.md](notifications.md#service-worker)). Type-checked by `tsconfig.sw.json` with the `WebWorker` lib and left out of `tsconfig.app.json` and `tsconfig.test.json`. |
-| `src/lib/` | `supabase.ts` (the one client; retries a `PGRST303` answer once, [auth.md](auth.md#token-refused-as-issued-in-the-future)), `database.types.ts` (generated), `keepAlive.ts`, `time.ts` ([time.md](time.md)), `useLoad.ts`, `device.ts` (`deviceEnvironment()`: iOS, Android, standalone; used by push support and the install card). |
+| `src/lib/` | `supabase.ts` (the one client; retries a `PGRST303` answer once, [auth.md](auth.md#token-refused-as-issued-in-the-future)), `database.types.ts` (generated), `keepAlive.ts`, `time.ts` ([time.md](time.md)), `customerSearch.ts` (Stranke search and filters, [screens.md](screens.md#customers-tstranke)), `schedule.ts` (template minutes, the week grid's axis and lanes, the overlap check, [time.md](time.md#formatting)), `useMediaQuery.ts` (`useMediaQuery(query)` over `matchMedia`, false where it is missing as in jsdom; `wideScreen` is the 768 px query), `useLoad.ts`, `device.ts` (`deviceEnvironment()`: iOS, Android, standalone; used by push support and the install card). |
 | `src/test/` | `fakeSupabase.ts`, `fakePush.ts` (a fake `PushPlatform`), `fakeInstall.ts` (a fake `InstallPlatform`, a prompt event, in-memory storage) and the Vitest setup (`setup.ts`: jest-dom matchers; after each test it unmounts, clears `localStorage` and removes `data-theme` from `<html>`). |
 | `src/styles.css` | Plain CSS for the whole app: the two `@font-face` rules ([Font](#font)), the colour tokens and both themes, then the components. |
 | `public/` | The gym logo, the wordmark and the icons cut from it ([Brand assets](#brand-assets)), and `_redirects` (SPA fallback). |
@@ -125,7 +125,10 @@ Copy conventions:
   (`{ one, two, few, other }`, each a template with `{count}`) and the component calls
   `plural(forms, count)` from `i18n/fill.ts`, which picks the form with
   `Intl.PluralRules('sl')` (1 mesto, 2 mesti, 3 mesta, 5 mest). Copy that avoids the noun
-  ("Novih terminov: {count}") needs no plural.
+  ("Novih terminov: {count}") needs no plural. A noun that agrees with a list rather than a
+  shown count ("s terminom …", "s terminoma … in …", "s termini …") is an object keyed
+  `single` / `pair` / `several` without `{count}` (`settings.overlapWarning`), picked by the
+  list's length, so `sl.test.ts` does not take it for a `Plural`.
 - Punctuation: `…` after a space for "in progress" lines, en dash for ranges, `»«` around the
   names of buttons and screens quoted in a sentence. Dates and times as in [time.md](time.md).
 
@@ -160,7 +163,8 @@ vi.mock('./lib/supabase', async () => ({
 
 - `db` holds the state: the session, the signed-in user's customer row and balance
   (`db.customer`, `db.balance`), the `settings` row, injected errors (`customersError`,
-  `settingsError`, and `readErrors` keyed by table for any other read), and `db.tables` with
+  `settingsError`, and `readErrors` keyed by table for any other read; `writeErrors` keyed by
+  table makes every insert, update and delete on it return that error), and `db.tables` with
   rows for `customers` and `customer_balances` (added to the signed-in row, for the trainer's
   lists), `recurring_rules`, `slot_templates`, `slot_occupancy`, `appointments`,
   `credit_transactions`, `blocked_periods` and `push_subscriptions`. The query fake supports

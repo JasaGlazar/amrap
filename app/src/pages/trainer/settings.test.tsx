@@ -1,9 +1,9 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fill, plural, t } from '../../i18n';
-import { weekdayName } from '../../lib/time';
+import { weekdayHeading, weekdayName } from '../../lib/time';
 import { routes } from '../../routes';
 import { db, holdTable, makeCustomer, makeSession, resetFake } from '../../test/fakeSupabase';
 
@@ -44,6 +44,66 @@ async function fillTemplate(form: HTMLElement, values: Record<string, string>) {
   }
 }
 
+type Template = typeof existing;
+
+const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+
+function overlapsInTable(template: Template) {
+  const start = minutes(template.start_time);
+  const end = start + template.duration_minutes;
+  return (
+    template.active &&
+    (db.tables.slot_templates as Template[]).some(
+      (other) =>
+        other.id !== template.id &&
+        other.active &&
+        other.weekday === template.weekday &&
+        minutes(other.start_time) < end &&
+        start < minutes(other.start_time) + other.duration_minutes,
+    )
+  );
+}
+
+function blockName(template: Template) {
+  const marks = [
+    ...(template.active ? [] : [t.settings.inactive]),
+    ...(overlapsInTable(template) ? [t.settings.overlapping] : []),
+  ];
+  return fill(t.settings.blockLabel, {
+    day: weekdayHeading(template.weekday),
+    time: template.start_time.slice(0, 5),
+    minutes: template.duration_minutes,
+    places: plural(t.settings.places, template.capacity),
+    marks: marks.map((mark) => `, ${mark}`).join(''),
+  });
+}
+
+function overlapWarning(others: Template[], alone = true) {
+  const slots = new Intl.ListFormat('sl', { type: 'conjunction' }).format(
+    others.map((other) =>
+      fill(t.settings.overlapSlot, {
+        weekday: weekdayName(other.weekday),
+        time: other.start_time.slice(0, 5),
+        minutes: other.duration_minutes,
+      }),
+    ),
+  );
+  const form = others.length === 1 ? 'single' : others.length === 2 ? 'pair' : 'several';
+  const text = fill(t.settings.overlapWarning[form], { slots });
+  return alone ? `${text} ${t.settings.confirmAgain}` : text;
+}
+
+function wideScreen() {
+  window.matchMedia = vi.fn(
+    (query: string) =>
+      ({
+        matches: query === '(min-width: 48rem)',
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }) as unknown as MediaQueryList,
+  );
+}
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(now);
@@ -51,7 +111,10 @@ beforeEach(() => {
   db.tables.slot_templates = [{ ...existing }];
 });
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  delete (window as { matchMedia?: unknown }).matchMedia;
+});
 
 describe('slot templates', () => {
   it('keeps Prekliči disabled while a new template is being saved', async () => {
@@ -139,20 +202,431 @@ describe('slot templates', () => {
   it('deactivates an existing template instead of deleting it', async () => {
     renderSettings('urnik');
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
-    const line = fill(t.settings.templateLine, {
-      weekday: weekdayName(existing.weekday),
-      time: existing.start_time.slice(0, 5),
-      minutes: existing.duration_minutes,
-      places: plural(t.settings.places, existing.capacity),
-    });
-    const row = within(list).getByText(line).closest('li') as HTMLElement;
+    const row = within(list)
+      .getByRole('button', { name: blockName(existing) })
+      .closest('li');
+    if (row === null) throw new Error('no row for the template');
     expect(within(row).queryByRole('button', { name: t.settings.delete })).not.toBeInTheDocument();
-    await userEvent.click(within(row).getByRole('button', { name: t.settings.edit }));
+    await userEvent.click(within(row).getByRole('button', { name: blockName(existing) }));
     const form = await screen.findByRole('form', { name: t.settings.editTemplate });
     await userEvent.click(within(form).getByLabelText(t.settings.active));
     await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
     expect(await within(list).findByText(t.settings.inactive)).toBeVisible();
     expect(db.tables.slot_templates[0]).toMatchObject({ id: existing.id, active: false });
+  });
+});
+
+describe('day groups below 768 px', () => {
+  const week: Template[] = [
+    { ...existing, id: 'tpl-wed', weekday: 2, start_time: '18:00:00', duration_minutes: 90 },
+    { ...existing, id: 'tpl-sun', weekday: 6, start_time: '10:00:00', active: false },
+    { ...existing, id: 'tpl-mon-17', weekday: 0, start_time: '17:00:00', capacity: 1 },
+    { ...existing },
+  ];
+
+  beforeEach(() => {
+    db.tables.slot_templates = week.map((template) => ({ ...template }));
+  });
+
+  it('groups templates under capitalised day headings in order, leaving out empty days', async () => {
+    renderSettings('urnik');
+    const section = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    const days = [...new Set(week.map((template) => template.weekday))].sort((a, b) => a - b);
+    expect(
+      within(section)
+        .getAllByRole('heading', { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual(days.map(weekdayHeading));
+  });
+
+  it('lists a day by start time with duration and places, and edits in place', async () => {
+    renderSettings('urnik');
+    const monday = await screen.findByRole('region', { name: weekdayHeading(0) });
+    const rows = within(monday).getAllByRole('listitem');
+    const mondays = week
+      .filter((template) => template.weekday === 0)
+      .sort((a, b) => a.start_time.localeCompare(b.start_time));
+    expect(rows).toHaveLength(mondays.length);
+    mondays.forEach((template, index) => {
+      expect(rows[index]).toHaveTextContent(template.start_time.slice(0, 5));
+      expect(rows[index]).toHaveTextContent(
+        fill(t.settings.slotDetails, {
+          minutes: template.duration_minutes,
+          places: plural(t.settings.places, template.capacity),
+        }),
+      );
+      expect(
+        within(rows[index]).getByRole('button', { name: blockName(template) }),
+      ).toHaveTextContent(t.settings.edit);
+    });
+    await userEvent.click(within(rows[0]).getByRole('button', { name: blockName(mondays[0]) }));
+    expect(within(monday).getByRole('form', { name: t.settings.editTemplate })).toBeVisible();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('moves focus into the form on Uredi and back to Uredi on Prekliči or save', async () => {
+    renderSettings('urnik');
+    const monday = await screen.findByRole('region', { name: weekdayHeading(0) });
+    const target = week.find((template) => template.id === existing.id) as Template;
+    await userEvent.click(within(monday).getByRole('button', { name: blockName(target) }));
+    let form = within(monday).getByRole('form', { name: t.settings.editTemplate });
+    expect(within(form).getByLabelText(t.settings.weekday)).toHaveFocus();
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.cancelEdit }));
+    expect(within(monday).getByRole('button', { name: blockName(target) })).toHaveFocus();
+    await userEvent.click(within(monday).getByRole('button', { name: blockName(target) }));
+    form = within(monday).getByRole('form', { name: t.settings.editTemplate });
+    await fillTemplate(form, { [t.settings.capacity]: String(target.capacity + 1) });
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    const saved = { ...target, capacity: target.capacity + 1 };
+    await waitFor(() =>
+      expect(within(monday).getByRole('button', { name: blockName(saved) })).toHaveFocus(),
+    );
+  });
+
+  it('marks an inactive template next to its text', async () => {
+    renderSettings('urnik');
+    const sunday = await screen.findByRole('region', { name: weekdayHeading(6) });
+    expect(within(sunday).getByRole('listitem')).toHaveTextContent(t.settings.inactive);
+  });
+});
+
+describe('week grid from 768 px', () => {
+  const week: Template[] = [
+    { ...existing },
+    { ...existing, id: 'tpl-mon-730', start_time: '07:30:00', capacity: 4 },
+    {
+      ...existing,
+      id: 'tpl-wed',
+      weekday: 2,
+      start_time: '18:00:00',
+      duration_minutes: 90,
+      capacity: 1,
+    },
+    { ...existing, id: 'tpl-sun', weekday: 6, start_time: '10:00:00', capacity: 2, active: false },
+  ];
+
+  beforeEach(() => {
+    wideScreen();
+    db.tables.slot_templates = week.map((template) => ({ ...template }));
+  });
+
+  it('shows seven day columns with capitalised headings in order', async () => {
+    renderSettings('urnik');
+    const section = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    expect(
+      within(section)
+        .getAllByRole('heading', { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual([0, 1, 2, 3, 4, 5, 6].map(weekdayHeading));
+  });
+
+  it('places each template in its weekday column with its time range and places', async () => {
+    renderSettings('urnik');
+    await screen.findByRole('region', { name: t.settings.templatesTitle });
+    for (const template of week) {
+      const column = screen.getByRole('region', { name: weekdayHeading(template.weekday) });
+      const block = within(column).getByRole('button', { name: blockName(template) });
+      const start = template.start_time.slice(0, 5);
+      const endMinutes =
+        Number(start.slice(0, 2)) * 60 + Number(start.slice(3)) + template.duration_minutes;
+      const end = `${String(Math.floor(endMinutes / 60)).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`;
+      expect(block).toHaveTextContent(fill(t.settings.timeRange, { start, end }));
+      expect(block).toHaveTextContent(plural(t.settings.places, template.capacity));
+    }
+  });
+
+  it('explains the dashed edge only when some slots overlap', async () => {
+    db.tables.slot_templates = week
+      .filter((template) => template.id !== 'tpl-mon-730')
+      .map((template) => ({ ...template }));
+    renderSettings('urnik');
+    await screen.findByRole('region', { name: t.settings.templatesTitle });
+    expect(screen.queryByText(t.settings.overlapLegend)).not.toBeInTheDocument();
+  });
+
+  it('mutes an inactive template and tags it', async () => {
+    renderSettings('urnik');
+    const sunday = await screen.findByRole('region', { name: weekdayHeading(6) });
+    const inactive = week.find((template) => !template.active) as Template;
+    const block = within(sunday).getByRole('button', { name: blockName(inactive) });
+    expect(block).toHaveClass('inactive');
+    expect(block).toHaveTextContent(t.settings.inactive);
+    expect(screen.getByText(t.settings.inactiveLegend)).toBeVisible();
+  });
+
+  it('sizes the day columns for the most slots side by side on any day', async () => {
+    renderSettings('urnik');
+    const monday = await screen.findByRole('region', { name: weekdayHeading(0) });
+    const sideBySide = (template: Template) =>
+      week.filter(
+        (other) =>
+          other.weekday === template.weekday &&
+          minutes(other.start_time) < minutes(template.start_time) + template.duration_minutes &&
+          minutes(template.start_time) < minutes(other.start_time) + other.duration_minutes,
+      ).length;
+    const mostSideBySide = Math.max(...week.map(sideBySide));
+    const grid = monday.parentElement as HTMLElement;
+    expect(grid.style.getPropertyValue('--max-lanes')).toBe(String(mostSideBySide));
+  });
+
+  it('returns focus to the block when the browser did not focus it on click', async () => {
+    renderSettings('urnik');
+    const block = await screen.findByRole('button', { name: blockName(existing) });
+    (document.activeElement as HTMLElement | null)?.blur();
+    act(() => block.click());
+    const dialog = screen.getByRole('dialog', { name: t.settings.editTemplate });
+    await userEvent.keyboard('{Escape}');
+    expect(dialog).not.toBeInTheDocument();
+    expect(block).toHaveFocus();
+  });
+
+  it("drops a failed save's error from the page when the dialog is cancelled", async () => {
+    renderSettings('urnik');
+    await userEvent.click(await screen.findByRole('button', { name: blockName(existing) }));
+    const dialog = screen.getByRole('dialog', { name: t.settings.editTemplate });
+    db.writeErrors.slot_templates = { message: 'FetchError: network down' };
+    await fillTemplate(dialog, { [t.settings.capacity]: String(existing.capacity + 1) });
+    await userEvent.click(within(dialog).getByRole('button', { name: t.settings.save }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(t.genericError);
+    await userEvent.click(within(dialog).getByRole('button', { name: t.settings.cancelEdit }));
+    expect(dialog).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('opens the edit form for a block in a dialog, focus in its first field', async () => {
+    renderSettings('urnik');
+    const target = week.find((template) => template.id === 'tpl-wed') as Template;
+    const block = await screen.findByRole('button', { name: blockName(target) });
+    await userEvent.click(block);
+    const dialog = screen.getByRole('dialog', { name: t.settings.editTemplate });
+    expect(within(dialog).getByLabelText(t.settings.weekday)).toHaveFocus();
+    expect(within(dialog).getByLabelText(t.settings.weekday)).toHaveValue(String(target.weekday));
+    expect(within(dialog).getByLabelText(t.settings.startTime)).toHaveValue('18:00');
+    expect(within(dialog).getByLabelText(t.settings.duration)).toHaveValue(target.duration_minutes);
+  });
+
+  it('closes the dialog on Prekliči or Escape and returns focus to the block', async () => {
+    renderSettings('urnik');
+    const block = await screen.findByRole('button', { name: blockName(existing) });
+    await userEvent.click(block);
+    let dialog = screen.getByRole('dialog', { name: t.settings.editTemplate });
+    await userEvent.click(within(dialog).getByRole('button', { name: t.settings.cancelEdit }));
+    expect(dialog).not.toBeInTheDocument();
+    expect(block).toHaveFocus();
+    await userEvent.click(block);
+    dialog = screen.getByRole('dialog', { name: t.settings.editTemplate });
+    await userEvent.keyboard('{Escape}');
+    expect(dialog).not.toBeInTheDocument();
+    expect(block).toHaveFocus();
+  });
+
+  it('saves from the dialog, closes it and shows the notice', async () => {
+    renderSettings('urnik');
+    await userEvent.click(await screen.findByRole('button', { name: blockName(existing) }));
+    const dialog = screen.getByRole('dialog', { name: t.settings.editTemplate });
+    await fillTemplate(dialog, { [t.settings.capacity]: String(existing.capacity + 2) });
+    await userEvent.click(within(dialog).getByRole('button', { name: t.settings.save }));
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    const saved = { ...existing, capacity: existing.capacity + 2 };
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: blockName(saved) })).toHaveFocus(),
+    );
+    expect(db.tables.slot_templates[0]).toMatchObject({
+      id: existing.id,
+      capacity: saved.capacity,
+    });
+  });
+
+  it('puts focus on the block in its new column after a save moves it to another day', async () => {
+    renderSettings('urnik');
+    await userEvent.click(await screen.findByRole('button', { name: blockName(existing) }));
+    const dialog = screen.getByRole('dialog', { name: t.settings.editTemplate });
+    await userEvent.selectOptions(within(dialog).getByLabelText(t.settings.weekday), '4');
+    await userEvent.click(within(dialog).getByRole('button', { name: t.settings.save }));
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    const moved = { ...existing, weekday: 4 };
+    const friday = screen.getByRole('region', { name: weekdayHeading(4) });
+    await waitFor(() =>
+      expect(within(friday).getByRole('button', { name: blockName(moved) })).toHaveFocus(),
+    );
+  });
+
+  it('keeps Nov termin as the section action', async () => {
+    renderSettings('urnik');
+    const section = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    await userEvent.click(within(section).getByRole('button', { name: t.settings.newTemplate }));
+    expect(within(section).getByRole('form', { name: t.settings.newTemplate })).toBeVisible();
+  });
+});
+
+describe('overlapping slots', () => {
+  const save = (form: HTMLElement) =>
+    userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+
+  it('warns about a new slot that overlaps, naming the other, and saves on the second Shrani', async () => {
+    const before = db.tables.slot_templates.length;
+    const form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '07:30' });
+    await save(form);
+    expect(within(form).getByRole('alert')).toHaveTextContent(overlapWarning([existing]));
+    expect(db.tables.slot_templates).toHaveLength(before);
+    await save(form);
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    expect(db.tables.slot_templates).toHaveLength(before + 1);
+  });
+
+  it('names both slots when it overlaps two', async () => {
+    const second = { ...existing, id: 'tpl-2', start_time: '07:30:00' };
+    db.tables.slot_templates.push({ ...second });
+    const form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '07:15' });
+    await save(form);
+    expect(within(form).getByRole('alert')).toHaveTextContent(overlapWarning([existing, second]));
+  });
+
+  it('checks changed values again before saving', async () => {
+    const before = db.tables.slot_templates.length;
+    const form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '07:30' });
+    await save(form);
+    await fillTemplate(form, { [t.settings.startTime]: '07:45' });
+    await save(form);
+    expect(within(form).getByRole('alert')).toHaveTextContent(overlapWarning([existing]));
+    expect(db.tables.slot_templates).toHaveLength(before);
+  });
+
+  it('saves touching ranges without a warning', async () => {
+    const form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '08:00' });
+    await save(form);
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+  });
+
+  it('saves an inactive slot over an active one without a warning', async () => {
+    const form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '07:30' });
+    await userEvent.click(within(form).getByLabelText(t.settings.active));
+    await save(form);
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+  });
+
+  it('ignores an inactive slot when saving an active one over it', async () => {
+    db.tables.slot_templates = [{ ...existing, active: false }];
+    const form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '07:30' });
+    await save(form);
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+  });
+
+  it('does not count a slot being edited as overlapping itself', async () => {
+    const stopped = { ...existing, active: false };
+    db.tables.slot_templates = [{ ...stopped }];
+    renderSettings('urnik');
+    const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    await userEvent.click(within(list).getByRole('button', { name: blockName(stopped) }));
+    const form = await screen.findByRole('form', { name: t.settings.editTemplate });
+    await userEvent.click(within(form).getByLabelText(t.settings.active));
+    await fillTemplate(form, { [t.settings.startTime]: '07:30' });
+    await save(form);
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    expect(db.tables.slot_templates[0]).toMatchObject({ start_time: '07:30', active: true });
+  });
+
+  it('does not warn again about an overlap the slot already had', async () => {
+    const second = { ...existing, id: 'tpl-2', start_time: '07:30:00' };
+    db.tables.slot_templates.push({ ...second });
+    renderSettings('urnik');
+    const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    await userEvent.click(within(list).getByRole('button', { name: blockName(existing) }));
+    const form = await screen.findByRole('form', { name: t.settings.editTemplate });
+    await fillTemplate(form, { [t.settings.capacity]: String(existing.capacity + 1) });
+    await save(form);
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    expect(db.tables.slot_templates[0].capacity).toBe(existing.capacity + 1);
+  });
+
+  it('warns when an edit reaches a slot it did not overlap before', async () => {
+    const second = { ...existing, id: 'tpl-2', start_time: '07:30:00' };
+    const third = { ...existing, id: 'tpl-3', start_time: '08:30:00' };
+    db.tables.slot_templates.push({ ...second }, { ...third });
+    renderSettings('urnik');
+    const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    await userEvent.click(within(list).getByRole('button', { name: blockName(existing) }));
+    const form = await screen.findByRole('form', { name: t.settings.editTemplate });
+    await fillTemplate(form, { [t.settings.duration]: '120' });
+    await save(form);
+    expect(within(form).getByRole('alert')).toHaveTextContent(overlapWarning([third]));
+  });
+
+  it('shows the overlap and the stranded bookings together and saves on one more Shrani', async () => {
+    const other = { ...existing, id: 'tpl-other', weekday: 1 };
+    db.tables.slot_templates.push({ ...other });
+    db.tables.appointments = [
+      {
+        id: 'future-1',
+        customer_id: 'c-1',
+        slot_template_id: existing.id,
+        starts_at: new Date(now.getTime() + 3 * 86_400_000).toISOString(),
+        ends_at: new Date(now.getTime() + 3 * 86_400_000 + 3_600_000).toISOString(),
+        status: 'booked',
+      },
+    ];
+    renderSettings('urnik');
+    const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    await userEvent.click(within(list).getByRole('button', { name: blockName(existing) }));
+    const form = await screen.findByRole('form', { name: t.settings.editTemplate });
+    await userEvent.selectOptions(within(form).getByLabelText(t.settings.weekday), '1');
+    await save(form);
+    const alerts = await within(form).findAllByRole('alert');
+    expect(alerts.map((alert) => alert.textContent)).toEqual([
+      overlapWarning([other], false),
+      fill(t.settings.strandedWarning, { count: db.tables.appointments.length }),
+    ]);
+    await save(form);
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    expect(db.tables.slot_templates[0].weekday).toBe(1);
+  });
+
+  describe('marks', () => {
+    const week: Template[] = [
+      { ...existing },
+      { ...existing, id: 'tpl-707', start_time: '07:07:00' },
+      { ...existing, id: 'tpl-807', start_time: '08:07:00' },
+      { ...existing, id: 'tpl-off', start_time: '07:30:00', active: false },
+      { ...existing, id: 'tpl-tue', weekday: 1 },
+    ];
+    const marked = () => week.filter(overlapsInTable).map((template) => template.id);
+
+    beforeEach(() => {
+      db.tables.slot_templates = week.map((template) => ({ ...template }));
+    });
+
+    it('marks overlapping blocks in the week grid, in text and in their names', async () => {
+      wideScreen();
+      renderSettings('urnik');
+      await screen.findByRole('region', { name: t.settings.templatesTitle });
+      expect(marked().length).toBeGreaterThan(0);
+      expect(screen.getByText(t.settings.overlapLegend)).toBeVisible();
+      for (const template of week) {
+        const block = screen.getByRole('button', { name: blockName(template) });
+        const overlapping = marked().includes(template.id);
+        expect(block.classList.contains('overlap')).toBe(overlapping);
+        expect(block.textContent?.includes(t.settings.overlapping)).toBe(overlapping);
+      }
+    });
+
+    it('marks overlapping rows in the day groups', async () => {
+      renderSettings('urnik');
+      await screen.findByRole('region', { name: t.settings.templatesTitle });
+      for (const template of week) {
+        const row = screen.getByRole('button', { name: blockName(template) }).closest('li');
+        expect(row?.textContent?.includes(t.settings.overlapping)).toBe(
+          marked().includes(template.id),
+        );
+      }
+    });
   });
 });
 
@@ -173,7 +647,7 @@ describe('stranded bookings', () => {
   it('warns with the count of future bookings and saves only on the second click', async () => {
     renderSettings('urnik');
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
-    await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
+    await userEvent.click(within(list).getByRole('button', { name: blockName(existing) }));
     const form = await screen.findByRole('form', { name: t.settings.editTemplate });
     await userEvent.click(within(form).getByLabelText(t.settings.active));
     await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
@@ -193,7 +667,7 @@ describe('stranded bookings', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     renderSettings('urnik');
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
-    await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
+    await userEvent.click(within(list).getByRole('button', { name: blockName(existing) }));
     const form = await screen.findByRole('form', { name: t.settings.editTemplate });
     db.readErrors.appointments = { message: 'FetchError: network down' };
     await userEvent.click(within(form).getByLabelText(t.settings.active));
@@ -208,7 +682,7 @@ describe('stranded bookings', () => {
   it('warns when the start time moves too', async () => {
     renderSettings('urnik');
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
-    await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
+    await userEvent.click(within(list).getByRole('button', { name: blockName(existing) }));
     const form = await screen.findByRole('form', { name: t.settings.editTemplate });
     await fillTemplate(form, { [t.settings.startTime]: '08:00' });
     await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
@@ -221,7 +695,7 @@ describe('stranded bookings', () => {
   it('saves a capacity change without a warning', async () => {
     renderSettings('urnik');
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
-    await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
+    await userEvent.click(within(list).getByRole('button', { name: blockName(existing) }));
     const form = await screen.findByRole('form', { name: t.settings.editTemplate });
     await fillTemplate(form, { [t.settings.capacity]: String(existing.capacity + 1) });
     await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));

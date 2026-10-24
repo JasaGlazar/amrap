@@ -71,3 +71,11 @@ no Slovenian plural forms are needed.
 All display formatting is `Intl.DateTimeFormat('sl-SI')` in the gym timezone: `formatTime`
 (`07:00`), `formatDay` (`pon., 26. 10.`), `formatLongDay` (`ponedeljek, 26. oktober`),
 `formatDate` (`26. 10. 2026`), and `formatLocalDate` for a local date without a time.
+`weekdayName(weekday)` is the lowercase name for use inside a sentence ("ponedeljek ob
+07:00"); `weekdayHeading(weekday)` capitalises it for a heading or the start of a label
+("Ponedeljek").
+
+Times inside a day as minutes after midnight (the week grid, the overlap check) are in
+`lib/schedule.ts`: `minutesOf('07:00:00')`, `endOf(template)` (start plus duration, may pass
+midnight) and `clock(minutes)` back to `HH:MM` (wrapping past midnight). These are wall-clock
+minutes of a template, not instants, so DST does not apply.

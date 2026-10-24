@@ -138,6 +138,35 @@ the exact 14-day boundary, runs that never ended, a second run); Vitest for the 
 retries, focus on the first new row).
 **Status**: Complete (PR open)
 
+## Stage 9: Stranke search, Urnik grid and overlaps
+**Goal**: Issues #14, #16 and #15 from the 2026-10-24 owner review: Stranke searchable and
+filterable for about 100 customers; Nastavitve → Urnik as a week grid from 768 px and day
+groups on a phone; a warning when a slot overlaps another, and overlaps marked in the grid.
+Branch `stage-9-stranke-urnik` off `main`.
+**Success Criteria**: "zupancic" finds "Zupančič" and "040111" finds "+386 40 111 111";
+**Vsi**, **Dolžniki** and **Brez računa** combine with the search, with a plural count line
+and an empty state that clears both; `?q=…&f=…` survives going to a customer and back (browser
+back and **Nazaj na stranke**) and typing adds no history entries. From 768 px seven
+capitalised day columns with blocks placed by time, overlaps side by side, inactive muted and
+tagged, each block a fully named button that opens the edit form in a dialog with the
+on-demand focus rules; below 768 px capitalised day groups without empty days. Saving an
+active template that newly overlaps another active one on the same day warns, naming it, and
+saves on a second **Shrani**; touching ranges and inactive templates never warn; overlapping
+blocks have a dashed edge and a "prekrivanje" tag. No page-level horizontal scroll at 360 or
+768 px.
+**Tests**: Vitest for `lib/customerSearch.ts` (diacritics, words, phone with spaces and
++386, filters, Slovenian sort) and the Stranke page on a 100-customer fixture (each filter,
+filter with search, empty state and clear, count line, URL with `replace`, back from a
+customer both ways, the caret while typing, reset from the main navigation); `weekdayHeading`;
+`lib/schedule.ts` (minutes, `clock`, axis range, lanes, `overlapsWith`, `overlappingIds`); the
+grid (headings in order, each template in its column with range and places, inactive marked,
+dialog opens with the template's values and focus, Prekliči and Escape return focus, save
+closes it) and the day groups (headings in order without empty days, rows, edit in place); the
+overlap warning (one and two other slots, changed values checked again, touching, inactive on
+either side, no self-overlap, an existing overlap not asked again, a new one on edit, together
+with stranded bookings) and the marks in both layouts.
+**Status**: Complete (PR open)
+
 ## Workflow (from 2026-10-23 evening)
 
 - Orchestrator session runs on Opus. Per stage: a Herdr worktree with a fresh session does the
@@ -738,6 +767,115 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   count; two over-long doc lines rewrapped. Item 2 is a refactor that no test can reach
   through the UI (the loading guard stops a second press), so it has no new red test; the page
   tests stay green.
+
+### Handoff state (2026-10-25, Stage 9)
+
+- Branch `stage-9-stranke-urnik` off `main` (6994aea, after Stage 8); issues #14, #16, #15 in
+  that order, one feature commit each, then a review-fix commit and this plan commit; PR open
+  against `main`, not merged. Vitest 477 (410 at Stage 8), lint, typecheck, build and
+  `check-docs.sh` green. No DB change, no migration.
+- Test first (watched red): #14 `customerSearch.test.ts` failed on the missing module, the 12
+  page tests on the missing search field; the caret test fails on a URL-driven input (checked
+  by swapping the old logic back in) and passes on the local-state one; the Back-after-reset
+  test (review) failed before the navigation-type check. #16 `weekdayHeading` and
+  `schedule.test.ts` failed on the missing functions, the 14 grid, day-group and updated
+  template tests before `TemplateWeek`. #15 the overlap unit tests on the missing functions,
+  the page tests before the check, and the two edit cases (an overlap the slot already had,
+  one an edit adds) before the "new overlaps only" rule. The legend and inactive-legend
+  assertions went red before their markup.
+- Browser check (Vite dev server on 5179, local stack, agent-browser session `s9-trainer`):
+  Stranke default, a diacritic search ("zupancic"), **Dolžniki**, **Brez računa** and the empty
+  state at 390, 768 and 1440 in both themes (`t1-stranke-*`); the caret stays put when typing
+  mid-word (it jumped to the end with the URL-driven input); `?q=kos&f=brez` survives a
+  customer and both **Nazaj na stranke** and browser Back. Urnik grid at 768 and 1440 and day
+  groups at 390 in both themes (`t2-urnik-grid-*`, `t2-urnik-groups-*`, also `--full`), the
+  edit dialog from a block (1440 dark, 768 light, focus in **Dan**, Escape back to the block),
+  the overlap warning in the form (1440 light, 390 dark) and the marks (`t3-urnik-*`). At
+  360 px `scrollWidth` 360 on `/t/stranke`, its empty state and `/t/nastavitve/urnik`, no tap
+  target under 44 px; at 768 the grid scrolls inside its box (832 in 704) and the page does
+  not. Screenshots in the gitignored `.superpowers/shots/`.
+- Demo data: the demo week already had an overlap (Monday 07:00 and 07:07, both active), so
+  the marks needed no extra row. For the warning and an inactive block, one template was
+  added through the UI (Monday 07:30, 60 min, 5 places: warning shown, then saved inactive),
+  id `963619a2-642d-45e6-b701-7440dd52d584`, and deleted by id with psql after checking that no
+  appointment or rule referenced it; back to 11 templates. The second warning (390 dark) was
+  cancelled, not saved. After the review fixes the same template was added again through the
+  UI to see them (id `ab00499b-a5cc-4c16-8da3-4da5ebcad322`): the dotted inactive edge and both
+  legend lines at 768 and 1440 in both themes and the inactive row at 390 (`t4-urnik-*`), the
+  focus ring of a lane-0 block drawn over its neighbour, and the edit dialog at 844×390 (a
+  phone held sideways) with the overlap warning, which scrolls inside the window so **Shrani**
+  is reachable (`t4-urnik-dialog-*`; Escape, not saved). Deleted by id the same way; 11
+  templates, none inactive. The demo has one debtor (Tadej Mlakar, −2), not two, and no inactive
+  template.
+- Judged beyond the issues:
+  - **Brez računa** includes customers with a pending invite (they keep the **Povabilo čaka**
+    tag); no separate filter. **Počisti iskanje** also returns to **Vsi**. A query of digits
+    (with spaces, `+`, `-`, `/`, `.`, brackets) searches phones only, with `+386`/`00386` read
+    as 0; words must all appear in the name or email; đ folds to d.
+  - The count line is `customers.total` unfiltered ("9 strank") and `customers.shown` while
+    narrowed ("Prikazanih 7 od 9", participle agreeing with the count), one persistent
+    `role="status"` that also carries the no-match message. The pressed filter segment is
+    framed in ink, not filled, to keep one black button per screen.
+  - The search field keeps its own state and writes the URL with `replace` and
+    `{fromSearch: true}`; any other navigation (main nav, Back) resyncs it. Filters also use
+    `replace`, so the list is one history entry. The row links carry the query string in
+    navigation state for **Nazaj na stranke**; the detail page keeps it when it clears its
+    starting-balance message.
+  - Grid vs day groups is chosen in script (`useMediaQuery`, false in jsdom), not by CSS, so
+    only one is in the page (ADR 0011's reasoning). Only the grid widens (`.wide`, ADR 0014;
+    Stage 10's calendar can reuse it): from 1024 px it starts at the title's left edge and
+    grows right to `--content-wide` (80 rem) or one gutter from the window (1056 px at 1440),
+    so the title, tabs and top bar never move between settings tabs. `.wide` also scrolls
+    sideways inside its own box whenever its content needs more (768-1023 px), with the hour
+    column sticky. (Fix list 2 replaced the first, centred rule.)
+  - Editing from a block opens a dialog (portal to `body`) with the cancel dialog's focus
+    rules, now a shared `useModal` (`pages/shared/modal.ts`); focus returns to the block, found
+    by template id when a save moved it to another day. Day groups keep the inline form.
+    No empty-cell click.
+  - Blocks: time range in the display cut (condensed 800), an hour 5 rem, every block at
+    least 44 × 44 px (a short slot is drawn 44 px tall; day columns are at least the most
+    lanes on any day × 48 px, `--max-lanes`); lanes include inactive templates so nothing
+    sits on top of anything. Overlap mark: 2 px dashed ink edge plus the condensed
+    "prekrivanje" tag; inactive: dotted edge, muted, "neaktiven". A container query hides
+    block tags in lanes under 4.75 rem (now also the two Monday lanes at 1440, 67.5 px), and
+    a legend line above the grid names the edges.
+  - The overlap check warns only about overlaps a save adds (an edit of an intended overlap,
+    for example its capacity, saves at once), shares one confirmation with the stranded
+    warning (both shown at once, one more **Shrani**), and its copy is keyed
+    `single`/`pair`/`several` (terminom/terminoma/termini), not a `Plural`, since no count
+    is shown; rule recorded in `app-structure.md`.
+  - `settings.templateLine` is gone (Changes row in `copy-review.md`).
+- Project `reviewer`: approve with fixes, no Critical. Important, all done in baba563:
+  Back to a searched list left the field empty; the dialog could not scroll (a phone held
+  sideways is past 768 px); blocks under 44 px. Minor done: inactive blocks' non-colour cue,
+  the focus ring above lane neighbours, a persistent status line, the confirm sentence once,
+  no duplicate notice behind the dialog, the keyed-strings rule in `app-structure.md`. Not
+  changed: the self-overlap page test cannot fail without the id exclusion (the stored self is
+  either inactive or already subtracted as an existing overlap), so `schedule.test.ts` is
+  what covers it; "386" alone matching phones with a 0 while typing (nit).
+- Owner actions: none. Open copy questions for the trainer are in `copy-review.md`
+  (`customers.shown` wording, `settings.overlapping`, the empty-list copy when only a filter
+  empties it).
+- Fix list 2 done (`.superpowers/fixes-2.md`, items 1-10): the wide grid starts at the
+  title's edge and grows right, `.wide` carries its own sideways scroll and the grid's classes
+  are `template-*` (item 1); 44 × 44 px blocks with `--max-lanes`, the exception dropped (2);
+  `closeEdit` clears the notice (3); `useModal` falls back to `returnTo` when the opener is
+  `body` or gone, as after a Safari tap (4); day groups move focus into the form on **Uredi**
+  and back to **Uredi** on Prekliči or save (5); `+386`/`00386` → 0 only after `+` or `00`
+  (6); the duplicate `.dialog` and `li` rules merged (7); the filter-only empty copy is open
+  question 7 in `copy-review.md` (8); the search shows only once the list loaded (9). Test
+  first: the 386 cases, the search while loading (holding `customer_balances`; holding
+  `customers` stalls the sign-in lookup too), `--max-lanes`, the Safari-style click
+  (`block.click()` without focus), the failed save's error after Prekliči (new
+  `db.writeErrors` in the fake client) and the day-group focus all failed before the change.
+  Browser (`f2-*` in `.superpowers/shots/`): grid at 1024x768 and 1440x900 with its left edge
+  on the title's (160/160, 368/368) and no page scroll, 768x1024 scrolling 832 in 704, both
+  themes; the narrowest overlapping block 51.5 × 76 px at 768; a temporary 15-minute
+  inactive template (Wednesday 06:00, id `40419b6e-c068-43fa-ae82-9f9fb59230f9`, added
+  through the UI, deleted by id) measured 109.3 × 44 px; at 390 Uredi then Prekliči by
+  keyboard leaves the ring on that **Uredi**; Stranke "386" shows the empty state, "+386 41"
+  three customers. One keyboard run pressed Enter in a number field instead of Prekliči and
+  saved Monday 07:07 with unchanged values. Demo data back to 11 templates.
 
 ---
 

@@ -9,6 +9,7 @@ import {
   occurrenceInWeek,
   overlaps,
   timeUntil,
+  weekdayHeading,
   weekdayName,
   weekdayOf,
   weekRange,
@@ -131,6 +132,15 @@ describe('weekdayName', () => {
   it('names weekdays from Monday = 0 in Slovenian', () => {
     expect(weekdayName(0)).toBe('ponedeljek');
     expect(weekdayName(6)).toBe('nedelja');
+  });
+});
+
+describe('weekdayHeading', () => {
+  it('capitalises the weekday for a heading and leaves weekdayName lowercase', () => {
+    expect(weekdayHeading(0)).toBe('Ponedeljek');
+    expect(weekdayHeading(3)).toBe('Četrtek');
+    expect(weekdayHeading(6)).toBe('Nedelja');
+    expect(weekdayName(3)).toBe('četrtek');
   });
 });
 

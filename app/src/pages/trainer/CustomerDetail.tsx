@@ -42,8 +42,14 @@ export function TrainerCustomerDetail() {
   const [state, reload] = useLoad(load);
   const location = useLocation();
   const navigate = useNavigate();
-  const starting = location.state as { startingError?: string; startingBalance?: number } | null;
+  const starting = location.state as {
+    startingError?: string;
+    startingBalance?: number;
+    listSearch?: string;
+  } | null;
   const startingError = starting?.startingError;
+  const listSearch = starting?.listSearch ?? '';
+  const backTo = `/t/stranke${listSearch}`;
   const [busy, setBusy] = useState(false);
   const [notices, setNotices] = useState<Record<string, Notice>>((): Record<string, Notice> =>
     startingError === undefined
@@ -68,8 +74,12 @@ export function TrainerCustomerDetail() {
   } | null>(null);
 
   useEffect(() => {
-    if (location.state !== null) void navigate(location.pathname, { replace: true, state: null });
-  }, [location.pathname, location.state, navigate]);
+    if (startingError === undefined) return;
+    void navigate(location.pathname, {
+      replace: true,
+      state: listSearch === '' ? null : { listSearch },
+    });
+  }, [location.pathname, startingError, listSearch, navigate]);
 
   async function run<T>(
     section: string,
@@ -94,7 +104,7 @@ export function TrainerCustomerDetail() {
   if (state.status === 'error') {
     return (
       <>
-        <Link to="/t/stranke" className="back-link">
+        <Link to={backTo} className="back-link">
           {t.customerDetail.back}
         </Link>
         <p role="alert" className="error">
@@ -211,7 +221,7 @@ export function TrainerCustomerDetail() {
 
   return (
     <>
-      <Link to="/t/stranke" className="back-link">
+      <Link to={backTo} className="back-link">
         {t.customerDetail.back}
       </Link>
       <h1>{customer.name}</h1>

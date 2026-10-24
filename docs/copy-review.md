@@ -51,6 +51,7 @@ is a question below.
 | `invite.title` | Ustvari račun | Nov račun | Stage 5: heading and button were the same; the heading names the page, the button keeps the action |
 | `customerDetail.refund` (new) | Odpovej (`slot.cancel`) | Vrni kredit | Stage 5: on a charged session the action cancels with a refund; "Odpovej" hid that |
 | `customers.startingBalance` | Začetno stanje kreditov (s papirja) | Začetno stanje kreditov | Stage 8 (issue #20): the owner removed "(s papirja)"; the hint under the field is unchanged |
+| `settings.templateLine` (removed) | {weekday} ob {time} · {minutes} min · {places} | `settings.slotDetails` ({minutes} min · {places}) under a day heading, `settings.timeRange` in the week grid | Stage 9 (issue #16): the list of lowercase lines became day groups on a phone and a week grid from 768 px; the day is now the heading |
 
 ## Open questions for the trainer
 
@@ -61,7 +62,11 @@ is a question below.
    kreditih »Vadba«. Raje »Zaračunano« in »Termin«?
 5. **»Odpovedal trener«** je v moški obliki; nevtralno »Odpoved trenerja«?
 6. **»Dolžniki«** na zaslonu Danes: v redu ali raje »Negativno stanje«?
-7. Vsa ostala vprašanja so v tabelah spodaj (stolpec »Vprašanje«).
+7. **Stranke, prazen seznam:** ko seznam izprazni samo filter (npr. »Dolžniki«, ko nihče nima
+   dolga, iskanje pa je prazno), piše »Ni strank, ki bi ustrezale iskanju.« in gumb
+   »Počisti iskanje« (ki ponastavi tudi filter). Je to v redu, ali raje npr. »Ni strank za ta
+   prikaz.« in »Pokaži vse«?
+8. Vsa ostala vprašanja so v tabelah spodaj (stolpec »Vprašanje«).
 
 ## All copy by screen
 
@@ -278,6 +283,16 @@ is a question below.
 | `customers.inviteStatus.linked` | Povezan račun | V redu? |
 | `customers.inviteStatus.pending` | Povabilo čaka | Spremenjeno (prej »Povabljen«, moška oblika). V redu? |
 | `customers.inviteStatus.none` | Brez računa |  |
+| `customers.search` | Išči stranko | Novo (iskanje po imenu, telefonu in e-pošti). |
+| `customers.searchPlaceholder` | Ime, telefon ali e-pošta | Novo. |
+| `customers.filterLabel` | Prikaži | Novo: ime skupine gumbov za filtre (bralnik zaslona). |
+| `customers.filters.vsi` | Vsi | Novo. |
+| `customers.filters.dolzniki` | Dolžniki | Novo. |
+| `customers.filters.brez` | Brez računa | Novo. Vključuje tudi stranke s čakajočim povabilom. |
+| `customers.total` | 1 stranka, 2 stranki, 3 stranke, 5 strank | Novo. |
+| `customers.shown` | Prikazana 1 od 9, Prikazani 2 od 9, Prikazane 3 od 9, Prikazanih 5 od 9 | Novo. V redu, ali raje »Prikazanih: 5 od 9« za vsa števila? |
+| `customers.noMatches` | Ni strank, ki bi ustrezale iskanju. | Novo. |
+| `customers.clearSearch` | Počisti iskanje | Novo: počisti iskanje in filter. |
 
 ### Trener: Stranka (podrobnosti)
 
@@ -339,12 +354,22 @@ is a question below.
 | `settings.tabs.notifications` | Obvestila |  |
 | `settings.templatesTitle` | Termini v tednu | »Termini v tednu« ali »Tedenski urnik«? |
 | `settings.noTemplates` | Ni terminov. |  |
-| `settings.templateLine` | {weekday} ob {time} · {minutes} min · {places} |  |
+| `settings.timeRange` | {start}–{end} | Novo: čas v bloku tedenskega urnika (»07:00–08:00«). |
+| `settings.slotDetails` | {minutes} min · {places} | Novo: vrstica pod dnevom na telefonu (»60 min · 5 mest«). |
+| `settings.blockLabel` | {day} {time}, {minutes} min, {places}{marks}, uredi | Novo: ime gumba za bralnik zaslona (»Ponedeljek 07:00, 60 min, 5 mest, uredi«; pri neaktivnem še », neaktiven«, pri prekrivanju », prekrivanje«). |
 | `settings.places.one` | {count} mesto |  |
 | `settings.places.two` | {count} mesti |  |
 | `settings.places.few` | {count} mesta |  |
 | `settings.places.other` | {count} mest |  |
 | `settings.inactive` | neaktiven |  |
+| `settings.overlapping` | prekrivanje | Novo: oznaka termina, ki se prekriva z drugim aktivnim terminom istega dne. V redu, ali »se prekriva«? |
+| `settings.overlapLegend` | Črtkan rob: termin se prekriva z drugim. | Novo: razlaga nad tedenskim urnikom, ko se kakšna termina prekrivata. |
+| `settings.overlapSlot` | {weekday} ob {time} ({minutes} min) | Novo: termin v opozorilu (»ponedeljek ob 07:00 (60 min)«). |
+| `settings.overlapWarning.single` | Prekriva se s terminom {slots}. | Novo: opozorilo pri shranjevanju termina, ki se prekriva z enim drugim; sledi mu `settings.confirmAgain`. |
+| `settings.overlapWarning.pair` | Prekriva se s terminoma {slots}. | Novo: z dvema (»… s terminoma ponedeljek ob 07:00 (60 min) in ponedeljek ob 07:30 (60 min)«). |
+| `settings.overlapWarning.several` | Prekriva se s termini {slots}. | Novo: s tremi ali več. |
+| `settings.confirmAgain` | Za potrditev znova tapnite »Shrani«. | Novo: za opozorilom o prekrivanju (enak stavek kot na koncu `settings.strandedWarning`; ko sta obe opozorili, se pokaže le enkrat). |
+| `settings.inactiveLegend` | Pikčast rob: neaktiven termin. | Novo: razlaga nad tedenskim urnikom, ko je kakšen termin neaktiven. |
 | `settings.newTemplate` | Nov termin |  |
 | `settings.editTemplate` | Uredi termin |  |
 | `settings.weekday` | Dan |  |
