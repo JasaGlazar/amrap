@@ -3,6 +3,7 @@ import { Navigate } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import { fromError, t } from '../i18n';
 import { supabase } from '../lib/supabase';
+import { BrandMark } from './shared/BrandMark';
 
 export function LoginPage() {
   const { session } = useAuth();
@@ -25,7 +26,9 @@ export function LoginPage() {
 
   return (
     <main className="page narrow">
-      <h1>{t.app.name}</h1>
+      <h1 className="brand-heading">
+        <BrandMark />
+      </h1>
       <h2>{t.login.title}</h2>
       <form onSubmit={onSubmit} className="form">
         <label>

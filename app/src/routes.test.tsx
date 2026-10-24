@@ -65,6 +65,31 @@ describe('unauthenticated visitor', () => {
   });
 });
 
+describe('brand mark', () => {
+  it.each(['/login', '/invite/abc'])('heads %s with the framed wordmark', async (path) => {
+    renderAt(path);
+    const heading = await screen.findByRole('heading', { level: 1, name: t.app.name });
+    expect(within(heading).getByRole('img', { name: t.app.name })).toHaveAttribute(
+      'src',
+      '/brand-mark.png',
+    );
+  });
+
+  it.each([
+    ['customer', customer, '/c'],
+    ['trainer', trainer, '/t'],
+  ])('shows the framed wordmark in the %s top bar', async (_name, row, path) => {
+    signedInAs(row);
+    renderAt(path);
+    const banner = await screen.findByRole('banner');
+    expect(within(banner).getByRole('img', { name: t.app.name })).toHaveAttribute(
+      'src',
+      '/brand-mark.png',
+    );
+    expect(within(banner).queryByText(t.app.name)).not.toBeInTheDocument();
+  });
+});
+
 describe('role gating', () => {
   it('sends a trainer from / to /t', async () => {
     signedInAs(trainer);

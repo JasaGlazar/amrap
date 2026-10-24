@@ -21,7 +21,7 @@ screens are in [screens.md](screens.md), sign-in and role gating in [auth.md](au
 | `src/lib/` | `supabase.ts` (the one client; retries a `PGRST303` answer once, [auth.md](auth.md#token-refused-as-issued-in-the-future)), `database.types.ts` (generated), `keepAlive.ts`, `time.ts` ([time.md](time.md)), `useLoad.ts`, `device.ts` (`deviceEnvironment()`: iOS, Android, standalone; used by push support and the install card). |
 | `src/test/` | `fakeSupabase.ts`, `fakePush.ts` (a fake `PushPlatform`), `fakeInstall.ts` (a fake `InstallPlatform`, a prompt event, in-memory storage) and the Vitest setup (`setup.ts`: jest-dom matchers, cleanup after each test). |
 | `src/styles.css` | Plain CSS for the whole app. |
-| `public/` | Icons and `_redirects` (SPA fallback). `scripts/generate-icons.mjs` (`npm run icons`) regenerates the icons. |
+| `public/` | The gym logo, the wordmark and the icons cut from it ([Brand assets](#brand-assets)), and `_redirects` (SPA fallback). `scripts/generate-icons.mjs` (`npm run icons`) regenerates the icons. |
 
 `start.tsx` takes `RouterProvider` from `react-router`, not `react-router/dom`, so the app and
 the tests render the same component (the `/dom` variant only adds `flushSync` for transitions).
@@ -64,6 +64,20 @@ Colours, the two themes and their contrast are in
 - `index.html` has a small inline script that does the same from storage before the first
   paint, so a stored dark theme never flashes white. `theme.test.ts` runs that script in jsdom,
   so the two copies cannot drift apart.
+
+## Brand assets
+
+Committed images in `public/`, all cut from the gym's logo `logo.png` (447 × 447, white on
+black) with macOS `sips`, so no image tool is added to the build
+([ADR 0010](adr/0010-visual-identity-and-themes.md)). Run from `app/`:
+
+| File | Command | Used by |
+|---|---|---|
+| `brand-mark.png` (280 × 90) | `sips -c 90 280 --cropOffset 166 84 public/logo.png --out public/brand-mark.png` | `pages/shared/BrandMark.tsx`: the top bar (1.75 rem high) and the `h1` of `/login` and `/invite/:token` (3 rem), alt text `app.name` |
+
+`sips -c` takes height then width, and `--cropOffset` y then x. The crop keeps the frame with a
+6-8 px black margin on every side. The mark is white on black: the light theme shows it through
+`filter: var(--mark-filter)` (`invert(1)`, so black on white paper), the dark theme as is.
 
 ## i18n rule
 

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import { fromError, t } from '../i18n';
 import { supabase } from '../lib/supabase';
+import { BrandMark } from './shared/BrandMark';
 
 const MIN_PASSWORD_LENGTH = 6; // matches minimum_password_length in supabase/config.toml
 
@@ -54,7 +55,9 @@ export function InvitePage() {
 
   return (
     <main className="page narrow">
-      <h1>{t.app.name}</h1>
+      <h1 className="brand-heading">
+        <BrandMark />
+      </h1>
       <h2>{t.invite.title}</h2>
       <p>{t.invite.intro}</p>
       <form onSubmit={onSubmit} className="form">

@@ -12,6 +12,7 @@
   --done-bg: #e5f3ea;
   --overlay: rgb(0 0 0 / 0.4);
   --shadow: rgb(0 0 0 / 0.3);
+  --mark-filter: invert(1);
   --press: color-mix(in srgb, var(--ink) 82%, var(--paper));
   --radius: 0.375rem;
   --content: 46rem;
@@ -48,6 +49,7 @@
     --done: #62c98d;
     --done-bg: #10291b;
     --overlay: rgb(0 0 0 / 0.7);
+    --mark-filter: none;
     color-scheme: dark;
   }
 }
@@ -65,6 +67,7 @@
   --done: #62c98d;
   --done-bg: #10291b;
   --overlay: rgb(0 0 0 / 0.7);
+  --mark-filter: none;
   color-scheme: dark;
 }
 
@@ -294,9 +297,15 @@ input[type='checkbox'] {
     max(1rem, env(safe-area-inset-left));
 }
 
-.topbar .brand {
-  font-weight: 700;
-  color: var(--ink);
+.brand-mark {
+  display: block;
+  width: auto;
+  height: 1.75rem;
+  filter: var(--mark-filter);
+}
+
+.brand-heading .brand-mark {
+  height: 3rem;
 }
 
 .topbar a {

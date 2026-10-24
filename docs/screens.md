@@ -367,6 +367,11 @@ How the guards and the auth state work is in [auth.md](auth.md).
   - safe-area insets on the top bar, the page sides, the bottom navigation and the dialog;
   - errors are `role="alert"`, results `role="status"`.
 
+- **Brand mark.** The framed AMRAP wordmark (`public/brand-mark.png`, alt `app.name`) replaces
+  the plain "AMRAP" text: at the left of the top bar in both shells, and as the `h1` above the
+  heading on `/login` and `/invite/:token`. It is black on white in the light theme and white on
+  black in the dark theme.
+
 - **Colour and themes.** Black, white and grey from the gym logo
   ([ADR 0010](adr/0010-visual-identity-and-themes.md)); red only for debt, late cancels and
   destructive buttons, green only for "opravljeno", added credits and saved notices. Every
