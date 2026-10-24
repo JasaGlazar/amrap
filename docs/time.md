@@ -17,6 +17,15 @@ it, or a "Rezerviraj" click sends a start that `book()` rejects as `AMRAP_SLOT_M
 - The timezone conversion uses `Intl.DateTimeFormat` with the gym timezone, the only timezone
   database a browser has; `Temporal` is not used.
 
+- `parseLocalDate(value)` reads a local date from outside, such as the trainer calendar's
+  `?dan=`: exactly `YYYY-MM-DD` in the years 2000-2099 and a real day (it must survive
+  `addDays(value, 0)`), else `null`. The year range keeps a far-future value from becoming an
+  invalid `Date` that would break formatting.
+- `defaultDayOf(monday, today)` is the day a week opens on: today when today is in that week,
+  otherwise the Monday.
+- An instant belongs to the day `localDateOf(instant, timeZone)` in the gym timezone, never its
+  UTC date: in the night of the autumn change, 00:30 on Sunday is 22:30 UTC on Saturday.
+
 ## Local time to instant
 
 `zonedInstant(date, time, timeZone)` returns the instant whose wall-clock time in `timeZone`

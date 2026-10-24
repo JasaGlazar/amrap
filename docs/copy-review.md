@@ -41,6 +41,7 @@ is a question below.
 | `cancelDialog.refund` | Odpoved s povračilom: stranki se vrne 1 kredit. | Odpoved z vračilom: stranki se vrne 1 kredit. | One term: the ledger says "Vračilo" |
 | `customers.email` | E-pošta | E-poštni naslov | Same label as on the login and invite forms |
 | `customers.inviteStatus.pending` | Povabljen | Povabilo čaka | The masculine form was wrong for women; describes the invite, not the person |
+| `trainer.noOther` | Ni terminov zunaj urnika. | (removed) | Stage 10: the calendar shows "Termini zunaj urnika" only when a day has some (day view) or puts them in their day's column (week grid), like Today |
 | `customerDetail.topUpInvalid` | Za polnitev vpišite pozitivno celo število. | Za dodajanje kreditov vpišite pozitivno celo število. | "polnitev" is used nowhere else; the button says "Dodaj kredite" |
 | `customerDetail.relinkHint` | … sledite postopku »Re-link a customer« v priročniku (docs/runbook.md). | … naj skrbnik aplikacije odstrani njen stari račun; nato tukaj ustvarite novo povabilo. | English and a repository path in user-visible copy |
 | `settings.strandedWarning` | … (Koledar, Termini zunaj urnika). Za potrditev znova kliknite Shrani. | … (»Koledar«, »Termini zunaj urnika«). Za potrditev znova tapnite »Shrani«. | Quoted names; "tapnite" on a phone |
@@ -242,6 +243,9 @@ is a question below.
 | `trainer.debtorsTitle` | Dolžniki | »Dolžniki« je lahko neprijazno. Raje »Negativno stanje«? |
 | `trainer.noDebtors` | Nihče nima negativnega stanja. |  |
 | `trainer.nobodyBooked` | Ni prijavljenih strank. | »prijavljenih« ali »rezerviranih« strank? |
+| `trainer.days` | Dnevi v tednu | Ni vidno: ime vrstice z gumbi za dneve v koledarju na telefonu (bralnik zaslona). |
+| `trainer.noSlotsOnDay` | Ta dan ni terminov. | Koledar na telefonu, izbran dan brez terminov. |
+| `trainer.todayTag` | danes | Oznaka današnjega stolpca v tedenskem koledarju na računalniku. |
 | `trainer.chargedTag` | opravljeno | Isto vprašanje kot »Opravljeno« zgoraj. |
 | `trainer.addCustomer` | Dodaj stranko | Gumb pri terminu v koledarju; odpre izbiro stranke. Ko je termin poln ali zaprt, gumb namesto tega pokaže »Polno« ali »Zaprto«. Enako besedilo ima gumb, ki ustvari novo stranko (`customers.create`), čeprav gre za drugo dejanje: je to v redu, ali naj bo tukaj »Prijavi stranko« ali »Dodaj v termin«? |
 | `trainer.noneToAdd` | Ni strank za dodajanje | Onemogočen gumb pri terminu, ko ni nobene stranke, ki bi jo lahko dodali (vse so že prijavljene ali pa strank še ni). |
@@ -250,7 +254,6 @@ is a question below.
 | `trainer.add` | Dodaj |  |
 | `trainer.added` | Stranka je dodana. |  |
 | `trainer.otherTitle` | Termini zunaj urnika |  |
-| `trainer.noOther` | Ni terminov zunaj urnika. |  |
 | `trainer.adHocTag` | po dogovoru |  |
 | `trainer.offGridTag` | ni več v urniku |  |
 | `trainer.timeRange` | {from}–{to} |  |

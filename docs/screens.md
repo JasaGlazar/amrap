@@ -19,7 +19,7 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/c/koledar` | customer | Week calendar: book open slots, cancel own bookings. | `customer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
 | `/t` | trainer | Trainer shell: the same top bar with the [account menu](#account-menu), the [install card](#install-card), the [main navigation](#main-navigation) (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `account`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
-| `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog`, `common` | Stage 2, add control and forms on demand Stage 7 |
+| `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. A day view below 1024 px and a week grid from 1024 px; the selected day (and so the week) in `?dan=YYYY-MM-DD`. | `trainer`, `calendar`, `slot`, `cancelDialog`, `common` | Stage 2, add control and forms on demand Stage 7, day view and week grid Stage 10 |
 | `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; search and filters kept in the query (`?q=…&f=…`); create a customer. | `trainer`, `customers`, `common` | Stage 2, form on demand Stage 7, search and filters Stage 9 |
 | `/t/stranke/:id` | trainer | One customer: balance and credits, upcoming appointments, recurring rules, recent sessions, ledger, invite link, details. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType`, `common` | Stage 2, order and forms on demand Stage 7 |
 | `/t/nastavitve` | trainer | Settings, one tab per topic ([Settings](#settings-tnastavitve)); the bare path redirects to `/t/nastavitve/urnik`. | `settings` | Stage 2, tabs Stage 7 |
@@ -137,11 +137,76 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 
 ### Calendar (`/t/koledar`)
 
+- **Week and day in the URL:** `?dan=YYYY-MM-DD` (the selected day, a local date in the gym
+  timezone) is the only state in the URL, and its week (Monday to Sunday) is the week shown.
+  Without it, or with a value that is not a real date in the years 2000-2099, the calendar
+  shows the current week; `›` does nothing in the last week of 2099.
+  The **default day** of a week is today when today is in it, otherwise its Monday; it is what
+  the day view selects when `dan` is missing, and what `‹` / `›` write. Week navigation and
+  the day buttons both write `dan` with `replace` (React Router `setSearchParams(…, { replace:
+  true })`): the calendar stays one history entry, so Back leaves it rather than stepping
+  through days and weeks, while a reload, or Back from another screen, keeps the day and its
+  week. The main navigation's **Koledar** link has no `dan` and opens the current week on
+  today.
 - **Week:** like the customer calendar, but `‹` is never disabled: the trainer can open past
   weeks (to record a session after the fact; `book()` lets the trainer book past occurrences).
-- **Data:** `loadWeek` without a customer id (all customers' live appointments) and
-  `listCustomers`.
-- **Occurrence row:** start, duration, remaining capacity, blocked state, then the booked
+  The range under the arrows follows the URL at once, while the new week loads, and so does
+  the day view's strip when `dan` is set (the page does not jump on a week change). Until the
+  first week has loaded (and after that load failed) both arrows are disabled: today, and so
+  the default day of the week they open, is not known until the settings give the timezone.
+- **Data:** `loadWeek` with the week's Monday (`start`) and without a customer id (all
+  customers' live appointments), and `listCustomers`. Choosing another day in the same week
+  does not reload, also when the first press adds `dan` to a bare `/t/koledar`: the loaded
+  week is kept in state and changes only when `dan` names another week (or disappears).
+- **Two views, chosen by the window width** in script (`useMediaQuery(weekGrid)`,
+  `(min-width: 64rem)`), so only one is in the page:
+  - **Below 1024 px, the day view.** Under the week navigation, a strip of seven day buttons
+    (`trainer.days` names the group), the short weekday over the day of the month ("pon." /
+    "26.", `Intl` in `sl-SI`), each named by that visible text plus the month in visually
+    hidden text ("pon. 26. oktober"), so the name starts with what a voice user reads. The
+    selected day has `aria-pressed="true"` and an ink frame on the paper background (the
+    Stranke filter's pressed style); today has `aria-current="date"` and its number
+    underlined, so neither depends on colour. The strip is a seven-column grid with 2 px gaps
+    and fits 360 px with each button at least 44 px wide. Below it, a section headed by the
+    selected date ("ponedeljek, 26. 10.", as the customer calendar's day headings) with
+    that day's occurrence rows; then **Termini zunaj urnika** with that day's appointments
+    outside the grid, only when there are any (as on Today). A day with neither shows
+    `trainer.noSlotsOnDay`. Pressing a day closes an open add control and clears the notice.
+    So does crossing 1024 px while the control is open (a resize or a tablet turned), since
+    the other view would mount the control again without its focus.
+  - **From 1024 px, the week grid** (`CalendarWeek.tsx`): seven columns in a `wide` box
+    ([Wide views](#behaviour-shared-by-all-screens)), each a `section` named by its `h2`
+    ("Ponedeljek 26. 10.", the date on a second line so every heading has the same height);
+    today's column has `aria-current="date"` on its heading, the
+    `trainer.todayTag` tag ("danes") and a 2 px ink rule under the heading. A column lists its
+    occurrences and its appointments outside the grid together, by start time, as compact
+    cards: an occurrence card has the start time, duration, `Prosta mesta` (one unbreakable
+    line each, like the customer row's parts), `Zaprto` as a tag when blocked, and the same roster and add control as a row in the day view; an
+    appointment outside the grid shows its time range, its tag (`po dogovoru` or `ni več v
+    urniku`) and the customer with **Odpovej** on a grey card, named like a row
+    (`{day} ob {from}–{to}`). There is no separate **Termini zunaj urnika** list. Columns are
+    at least 8.5 rem wide, the room "Prosta mesta: 0 od 5" needs on one line: from 1280 px the
+    whole week is visible (976 px, 136 px a column); at 1024-1279 px the grid scrolls sideways
+    inside its box. A column narrower than
+    8.75 rem drops the `+` icon from **Dodaj stranko**, so the button keeps one line; a
+    disabled reason as long as **Ni strank za dodajanje** may wrap inside its card, the one
+    exception to buttons never wrapping. A disabled button keeps the card's 1 px `--line`
+    outline, the add control's select stays 16 px, and a card's focus ring is drawn inside it,
+    so the `wide` box never clips it. Each roster row in a card is a two-column grid: the name
+    on the left, **Odpovej** on the right, centred against it, so the button never drops
+    under the name; the name wraps inside its column (13 px, with a tighter card and button
+    padding, so the demo names wrap between words at 1024 and 1280 px). `opravljeno` sits on
+    its own line under the row, across both columns, in the Urnik blocks' condensed tag, so it
+    never wraps.
+    The open add control puts the select on its own line and **Dodaj** and **Prekliči** under
+    it.
+- **Unchanged in both views:** **Dodaj stranko** and its disabled reasons, the cancel dialog,
+  **Nov termin po dogovoru**, past weeks, `Zaprto` and `Polno`. Occurrences are bucketed by
+  their local date (`occurrenceInWeek`) and appointments outside the grid by
+  `localDateOf(startsAt, settings.timezone)`, never by UTC or the browser's zone, so an
+  appointment at 00:30 on the Sunday of the autumn change (22:30 UTC on Saturday) is on
+  Sunday.
+- **Occurrence** (a row in the day view, a card in the grid): start, duration, remaining capacity, blocked state, then the booked
   customers (names, `opravljeno` for charged), each with **Odpovej**, and one small **Dodaj
   stranko** (`trainer.addCustomer`) at the right, on the same line as `Ni prijavljenih strank.`
   when nobody is booked. Pressing it replaces it with the add control ([on
@@ -158,14 +223,15 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   place) or **Ni strank za dodajanje** (`trainer.noneToAdd`: every customer is already booked
   there, or there are no customers yet, as on the first day before Stranke is filled in). A
   reload that leaves any of these closes an open control. Past occurrences keep the button (the trainer records a session after the fact).
-- **Termini zunaj urnika:** the week's live appointments that match no shown occurrence
+- **Termini zunaj urnika:** live appointments that match no shown occurrence
   (`appointmentsOutsideSlots`): ad-hoc ones (`po dogovoru`) and bookings left behind by a
   deactivated or moved template (`ni več v urniku`), with day, time range and name, each with
-  **Odpovej**. None: `trainer.noOther`.
+  **Odpovej**; in the day view under the day, in the week grid in their day's column.
 - **Nov termin po dogovoru:** a button at the right of the title opens, under the title, a
-  form ([on demand](#forms-on-demand)) with customer, date (defaults to the shown week's
-  Monday), start and end time. Moving to another week closes the form (what was typed is
-  dropped) and the button is disabled while that week loads, so the form never shows without
+  form ([on demand](#forms-on-demand)) with customer, date (defaults to the selected day when
+  it opens: the day in `?dan`, or the week's default day without it; pressing another day
+  while the form is open keeps what it shows), start and end time. Moving to
+  another week closes the form (what was typed is dropped) and the button is disabled while that week loads, so the form never shows without
   the week it belongs to. The date and times are converted with
   `zonedInstant` in the gym timezone ([time.md](time.md)); a time that does not exist that day
   shows `trainer.invalidTime`, an end not after the start `trainer.invalidRange`, no customer
@@ -596,10 +662,11 @@ How the guards and the auth state work is in [auth.md](auth.md).
   - errors are `role="alert"`, results `role="status"`.
 
 - **Wide views.** Pages keep the 46 rem column (`--content`) at every width, and the top bar
-  lines up with it. A week view that needs more room (the Urnik week grid, Stage 9) carries
-  the class `wide`: from 1024 px it starts at the column's left edge, in line with the title,
-  and grows to the right only, to `--content-wide` (80 rem) or up to one page gutter from the
-  window's right edge, whichever is smaller; the title, tabs and section heading above it stay
+  lines up with it. A week view that needs more room (the Urnik week grid, Stage 9, and the
+  trainer Koledar's week grid, Stage 10) carries the class `wide`: from 1024 px it starts at
+  the column's left edge, in line with the title, and grows to the right only, to
+  `--content-wide` (80 rem) or up to one page gutter from the window's right edge, whichever
+  is smaller; the title, tabs and section heading above it stay
   on the column ([ADR 0014](adr/0014-wide-week-views.md)). At any width, when its content
   needs more room than that, it scrolls sideways inside its own box (`.wide` carries the
   `overflow-x`), so the page itself never does. `wide` assumes its parent is the content

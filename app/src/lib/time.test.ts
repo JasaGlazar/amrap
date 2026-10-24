@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   addDays,
   cutoffOf,
+  defaultDayOf,
   formatDay,
   formatTime,
   isFreeCancel,
   localDateOf,
   occurrenceInWeek,
   overlaps,
+  parseLocalDate,
   timeUntil,
   weekdayHeading,
   weekdayName,
@@ -39,6 +41,47 @@ describe('local dates', () => {
   it('reads the local date of an instant in the gym timezone', () => {
     expect(localDateOf(new Date('2026-10-25T22:30:00Z'), tz)).toBe('2026-10-25');
     expect(localDateOf(new Date('2026-10-25T23:30:00Z'), tz)).toBe('2026-10-26');
+  });
+});
+
+describe('parseLocalDate', () => {
+  it('accepts a real YYYY-MM-DD date', () => {
+    expect(parseLocalDate('2026-10-26')).toBe('2026-10-26');
+    expect(parseLocalDate('2028-02-29')).toBe('2028-02-29');
+  });
+
+  it('accepts the first and last day of the years 2000-2099', () => {
+    expect(parseLocalDate('2000-01-01')).toBe('2000-01-01');
+    expect(parseLocalDate('2099-12-31')).toBe('2099-12-31');
+  });
+
+  it.each([
+    null,
+    '',
+    '2026-10-26x',
+    '26.10.2026',
+    '2026-1-26',
+    '2026-13-01',
+    '2026-02-30',
+    '2026-10-32',
+    '1999-12-31',
+    '2100-01-01',
+    '9999-12-31',
+    '0000-01-01',
+  ])('rejects %s', (value) => {
+    expect(parseLocalDate(value)).toBeNull();
+  });
+});
+
+describe('defaultDayOf', () => {
+  it('is today when today is in the week', () => {
+    expect(defaultDayOf('2026-10-19', '2026-10-25')).toBe('2026-10-25');
+    expect(defaultDayOf('2026-10-19', '2026-10-19')).toBe('2026-10-19');
+  });
+
+  it('is the Monday of any other week', () => {
+    expect(defaultDayOf('2026-10-26', '2026-10-25')).toBe('2026-10-26');
+    expect(defaultDayOf('2026-10-12', '2026-10-25')).toBe('2026-10-12');
   });
 });
 

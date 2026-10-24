@@ -55,6 +55,15 @@ export function weekStart(date: LocalDate): LocalDate {
   return addDays(date, -weekdayOf(date));
 }
 
+export function parseLocalDate(value: string | null): LocalDate | null {
+  if (value === null || !/^20\d{2}-\d{2}-\d{2}$/.test(value)) return null;
+  return addDays(value, 0) === value ? value : null;
+}
+
+export function defaultDayOf(monday: LocalDate, today: LocalDate): LocalDate {
+  return weekStart(today) === monday ? today : monday;
+}
+
 function offsetAt(ms: number, timeZone: string): number {
   const { date, time } = localParts(new Date(ms), timeZone);
   return utcMsOf(date, time) - Math.floor(ms / 1000) * 1000;

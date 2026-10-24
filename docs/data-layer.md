@@ -68,8 +68,9 @@ Pages show them through `PagedList` (`pages/shared/PagedList.tsx`), see
 
 ## Week
 
-`loadWeek(client, { now, weekOffset, customerId? })` (`data/week.ts`) loads one calendar week
-for both calendars: the settings, the week's Monday (`weekOffset` weeks from the current week,
+`loadWeek(client, { now, weekOffset, start?, customerId? })` (`data/week.ts`) loads one
+calendar week for both calendars: the settings, the week's Monday (`start` when given, as the
+trainer calendar does from its `?dan` day; otherwise `weekOffset` weeks from the current week,
 in `settings.timezone`), the active templates' occurrences that week ([time.md](time.md)), and
 the live appointments in the week (only the customer's when `customerId` is given). Each
 `WeekSlot` has its start and end, duration, capacity, `booked` (from `slot_occupancy`, 0

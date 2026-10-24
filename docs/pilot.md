@@ -88,7 +88,8 @@ Vsak dan, nekaj minut:
 2. **Danes → Dolžniki:** stranke z negativnim stanjem. Ko plačajo: na strani stranke vpišite
    število v »Krediti« in tapnite »Dodaj kredite«.
 3. **Koledar → Termini zunaj urnika:** termini po dogovoru in rezervacije terminov, ki jih ni
-   več v urniku. Preverite, ali so pravi.
+   več v urniku (na telefonu pod izbranim dnem, na računalniku v stolpcu dneva z oznako).
+   Preverite, ali so pravi.
 4. **Obvestila na telefonu:** nove rezervacije in odpovedi strank.
 
 Popravki:

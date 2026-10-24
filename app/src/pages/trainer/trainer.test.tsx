@@ -1,20 +1,26 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fill, formatAmount, t } from '../../i18n';
 import {
   addDays,
+  formatLocalDate,
   formatLongDay,
   formatTime,
   localDateOf,
   occurrenceInWeek,
+  weekdayHeading,
+  weekdayOf,
   weekStart,
+  zonedInstant,
+  type LocalDate,
 } from '../../lib/time';
 import { routes } from '../../routes';
 import {
   db,
   fakeSupabase,
+  holdTable,
   makeCustomer,
   makeSession,
   postgrestTime,
@@ -71,6 +77,60 @@ function slotLabel(instant: Date): string {
   return fill(t.slot.when, { day: formatLongDay(instant, tz), time: formatTime(instant, tz) });
 }
 
+type View = 'day' | 'week';
+
+function showView(view: View) {
+  window.matchMedia = vi.fn(
+    (query: string) =>
+      ({
+        matches: view === 'week' && query === '(min-width: 64rem)',
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }) as unknown as MediaQueryList,
+  );
+}
+
+function dayButtonName(date: LocalDate) {
+  const part = (options: Intl.DateTimeFormatOptions) => formatLocalDate(date, options);
+  return `${part({ weekday: 'short' })} ${part({ day: 'numeric' })} ${part({ month: 'long' })}`;
+}
+
+function dayButton(date: LocalDate) {
+  return screen.getByRole('button', { name: dayButtonName(date) });
+}
+
+function dayColumnName(date: LocalDate) {
+  const dayMonth = formatLocalDate(date, { day: 'numeric', month: 'numeric' });
+  return `${weekdayHeading(weekdayOf(date))} ${dayMonth}`;
+}
+
+function dayColumn(date: LocalDate) {
+  return screen.getByRole('region', { name: dayColumnName(date) });
+}
+
+function adHoc(id: string, customerId: string, from: Date, minutes = 60) {
+  return {
+    id,
+    customer_id: customerId,
+    slot_template_id: null,
+    starts_at: postgrestTime(from),
+    ends_at: postgrestTime(new Date(from.getTime() + minutes * 60_000)),
+    status: 'booked',
+  };
+}
+
+function otherLabel(from: Date, minutes: number): string {
+  return fill(t.slot.when, {
+    day: formatLongDay(from, tz),
+    time: fill(t.trainer.timeRange, {
+      from: formatTime(from, tz),
+      to: formatTime(new Date(from.getTime() + minutes * 60_000), tz),
+    }),
+  });
+}
+
+const nameOf = (id: string) => customers.find((customer) => customer.id === id)!.name;
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(now);
@@ -87,7 +147,10 @@ beforeEach(() => {
   ];
 });
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  delete (window as { matchMedia?: unknown }).matchMedia;
+});
 
 describe('today', () => {
   it('lists the customers with a negative balance, most negative first', async () => {
@@ -137,6 +200,8 @@ describe('today', () => {
 });
 
 describe('appointments outside the slot grid', () => {
+  beforeEach(() => showView('day'));
+
   const retired = { ...todayTemplate, id: 'tpl-retired', start_time: '09:00:00', active: false };
   const retiredStart = occurrenceInWeek(retired, weekStart(today), tz)!.startsAt;
 
@@ -174,6 +239,8 @@ describe('appointments outside the slot grid', () => {
 });
 
 describe('trainer calendar', () => {
+  beforeEach(() => showView('day'));
+
   function holdBook() {
     let release = () => {};
     const original = fakeSupabase.rpc.getMockImplementation();
@@ -254,7 +321,7 @@ describe('trainer calendar', () => {
   });
 
   it('keeps one add control open at a time', async () => {
-    const later = { ...todayTemplate, id: 'tpl-later', weekday: 3, start_time: '08:00:00' };
+    const later = { ...todayTemplate, id: 'tpl-later', start_time: '20:00:00' };
     const laterStart = occurrenceInWeek(later, weekStart(today), tz)!.startsAt;
     db.tables.slot_templates = [todayTemplate, later];
     renderAt('/t/koledar');
@@ -426,5 +493,405 @@ describe('trainer calendar', () => {
     await userEvent.click(within(form).getByRole('button', { name: t.trainer.adHocSubmit }));
     expect(within(form).getByRole('alert')).toHaveTextContent(t.trainer.invalidRange);
     expect(fakeSupabase.rpc).not.toHaveBeenCalledWith('book', expect.anything());
+  });
+});
+
+describe('trainer calendar day view', () => {
+  const monday = weekStart(today);
+  const thursday = { ...todayTemplate, id: 'tpl-thu', weekday: 3, start_time: '08:00:00' };
+  const thursdayStart = occurrenceInWeek(thursday, monday, tz)!.startsAt;
+
+  beforeEach(() => {
+    showView('day');
+    db.tables.slot_templates = [todayTemplate, thursday];
+  });
+
+  it('shows the seven days of the week as buttons, Monday first, named by their visible text', async () => {
+    renderAt('/t/koledar');
+    const strip = await screen.findByRole('group', { name: t.trainer.days });
+    const buttons = within(strip).getAllByRole('button');
+    const days = [0, 1, 2, 3, 4, 5, 6].map((offset) => addDays(monday, offset));
+    expect(buttons).toHaveLength(days.length);
+    days.forEach((date, index) => {
+      expect(buttons[index]).toHaveAccessibleName(dayButtonName(date));
+      expect(buttons[index]).not.toHaveAttribute('aria-label');
+    });
+  });
+
+  it('selects today by default when today is in the shown week and marks it as today', async () => {
+    renderAt('/t/koledar');
+    await screen.findByRole('group', { name: t.trainer.days });
+    expect(dayButton(today)).toHaveAttribute('aria-pressed', 'true');
+    expect(dayButton(today)).toHaveAttribute('aria-current', 'date');
+    expect(dayButton(monday)).toHaveAttribute('aria-pressed', 'false');
+    expect(dayButton(monday)).not.toHaveAttribute('aria-current');
+  });
+
+  it("shows only the selected day's occurrences", async () => {
+    renderAt('/t/koledar');
+    expect(await screen.findByRole('listitem', { name: slotLabel(startsAt) })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('listitem', { name: slotLabel(thursdayStart) }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps a pressed day in the URL without adding a history entry', async () => {
+    const router = renderAt('/t/koledar');
+    await screen.findByRole('group', { name: t.trainer.days });
+    await userEvent.click(dayButton(addDays(monday, 3)));
+    expect(router.state.location.search).toBe(`?dan=${addDays(monday, 3)}`);
+    expect(router.state.historyAction).toBe('REPLACE');
+    expect(dayButton(addDays(monday, 3))).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('listitem', { name: slotLabel(thursdayStart) })).toBeInTheDocument();
+    expect(screen.queryByRole('listitem', { name: slotLabel(startsAt) })).not.toBeInTheDocument();
+  });
+
+  it('changes the day in the shown week without reloading it or losing focus', async () => {
+    renderAt('/t/koledar');
+    await screen.findByRole('group', { name: t.trainer.days });
+    const reads = () =>
+      fakeSupabase.from.mock.calls.filter(([table]) => table === 'slot_templates').length;
+    const before = reads();
+    await userEvent.click(dayButton(addDays(monday, 3)));
+    expect(screen.queryByText(t.common.loading)).not.toBeInTheDocument();
+    expect(dayButton(addDays(monday, 3))).toHaveFocus();
+    await userEvent.click(dayButton(addDays(monday, 4)));
+    expect(dayButton(addDays(monday, 4))).toHaveFocus();
+    expect(reads()).toBe(before);
+  });
+
+  it('keeps the week arrows disabled until the first week has loaded', async () => {
+    const release = holdTable('slot_templates');
+    renderAt('/t/koledar');
+    expect(await screen.findByRole('button', { name: t.calendar.nextWeek })).toBeDisabled();
+    expect(screen.getByRole('button', { name: t.calendar.previousWeek })).toBeDisabled();
+    release();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: t.calendar.nextWeek })).toBeEnabled(),
+    );
+  });
+
+  it('ignores › past the last week of 2099', async () => {
+    const router = renderAt('/t/koledar?dan=2099-12-28');
+    await screen.findByRole('group', { name: t.trainer.days });
+    await userEvent.click(screen.getByRole('button', { name: t.calendar.nextWeek }));
+    expect(router.state.location.search).toBe('?dan=2099-12-28');
+  });
+
+  it('keeps the arrows disabled until the first week has loaded, also with a day in the URL', async () => {
+    const release = holdTable('slot_templates');
+    renderAt(`/t/koledar?dan=${addDays(monday, -7)}`);
+    expect(await screen.findByRole('button', { name: t.calendar.nextWeek })).toBeDisabled();
+    release();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: t.calendar.nextWeek })).toBeEnabled(),
+    );
+    await userEvent.click(screen.getByRole('button', { name: t.calendar.nextWeek }));
+    await waitFor(() => expect(dayButton(today)).toHaveAttribute('aria-pressed', 'true'));
+  });
+
+  it('keeps the day strip while the next week loads', async () => {
+    renderAt(`/t/koledar?dan=${today}`);
+    await screen.findByRole('group', { name: t.trainer.days });
+    const release = holdTable('slot_templates');
+    await userEvent.click(screen.getByRole('button', { name: t.calendar.nextWeek }));
+    expect(screen.getByText(t.common.loading)).toBeInTheDocument();
+    expect(dayButton(addDays(monday, 7))).toHaveAttribute('aria-pressed', 'true');
+    release();
+    await waitFor(() => expect(screen.queryByText(t.common.loading)).not.toBeInTheDocument());
+  });
+
+  it('defaults the ad-hoc date to the selected day', async () => {
+    const thursday = addDays(monday, 3);
+    renderAt(`/t/koledar?dan=${thursday}`);
+    const form = await openAdHoc();
+    expect(within(form).getByLabelText(t.trainer.date)).toHaveValue(thursday);
+  });
+
+  it('opens the day and the week named in the URL', async () => {
+    const day = addDays(monday, 10);
+    renderAt(`/t/koledar?dan=${day}`);
+    await screen.findByRole('group', { name: t.trainer.days });
+    expect(dayButton(day)).toHaveAttribute('aria-pressed', 'true');
+    expect(dayButton(addDays(monday, 7))).toBeInTheDocument();
+    expect(screen.queryByRole('button', { current: 'date' })).not.toBeInTheDocument();
+    const nextThursday = occurrenceInWeek(thursday, addDays(monday, 7), tz)!.startsAt;
+    expect(screen.getByRole('listitem', { name: slotLabel(nextThursday) })).toBeInTheDocument();
+  });
+
+  it('falls back to today for a day in the URL that does not exist', async () => {
+    renderAt('/t/koledar?dan=2026-02-30');
+    await screen.findByRole('group', { name: t.trainer.days });
+    expect(dayButton(today)).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('selects Monday in another week and today again back in this week', async () => {
+    const router = renderAt('/t/koledar');
+    await screen.findByRole('group', { name: t.trainer.days });
+    await userEvent.click(screen.getByRole('button', { name: t.calendar.nextWeek }));
+    expect(await screen.findByRole('button', { pressed: true })).toHaveAccessibleName(
+      dayButtonName(addDays(monday, 7)),
+    );
+    expect(router.state.location.search).toBe(`?dan=${addDays(monday, 7)}`);
+    expect(router.state.historyAction).toBe('REPLACE');
+    await userEvent.click(screen.getByRole('button', { name: t.calendar.previousWeek }));
+    await waitFor(() => expect(dayButton(today)).toHaveAttribute('aria-pressed', 'true'));
+    await userEvent.click(screen.getByRole('button', { name: t.calendar.previousWeek }));
+    await waitFor(() =>
+      expect(dayButton(addDays(monday, -7))).toHaveAttribute('aria-pressed', 'true'),
+    );
+  });
+
+  it('keeps the day when the trainer comes back to the calendar', async () => {
+    const router = renderAt('/t/koledar');
+    await screen.findByRole('group', { name: t.trainer.days });
+    await userEvent.click(dayButton(addDays(monday, 3)));
+    await userEvent.click(screen.getByRole('link', { name: t.nav.customers }));
+    await act(() => router.navigate(-1));
+    expect(await screen.findByRole('group', { name: t.trainer.days })).toBeInTheDocument();
+    expect(dayButton(addDays(monday, 3))).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('shows an empty state on a day without occurrences', async () => {
+    renderAt('/t/koledar');
+    await screen.findByRole('group', { name: t.trainer.days });
+    await userEvent.click(dayButton(monday));
+    expect(screen.getByText(t.trainer.noSlotsOnDay)).toBeInTheDocument();
+    expect(screen.queryByRole('listitem', { name: /ob/ })).not.toBeInTheDocument();
+  });
+
+  it("lists only the selected day's appointments outside the slot grid", async () => {
+    db.tables.appointments.push(
+      adHoc('a-wed', 'c-bor', zonedInstant(today, '12:00', tz)!),
+      adHoc('a-thu', 'c-cvet', zonedInstant(addDays(monday, 3), '12:00', tz)!),
+    );
+    renderAt('/t/koledar');
+    const other = await screen.findByRole('region', { name: t.trainer.otherTitle });
+    expect(other).toHaveTextContent(nameOf('c-bor'));
+    expect(other).not.toHaveTextContent(nameOf('c-cvet'));
+  });
+
+  it('hides the outside-the-grid section on a day without such appointments', async () => {
+    renderAt('/t/koledar');
+    await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    expect(screen.queryByRole('region', { name: t.trainer.otherTitle })).not.toBeInTheDocument();
+  });
+});
+
+describe('trainer calendar week grid', () => {
+  const monday = weekStart(today);
+  const early = { ...todayTemplate, id: 'tpl-early', start_time: '07:00:00' };
+  const thursday = { ...todayTemplate, id: 'tpl-thu', weekday: 3, start_time: '08:00:00' };
+
+  beforeEach(() => {
+    showView('week');
+    db.tables.slot_templates = [todayTemplate, thursday, early];
+  });
+
+  it('shows seven day columns in order and no day buttons', async () => {
+    renderAt('/t/koledar');
+    await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    const days = [0, 1, 2, 3, 4, 5, 6].map((offset) => dayColumn(addDays(monday, offset)));
+    const regions = screen.getAllByRole('region');
+    expect(days.map((day) => regions.indexOf(day))).toEqual(
+      [...days.map((day) => regions.indexOf(day))].sort((a, b) => a - b),
+    );
+    expect(screen.queryByRole('group', { name: t.trainer.days })).not.toBeInTheDocument();
+  });
+
+  it("puts each occurrence in its day's column in time order", async () => {
+    renderAt('/t/koledar');
+    await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    const expected = (date: LocalDate) =>
+      db.tables.slot_templates
+        .map((template) => occurrenceInWeek(template as typeof todayTemplate, monday, tz)!)
+        .filter((occurrence) => occurrence.date === date)
+        .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+        .map((occurrence) => slotLabel(occurrence.startsAt));
+    for (const offset of [0, 1, 2, 3, 4, 5, 6]) {
+      const date = addDays(monday, offset);
+      const cards = within(dayColumn(date)).queryAllByRole('listitem', { name: /ob/ });
+      expect(cards.map((card) => card.getAttribute('aria-label'))).toEqual(expected(date));
+    }
+  });
+
+  it("puts an appointment outside the slot grid into its day's column, tagged, by time", async () => {
+    const thursdayDate = addDays(monday, 3);
+    const from = zonedInstant(thursdayDate, '06:00', tz)!;
+    db.tables.appointments.push(adHoc('a-thu', 'c-cvet', from));
+    renderAt('/t/koledar');
+    await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    const column = dayColumn(thursdayDate);
+    const card = within(column).getByRole('listitem', { name: otherLabel(from, 60) });
+    expect(card).toHaveTextContent(nameOf('c-cvet'));
+    expect(card).toHaveTextContent(t.trainer.adHocTag);
+    const thursdayStart = occurrenceInWeek(thursday, monday, tz)!.startsAt;
+    const slot = within(column).getByRole('listitem', { name: slotLabel(thursdayStart) });
+    expect(card.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole('region', { name: t.trainer.otherTitle })).not.toBeInTheDocument();
+  });
+
+  it("marks today's column", async () => {
+    renderAt('/t/koledar');
+    await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    expect(within(dayColumn(today)).getByText(t.trainer.todayTag)).toBeInTheDocument();
+    expect(within(dayColumn(monday)).queryByText(t.trainer.todayTag)).not.toBeInTheDocument();
+  });
+
+  it('shows the week of the day in the URL', async () => {
+    renderAt(`/t/koledar?dan=${addDays(monday, 9)}`);
+    expect(
+      await screen.findByRole('region', { name: dayColumnName(addDays(monday, 7)) }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(t.trainer.todayTag)).not.toBeInTheDocument();
+  });
+});
+
+describe.each<View>(['day', 'week'])('trainer calendar actions in the %s view', (view) => {
+  beforeEach(() => showView(view));
+
+  it('adds a customer to an occurrence', async () => {
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await userEvent.click(within(row).getByRole('button', { name: t.trainer.addCustomer }));
+    await userEvent.selectOptions(within(row).getByRole('combobox'), 'c-bor');
+    await userEvent.click(within(row).getByRole('button', { name: t.trainer.add }));
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('book', {
+      p_customer_id: 'c-bor',
+      p_starts_at: startsAt.toISOString(),
+      p_slot_template_id: todayTemplate.id,
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent(t.trainer.added);
+  });
+
+  it('keeps one add control open at a time', async () => {
+    const later = { ...todayTemplate, id: 'tpl-later', start_time: '20:00:00' };
+    const laterStart = occurrenceInWeek(later, weekStart(today), tz)!.startsAt;
+    db.tables.slot_templates = [todayTemplate, later];
+    renderAt('/t/koledar');
+    const first = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    const second = screen.getByRole('listitem', { name: slotLabel(laterStart) });
+    await userEvent.click(within(first).getByRole('button', { name: t.trainer.addCustomer }));
+    await userEvent.click(within(second).getByRole('button', { name: t.trainer.addCustomer }));
+    expect(within(first).queryByRole('combobox')).not.toBeInTheDocument();
+    expect(within(second).getByRole('combobox')).toHaveFocus();
+  });
+
+  it('disables the add button with Polno on a full occurrence', async () => {
+    db.tables.slot_occupancy = [
+      {
+        slot_template_id: todayTemplate.id,
+        starts_at: postgrestTime(startsAt),
+        booked_count: todayTemplate.capacity,
+      },
+    ];
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    expect(within(row).getByRole('button', { name: t.calendar.full })).toBeDisabled();
+  });
+
+  it('cancels a booked customer through the cancel dialog', async () => {
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await userEvent.click(within(row).getByRole('button', { name: t.slot.cancel }));
+    const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
+    await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', { p_appointment_id: 'a-ana' });
+    expect(await screen.findByRole('status')).toHaveTextContent(t.cancelDialog.done);
+  });
+
+  it('cancels an appointment outside the slot grid', async () => {
+    db.tables.appointments.push(adHoc('a-adhoc', 'c-cvet', zonedInstant(today, '12:00', tz)!));
+    renderAt('/t/koledar');
+    await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    const card = screen.getByText(nameOf('c-cvet')).closest('li') as HTMLElement;
+    await userEvent.click(within(card).getByRole('button', { name: t.slot.cancel }));
+    const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
+    await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', { p_appointment_id: 'a-adhoc' });
+  });
+});
+
+describe('trainer calendar across the autumn DST change', () => {
+  const monday = weekStart(today);
+  const sunday = addDays(monday, 6);
+  const saturday = addDays(monday, 5);
+  const sundayTemplate = { ...todayTemplate, id: 'tpl-sun', weekday: 6, start_time: '10:00:00' };
+  const sundayStart = occurrenceInWeek(sundayTemplate, monday, tz)!.startsAt;
+  const nightStart = zonedInstant(sunday, '00:30', tz)!;
+
+  beforeEach(() => {
+    db.tables.slot_templates = [todayTemplate, sundayTemplate];
+    db.tables.appointments.push(adHoc('a-night', 'c-bor', nightStart));
+  });
+
+  it('is the week with the change, with the night appointment before UTC midnight', () => {
+    expect(sundayStart.toISOString()).toBe(`${sunday}T09:00:00.000Z`);
+    expect(nightStart.toISOString()).toBe(`${saturday}T22:30:00.000Z`);
+  });
+
+  it('puts both on Sunday in the day view', async () => {
+    showView('day');
+    renderAt(`/t/koledar?dan=${sunday}`);
+    expect(
+      await screen.findByRole('listitem', { name: slotLabel(sundayStart) }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: t.trainer.otherTitle })).toHaveTextContent(
+      nameOf('c-bor'),
+    );
+    await userEvent.click(dayButton(saturday));
+    expect(screen.getByText(t.trainer.noSlotsOnDay)).toBeInTheDocument();
+  });
+
+  it('puts both in the Sunday column of the week grid', async () => {
+    showView('week');
+    renderAt('/t/koledar');
+    await screen.findByRole('listitem', { name: slotLabel(sundayStart) });
+    const column = dayColumn(sunday);
+    expect(
+      within(column).getByRole('listitem', { name: slotLabel(sundayStart) }),
+    ).toBeInTheDocument();
+    expect(within(column).getByText(nameOf('c-bor'))).toBeInTheDocument();
+    expect(within(dayColumn(saturday)).queryByText(nameOf('c-bor'))).not.toBeInTheDocument();
+  });
+});
+
+describe('trainer calendar when the window crosses 1024 px', () => {
+  let wide = false;
+  const listeners = new Set<() => void>();
+
+  beforeEach(() => {
+    wide = false;
+    listeners.clear();
+    window.matchMedia = vi.fn(
+      (query: string) =>
+        ({
+          matches: query === '(min-width: 64rem)' && wide,
+          addEventListener: (_: string, listener: () => void) => listeners.add(listener),
+          removeEventListener: (_: string, listener: () => void) => listeners.delete(listener),
+        }) as unknown as MediaQueryList,
+    );
+  });
+
+  function resize(toWide: boolean) {
+    act(() => {
+      wide = toWide;
+      listeners.forEach((listener) => listener());
+    });
+  }
+
+  it.each([
+    ['day view to week grid', false],
+    ['week grid to day view', true],
+  ])('closes an open add control when it switches from the %s', async (_, startWide) => {
+    wide = startWide;
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await userEvent.click(within(row).getByRole('button', { name: t.trainer.addCustomer }));
+    expect(within(row).getByRole('combobox')).toHaveFocus();
+    resize(!startWide);
+    const moved = screen.getByRole('listitem', { name: slotLabel(startsAt) });
+    expect(within(moved).queryByRole('combobox')).not.toBeInTheDocument();
+    expect(within(moved).getByRole('button', { name: t.trainer.addCustomer })).toBeVisible();
   });
 });
