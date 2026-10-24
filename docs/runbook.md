@@ -20,7 +20,7 @@ and the edge function is unreachable. To restore:
 3. Wait until the project status is healthy (a few minutes).
 4. Open the app and sign in to confirm data is intact.
 5. In the SQL editor, check that the jobs are back and running:
-   `select jobname, schedule, active from cron.job;` (three jobs) and, after the next quarter
+   `select jobname, schedule, active from cron.job;` (four jobs) and, after the next quarter
    hour, `select jobid, status, start_time from cron.job_run_details order by start_time desc
    limit 10;`.
 6. Catch up by hand instead of waiting: `select public.materialize_recurring();` (creates the
@@ -164,6 +164,54 @@ and the release record) is the `release-checklist` skill
    `select extnamespace::regnamespace from pg_extension where extname = 'pg_net';` and
    `select jobname, schedule from cron.job;`. Until the push Vault rows are set the job runs
    and does nothing ([notifications.md](notifications.md#configuration)).
+
+## Database size check
+
+The Free Plan puts the database into read-only mode when its size passes 500 MB (WAL and
+system files do not count). Retention per table and the yearly projection are in
+[ADR 0013](adr/0013-data-retention.md): the business data grows by under 16 MB a year, the cron
+log is kept to 14 days, and the Supabase Auth audit log is the one log nothing trims.
+
+**When:** monthly during the pilot (the first check records the hosted baseline), then every
+three months. Also after any month with unusual use.
+
+**Where the owner sees it:** in the Supabase dashboard, the organization's **Usage** page
+(choose the AMRAP project in the project selector) shows **Database Size** against the 500 MB
+quota. The project's **Reports → Database** page has a **Database size** chart with the
+largest tables.
+
+**Queries** (dashboard SQL editor):
+
+```sql
+-- What the quota counts: every database in the cluster.
+select pg_size_pretty(sum(pg_database_size(datname))) as database_size from pg_database;
+
+-- The 15 largest tables with their indexes and TOAST.
+select n.nspname || '.' || c.relname as relation,
+       pg_size_pretty(pg_total_relation_size(c.oid)) as total_size
+from pg_class c join pg_namespace n on n.oid = c.relnamespace
+where c.relkind in ('r', 'm') and n.nspname not in ('pg_catalog', 'information_schema')
+order by pg_total_relation_size(c.oid) desc
+limit 15;
+
+-- The cron log pruning works: about 2,900 rows at most, none older than 15 days.
+select count(*), min(start_time) from cron.job_run_details;
+```
+
+**Thresholds:**
+
+| Database size | What to do |
+|---|---|
+| under 250 MB | nothing |
+| 250 MB (half the quota) | find what grew in the largest-tables query and compare it with ADR 0013's projection; write the finding on a GitHub issue |
+| 400 MB | act now: prune the relation that grew (a new migration and ADR if it is not a log) |
+| `auth.audit_log_entries` over 50 MB | decide in a new ADR how to trim it (ADR 0013) |
+| `cron.job_run_details` over 3,000 rows or older than 15 days | check `prune_cron_history` in `cron.job` and its runs ([jobs.md](jobs.md#prune_cron_history)) |
+
+Never upgrade the plan or add a payment method to get room (ADR 0005). If the project does go
+read-only, delete log rows (cron log, notifications older than 30 days) after `set session
+characteristics as transaction read write;` in the SQL editor, `vacuum` the table, and turn
+read-only mode off as Supabase describes (docs "Database size", "Disabling read-only mode").
 
 ## Turn on push notifications
 

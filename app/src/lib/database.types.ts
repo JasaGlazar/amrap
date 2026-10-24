@@ -475,6 +475,7 @@ export type Database = {
         Args: { p_rule_id: string; p_weeks: number }
         Returns: number
       }
+      prune_cron_history: { Args: never; Returns: number }
       push_config: {
         Args: never
         Returns: {

@@ -18,6 +18,7 @@ mark the old one `Status: Superseded by NNNN`.
 | [0009](0009-web-push-design.md) | Web push through a notification log, pg_net and one edge function | Accepted |
 | [0010](0010-visual-identity-and-themes.md) | Visual identity and themes | Accepted |
 | [0011](0011-responsive-navigation-and-on-demand-forms.md) | Responsive navigation and on-demand forms | Accepted |
+| [0013](0013-data-retention.md) | Data retention | Accepted |
 
 ## Template
 

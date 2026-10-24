@@ -65,7 +65,8 @@ select extnamespace::regnamespace from pg_extension where extname = 'pg_net';
 
 - The newest versions are this release's migrations.
 - `cron.job` has `charge_due_appointments` and `send_cutoff_reminders` (`*/15 * * * *`) and
-  `materialize_recurring` (`0 2 * * *`), all active, plus any job the release added
+  `materialize_recurring` (`0 2 * * *`) and `prune_cron_history` (`7 3 * * *`), all active,
+  plus any job the release added
   (`docs/jobs.md`).
 - pg_net is in `extensions`.
 - Any table, function or trigger the release added exists (the migration's entry in
