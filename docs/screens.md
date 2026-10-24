@@ -168,7 +168,7 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     `trainer.noSlotsOnDay`. Pressing a day closes an open add control and clears the notice.
   - **From 1024 px, the week grid** (`CalendarWeek.tsx`): seven columns in a `wide` box
     ([Wide views](#behaviour-shared-by-all-screens)), each a `section` named by its `h3`
-    ("Ponedeljek 26. 10."); today's column has `aria-current="date"` on its heading, the
+    ("Ponedeljek 26. 10.", the date on a second line so every heading has the same height); today's column has `aria-current="date"` on its heading, the
     `trainer.todayTag` tag ("danes") and a 2 px ink rule under the heading. A column lists its
     occurrences and its appointments outside the grid together, by start time, as compact
     cards: an occurrence card has the start time, duration, `Prosta mesta`, `Zaprto` as a tag
@@ -179,7 +179,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     at least 8 rem wide: from about 1170 px the whole week fits (1280 px: 976 px, 136 px a
     column); at 1024-1169 px the grid scrolls sideways inside its box. A column narrower than
     8.75 rem drops the `+` icon from **Dodaj stranko**, so the button keeps one line. Names in a
-    card wrap between words, and **Odpovej** moves under a name that leaves it no room.
+    card wrap between words, and **Odpovej** moves under a name that leaves it no room; the
+    open add control puts the select on its own line and **Dodaj** and **Prekliči** under it.
 - **Unchanged in both views:** **Dodaj stranko** and its disabled reasons, the cancel dialog,
   **Nov termin po dogovoru**, past weeks, `Zaprto` and `Polno`. Occurrences are bucketed by
   their local date (`occurrenceInWeek`) and appointments outside the grid by
