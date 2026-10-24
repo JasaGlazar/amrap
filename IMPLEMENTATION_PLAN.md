@@ -108,7 +108,7 @@ the theme choice persists per device and applies before first paint; the logo sh
 top bar and on the sign-in screens; installed icons show the framed wordmark.
 **Tests**: Vitest for the theme preference store (read, write, storage failure) and the
 appearance control.
-**Status**: Not Started
+**Status**: Complete (PR open)
 
 ## Stage 7: Navigation and structure
 **Goal**: Navigation in the top bar from tablet width up (bottom tabs stay on phones);
@@ -553,6 +553,39 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
     …`).
 - Left for the owner: the visual review of the PR.
 - Fix list 1 done (`.superpowers/fixes-1.md`, items 1-9; `box-shadow: none` on disabled buttons kept, it removes the outline off cards).
+
+### Handoff state (2026-10-24, Stage 6)
+
+- Branch `stage-6-brand-theme` off `stage-5-ui-fixes` (PR #8, still open); all 8 Stage 6 tasks
+  done, PR open against `stage-5-ui-fixes`, not merged. Vitest 347, lint, typecheck, build and
+  `check-docs.sh` green. No DB change. `grep -rn "0f766e\|ccfbf1\|fee2e2" app/src app/index.html
+  app/vite.config.ts` is empty; the build precaches the two Archivo woff2 files.
+- Test first (watched red): the theme store (`src/theme/theme.ts`: read, write, unknown value,
+  throwing storage, `applyTheme` and the `theme-color` tags) and the `index.html` inline
+  script, run in jsdom from the file itself; the account menu (Enter/Space opens on the chosen
+  theme, choose, persists, back to Sistem, Escape returns focus, outside click, button again,
+  Tab out, Odjava); the brand mark on `/login`, `/invite/:token` and both top bars.
+- Browser check (Vite dev server on 5175, local stack, agent-browser sessions `s6-trainer`,
+  `s6-ana`, `s6-anon`): every screen at 390, 768 and 1440 px in both system themes, the
+  explicit menu choice against the opposite system setting (and after a reload), the cancel
+  dialog opened and closed with Escape (never confirmed), the account menu in both shells. At
+  360 px `scrollWidth` 360 on the trainer screens. Screenshots in the gitignored
+  `.superpowers/shots/`.
+- Judged beyond the task list:
+  - The logo's black is `#060807`, not pure black. The icons are padded with it (no seam) and
+    the mark's filter adds `contrast(1.1)`, which takes the box to `#000000` on black paper
+    (and white once inverted), so "pure black is the brand ink" holds on screen.
+  - Manifest: `background_color` black (the splash matches the icon), `theme_color` the light
+    paper; the per-scheme `theme-color` tags override it at run time.
+  - The balance sits on the page in its frame (no grey card) on customer Home and customer
+    detail, so the frame reads like the logo; `h2` is width 100, weight 700 (the plan names the
+    display cut only for titles, balance and slot times).
+  - Outside click closes the menu without moving focus (moving it would fight the click);
+    Escape returns focus to the button.
+  - Commit trailer is `Claude Fable 5.1` as the Global Constraints say, though this stage ran on
+    Opus 5.5.
+- Left for the owner: the visual review of the PR; a phone check of the installed icon (Android
+  maskable crop, iOS home screen) and the status bar colour.
 
 ---
 
