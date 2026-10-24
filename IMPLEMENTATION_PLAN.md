@@ -422,7 +422,8 @@ Not verified:
    card; push from the installed app.
 5. iPhone Safari: the card's Share steps; Add to Home Screen; launched from the home screen there
    is no card and the toggle offers **Vklopi obvestila**; push from the installed app; the page
-   behind the open cancel dialog does not scroll; the credits amount keyboard has a minus key.
+   behind the open cancel dialog does not scroll; the keyboard has a minus key in the credits
+   amount and in the **Nova stranka** starting balance (and `2,5` there is refused).
 6. **Ne zdaj** is remembered on each device.
 7. On the trainer's phone: the customer and blocked-period forms do not offer the trainer's own
    name, phone or email.
