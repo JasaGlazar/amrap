@@ -385,8 +385,9 @@ How the guards and the auth state work is in [auth.md](auth.md).
 - **The frame.** The logo's rectangle, 2 px `--ink` with square corners, is the one strong
   element: it is in the wordmark and around the balance on customer Home and customer detail
   (the balance sits on the page, not in a card). Everything else is quiet: controls, cards,
-  tags and the dialog have a 6 px radius (`--radius`), only the dialog has a shadow, and there
-  are no gradients.
+  tags and the dialog have a 6 px radius (`--radius`), only the dialog has a shadow (in the
+  light theme; in the dark theme `--shadow` is transparent and the dialog's `--line` edge shows
+  it), and there are no gradients.
 
 - **Colour and themes.** Black, white and grey from the gym logo
   ([ADR 0010](adr/0010-visual-identity-and-themes.md)); red only for debt, late cancels and
@@ -404,9 +405,10 @@ How the guards and the auth state work is in [auth.md](auth.md).
   | `--debt` on `--paper` / `--surface` / `--debt-bg` | 6.1 / 5.5 / 5.4 | 8.3 / 7.2 / 6.4 | 4.5 |
   | `--paper` on `--debt` (destructive button) | 6.1 | 8.3 | 4.5 |
   | `--done` on `--paper` / `--surface` / `--done-bg` | 5.4 / 4.8 / 4.7 | 10.3 / 8.8 / 7.6 | 4.5 |
-  | `--control-line` on `--paper` / `--surface` (input, select and secondary button edges) | 3.7 / 3.3 | 4.4 / 3.8 | 3 |
+  | `--control-line` on `--paper` / `--surface` (input, select, secondary button and account button edges) | 3.7 / 3.3 | 4.4 / 3.8 | 3 |
 
-  `--line` (row dividers, card and dialog edges, tags) is decorative and needs no ratio.
+  `--line` (row dividers, card and dialog edges, tags, the debtor chips on Danes, whose text
+  identifies them) is decorative and needs no ratio.
 
 - **Spacing.** One scale in `styles.css`, `--space-1` to `--space-7` (4, 8, 12, 16, 24, 32,
   48 px). Components carry no outer margins; the context sets the gap:

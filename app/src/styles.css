@@ -87,6 +87,7 @@
     --done: #62c98d;
     --done-bg: #10291b;
     --overlay: rgb(0 0 0 / 0.7);
+    --shadow: transparent;
     --mark-filter: contrast(1.1);
     color-scheme: dark;
   }
@@ -105,6 +106,7 @@
   --done: #62c98d;
   --done-bg: #10291b;
   --overlay: rgb(0 0 0 / 0.7);
+  --shadow: transparent;
   --mark-filter: contrast(1.1);
   color-scheme: dark;
 }
@@ -368,14 +370,6 @@ input[type='checkbox'] {
   height: 3rem;
 }
 
-.topbar a {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--tap);
-  padding: 0 0.25rem;
-  color: var(--muted);
-}
-
 .account {
   position: relative;
 }
@@ -391,7 +385,7 @@ input[type='checkbox'] {
   border-radius: var(--radius);
   background: var(--paper);
   color: var(--ink);
-  box-shadow: inset 0 0 0 1px var(--line);
+  box-shadow: inset 0 0 0 1px var(--control-line);
   cursor: pointer;
 }
 
@@ -403,7 +397,6 @@ input[type='checkbox'] {
 
 .account-button[aria-expanded='true'] {
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--control-line);
 }
 
 @media (hover: hover) {
@@ -457,11 +450,11 @@ input[type='checkbox'] {
   accent-color: var(--ink);
 }
 
-.topbar .account-menu a {
+.account-menu a {
   display: flex;
+  align-items: center;
   min-height: var(--tap);
   margin-top: var(--space-2);
-  padding: 0;
   border-top: 1px solid var(--line);
   color: var(--text);
   font-weight: 600;

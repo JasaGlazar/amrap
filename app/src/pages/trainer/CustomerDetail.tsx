@@ -203,7 +203,7 @@ export function TrainerCustomerDetail() {
         {t.customerDetail.back}
       </Link>
       <h1>{customer.name}</h1>
-      <section className="balance-panel">
+      <section>
         <p className="label-row">
           <span className="label">{t.customer.balanceLabel}</span>
           <span className="tag">{t.customers.inviteStatus[status]}</span>
