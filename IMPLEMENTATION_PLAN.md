@@ -961,9 +961,27 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   the week and dropped focus), both Important (16 px select in cards, dead arrows before the
   first load) and the Minor items (h2 column headings, label in name, focus ring inset,
   disabled outline in cards, tests choosing the day view, docs on the ad-hoc date and
-  wrapping) are done in 6cfb1f7. Not changed: a new ADR for `?dan` and the view switch (see
-  above).
+  wrapping) are done in 6cfb1f7, except the older "appointments outside the slot grid" group,
+  which still relied on the default view until fix list 2. Not changed: a new ADR for `?dan`
+  and the view switch (see above).
 - Owner actions: none. Phone check of the day strip on a real device whenever convenient.
+- Fix list 2 done (`.superpowers/fixes-2.md`, items 1-9; Vitest 536): roster rows in grid
+  cards are a two-column grid (name left, **Odpovej** right and centred on it, `opravljeno`
+  on its own line under the row in the condensed Urnik tag), with 13 px names and tighter
+  card and button padding, so the demo names wrap between words at 1024 and 1280 px and no
+  tag wraps; a first try with the tag beside the button wrapped "opravljen/o" at 1280 (1); "Prosta mesta" is unbreakable again and columns are
+  8.5 rem, the whole week visible from 1280 px (976 in 976) and scrolling at 1024 (976 in
+  848), ADR 0014 and `screens.md` updated (2); `parseLocalDate` takes 2000-2099 only and `›`
+  does nothing in the last week of 2099 (3); the outside-the-grid group calls
+  `showView('day')` (4); a test pins the ad-hoc date to `?dan`'s Thursday (5, it passed at
+  once: coverage of existing behaviour); crossing 1024 px closes an open add control, tested
+  both ways with a `matchMedia` stub whose listeners the test fires (6); the strip stays
+  during a week change with today in state (7); the arrows wait for the first load even with
+  `?dan`, so they always write the default day (8). Test first: the year cases, the 2099
+  arrow, the arrows-with-`dan`, the strip-while-loading and both resize tests failed before
+  the change. Browser (`f2-*`): Monday 26 Oct's five-name roster at 1024x768, 1280x800 and
+  1440x900, the current week's tagged rows at 1280 and 1440, and the day view at 390 after
+  `›` (strip kept, focus on `›`, no page scroll), each in both themes.
 
 ---
 
