@@ -1159,17 +1159,18 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
 
 - Branch `stage-12-release` off `main` (84554c1, after Stage 11): one commit for the deploy
   config and its docs (a4cc9cd), one for the constraint wording and the release checklist
-  (70cead4), a review-fix commit, then this plan commit; PR open against `main`, not merged. Vitest 571, lint,
-  typecheck, build and `check-docs.sh` green; no migration, so pgTAP was not rerun.
-- **Not live yet.** `cf auth whoami` showed the owner's account (jasa.glazar@gmail.com,
-  account `28cb0f50…`), and `cf deploy --dry-run` in `app/deploy/` passed (it read 16 entries,
-  no bindings), but the session's permission system refused the real `cf deploy` as a production
-  deploy. It was not retried or worked around. The orchestrator or the owner runs it (runbook
-  "Cloudflare Workers deploy"): `cd app && npm run build && cd deploy && npm ci && cf deploy
-  --message "Stage 12: first release"`, then the curl checks there. `cf workers list` was
-  empty, so this is the account's first Worker; whether it already has a workers.dev
-  subdomain is unknown (`cf` has no command for it), and if the deploy reports none, the
-  owner registers the free one in the dashboard and runs `cf workers triggers deploy`.
+  (70cead4), a review-fix commit (ea77aea), this plan commit (fd36e78) and the fix list 1
+  commit; PR #26 open against `main`, not merged. Vitest 571, lint, typecheck, build and
+  `check-docs.sh` green; no migration, so pgTAP was not rerun.
+- **Not live yet.** `cf auth whoami` showed the owner's account, and `cf deploy --dry-run` in
+  `app/deploy/` passed (it read 16 entries, no bindings), but the session's permission system
+  refused the real `cf deploy` as a production deploy. It was not retried or worked around. The
+  orchestrator or the owner runs it (runbook "Cloudflare Workers deploy": write
+  `app/.env.production.local`, build, then `cf deploy` in `app/deploy/` behind the
+  hosted-project check), then the curl checks there. `cf workers list` was empty, so this is the
+  account's first Worker; whether it already has a workers.dev subdomain is unknown (`cf` has no
+  command for it), and if the deploy reports none, the owner registers the free one in the
+  dashboard and runs `cf workers triggers deploy`.
 - Research (Context7, Cloudflare docs; links in ADR 0012): SPA fallback is
   `not_found_handling = "single-page-application"` (`assets.notFoundHandling` in `cf`'s
   config), no Worker script needed; `_redirects`/`_headers` are honoured, and redirects apply
@@ -1240,6 +1241,17 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
     domain on the Worker.
   - Optional: a Cloudflare API token as a repo secret for GitHub Actions deploys (runbook
     "Later: deploy from GitHub Actions"); the workflow is documented, not added.
+- Fix list 1 done (`.superpowers/fixes-1.md`, docs only): every runbook block in "Cloudflare
+  Workers deploy" (env file, build, deploy, check, roll back) and the release-checklist step 6
+  starts with `cd "$(git rev-parse --show-toplevel)/…"`, so each pastes into a fresh terminal
+  (all five parse in zsh and bash); the build stops with a message when the bundle lacks the
+  hosted project ref, and the deploy runs only behind that check, so a missing
+  `app/.env.production.local` cannot ship a build aimed at `127.0.0.1`; the anon-key snippet
+  uses `if` instead of `exit 1` and names `jq` and `supabase login`; the runbook says the global
+  `cf` hands off to the pinned local one in `app/deploy/` and that re-running `cf deploy` after
+  registering the subdomain should work too. The owner's email and account id left this note
+  (they remain in the history of fd36e78). Issue #2's Auth line now names the workers.dev URL
+  (#11); the PR body no longer relies on this worktree's env file.
 
 ---
 

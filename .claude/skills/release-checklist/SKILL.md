@@ -92,10 +92,17 @@ Only after step 3: the new build calls the RPCs the pushed migrations add. Runbo
 Workers deploy" has the build environment and the details; in short:
 
 ```sh
-cd app && npm ci && npm run build          # with app/.env.production.local in place
-cd deploy && npm ci
+cd "$(git rev-parse --show-toplevel)/app" && npm ci && npm run build   # needs app/.env.production.local
+grep -q etzkbwqgjuipihypokjp dist/assets/*.js \
+  || { echo "build is not for the hosted project: write app/.env.production.local first" >&2; false; }
+
+cd "$(git rev-parse --show-toplevel)/app/deploy" && npm ci
 cf auth whoami                             # the owner's account
-cf deploy --message "<stage> <merge commit>"
+if grep -q etzkbwqgjuipihypokjp ../dist/assets/*.js; then
+  cf deploy --message "<stage> <merge commit>"
+else
+  echo "not deployed: the build is not for the hosted project" >&2
+fi
 ```
 
 Never run `cf` project commands in `app/` itself, only in `app/deploy/`. Then check:

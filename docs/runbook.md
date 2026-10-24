@@ -307,15 +307,20 @@ and deploy. Without the URL or the anon key the app shows a start-up error page 
 missing variable (and logs it) instead of a blank page.
 
 Write the file without printing the key (the CLI lists the other keys too; only the anon key
-goes into the file):
+goes into the file). It needs `jq` and a Supabase CLI signed in with `supabase login`; like
+every block below it starts from the repository root, so it can be pasted into a fresh
+terminal anywhere in the checkout:
 
 ```sh
-cd app
+cd "$(git rev-parse --show-toplevel)/app"
 key=$(supabase projects api-keys --project-ref etzkbwqgjuipihypokjp -o json 2>/dev/null \
   | jq -r '.[] | select(.name=="anon") | .api_key')
-[ -n "$key" ] || { echo "no anon key: check supabase login and the project ref" >&2; exit 1; }
-printf 'VITE_SUPABASE_URL=https://etzkbwqgjuipihypokjp.supabase.co\nVITE_SUPABASE_ANON_KEY=%s\nVITE_VAPID_PUBLIC_KEY=\n' \
-  "$key" > .env.production.local
+if [ -n "$key" ]; then
+  printf 'VITE_SUPABASE_URL=https://etzkbwqgjuipihypokjp.supabase.co\nVITE_SUPABASE_ANON_KEY=%s\nVITE_VAPID_PUBLIC_KEY=\n' \
+    "$key" > .env.production.local
+else
+  echo "no anon key: run supabase login, check jq and the project ref" >&2
+fi
 unset key
 ```
 
@@ -327,36 +332,57 @@ file or anywhere in Cloudflare.
 From an up-to-date `main`, after the release's migrations are pushed (a build calls the RPCs of
 its own `main`; deploying it before `supabase db push` breaks the screens that use new ones):
 
+Build the app:
+
 ```sh
-git checkout main && git pull --ff-only
+cd "$(git rev-parse --show-toplevel)" && git checkout main && git pull --ff-only
 cd app && npm ci && npm run build
-grep -l etzkbwqgjuipihypokjp dist/assets/*.js   # the build targets the hosted project
-cd deploy && npm ci
-cf auth whoami                                  # the owner's account
-cf deploy --dry-run                             # builds Build Output, uploads nothing
-cf deploy --message "<stage> <merge commit>"
+grep -q etzkbwqgjuipihypokjp dist/assets/*.js \
+  || { echo "build is not for the hosted project: write app/.env.production.local first" >&2; false; }
 ```
 
-`cf deploy` hands the build to the pinned Wrangler, which copies `app/dist` into
+Without `app/.env.production.local` the build silently takes `app/.env.local` and points at
+the local stack (`127.0.0.1`); the `grep` says so, and the deploy below refuses such a build.
+
+Deploy it:
+
+```sh
+cd "$(git rev-parse --show-toplevel)/app/deploy" && npm ci
+cf auth whoami                                  # the owner's account
+cf deploy --dry-run                             # builds Build Output, uploads nothing
+if grep -q etzkbwqgjuipihypokjp ../dist/assets/*.js; then
+  cf deploy --message "<stage> <merge commit>"
+else
+  echo "not deployed: the build is not for the hosted project (app/.env.production.local)" >&2
+fi
+```
+
+The global `cf` (Homebrew) hands off to the project-local `cf` that `app/deploy/package.json`
+pins, so after `npm ci` every `cf` command run in `app/deploy/` uses that version (`npx cf …`
+there is the same). `cf deploy` hands the build to the pinned Wrangler, which copies `app/dist` into
 `app/deploy/.cloudflare/output/` (gitignored), then uploads it as a new Worker version, deploys
 it to all traffic and prints the URL. `cf` uses its own OAuth login (`cf auth login`); it does
 not reuse a Wrangler login.
 
 The first deploy needs the account's workers.dev subdomain. If the account has none, `cf`
 cannot create it: register the free subdomain in the dashboard (Workers & Pages, the
-workers.dev subdomain setting), then run `cf workers triggers deploy` in `app/deploy/`. Stop at
+workers.dev subdomain setting), then run `cf workers triggers deploy` in `app/deploy/` (running
+the `cf deploy` above again should work as well). Stop at
 anything that mentions a plan, a price or a payment method: the Free plan needs none.
 
 ### Check
 
+Right after the deploy, from anywhere in the checkout:
+
 ```sh
+cd "$(git rev-parse --show-toplevel)/app"
 url=https://amrap.<account subdomain>.workers.dev
 curl -sI "$url/" | head -1                        # 200
 curl -sI "$url/invite/test" | head -1             # 200: the app shell, not a 404
 curl -sI "$url/sw.js" | grep -i cache-control     # public, max-age=0, must-revalidate
 curl -sI "$url/manifest.webmanifest" | head -1    # 200
 curl -sI "$url/icon-192.png" | head -1            # 200
-curl -sI "$url/assets/$(ls ../dist/assets | grep -m1 '\.js$')" | grep -i content-type   # JavaScript, not text/html
+curl -sI "$url/assets/$(ls dist/assets | grep -m1 '\.js$')" | grep -i content-type   # JavaScript, not text/html
 ```
 
 Then open the URL at 360 px: the sign-in page loads (no start-up error page), and a wrong
@@ -368,9 +394,10 @@ check; no `_headers` file is needed.
 ### Roll back
 
 Every deploy is a Worker version; the files belong to the version, so a rollback restores the
-previous app exactly. With `cf`:
+previous app exactly. With `cf` (the pinned one, from `app/deploy/`):
 
 ```sh
+cd "$(git rev-parse --show-toplevel)/app/deploy" && npm ci
 cf workers deployments list --worker amrap         # the first entry serves traffic now
 cf workers versions list --worker-id amrap         # recent versions and their messages
 cf workers deployments create --worker amrap --strategy percentage \
