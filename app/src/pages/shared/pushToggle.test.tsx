@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { t } from '../../i18n';
+import { InstallContext } from '../../install/platform';
+import { fakeInstallPlatform } from '../../test/fakeInstall';
 import { fakePlatform, keysOf } from '../../test/fakePush';
 import { db, makeSession, resetFake } from '../../test/fakeSupabase';
 import { PushToggle } from './PushToggle';
@@ -17,11 +19,6 @@ beforeEach(() => resetFake({ session: makeSession('user-a') }));
 describe('PushToggle', () => {
   it.each([
     ['an unsupported browser', { environment: { serviceWorker: false } }, t.pushToggle.unsupported],
-    [
-      'iOS Safari in a tab',
-      { environment: { ios: true, standalone: false } },
-      t.pushToggle.needsInstall,
-    ],
     ['a build without the VAPID key', { environment: { vapidKey: undefined } }, t.pushToggle.noKey],
     [
       'notifications blocked in the browser',
@@ -31,6 +28,21 @@ describe('PushToggle', () => {
   ])('explains %s and offers no button', async (_name, options, text) => {
     const { platform } = fakePlatform(options);
     render(<PushToggle audience="customer" userId="user-a" platform={platform} />);
+    expect(await screen.findByText(text)).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['points at the install card while it is shown', false, t.pushToggle.needsInstallSeeCard],
+    ['gives the install steps once the card is dismissed', true, t.pushToggle.needsInstall],
+  ])('on iOS Safari in a tab %s', async (_name, dismissed, text) => {
+    const { platform } = fakePlatform({ environment: { ios: true, standalone: false } });
+    const install = fakeInstallPlatform({ device: { ios: true }, dismissed });
+    render(
+      <InstallContext.Provider value={install.platform}>
+        <PushToggle audience="customer" userId="user-a" platform={platform} />
+      </InstallContext.Provider>,
+    );
     expect(await screen.findByText(text)).toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });

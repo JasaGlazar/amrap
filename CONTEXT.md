@@ -33,6 +33,7 @@ Slovenian, but identifiers and docs use the English terms below.
 - **event notification** — a notification written by a trigger: the trainer's `booking_created` / `booking_cancelled` when a customer books or cancels, the customer's `credit_topup` / `credit_adjustment` when the trainer tops up or adjusts.
 - **reminder** — the `cutoff_reminder` notification a customer gets 45 to 75 minutes before an appointment's cutoff (`send_cutoff_reminders`, every 15 minutes); their only warning before a booking is charged.
 - **push subscription** — one browser or device's Web Push endpoint and keys for an auth user; table `push_subscriptions`, saved by `save_push_subscription` (a device belongs to whoever enabled push on it last). Deleted when the push service reports it gone (404/410).
+- **install** — adding the app to the phone's home screen so it opens standalone, without the browser around it: Chrome's install prompt or browser menu on Android, Share → Add to Home Screen on iOS. Required on iOS for push; offered by the install card in both shells and dismissible per device.
 - **keep-alive** — the lightweight authenticated read the frontend performs on every load so the Supabase free-tier project is not paused for inactivity.
 
 ## Rules

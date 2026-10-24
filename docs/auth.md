@@ -80,7 +80,32 @@ sign-out control links to `/logout`: the top bar of both shells, `NotLinkedPage`
 4. `accept_invite(token)` links the auth user to the customer record. A rejection shows its
    `errors.AMRAP_*` copy and, since the user is now signed in, a continue link.
 5. `refresh()` (the provider cached "not linked" while the account was being created), then
-   navigate to `/`.
+   navigate to `/`, which lands on the customer Home with the
+   [install card](screens.md#install-card) on top on a device where the app is not installed.
+
+## Token refused as issued in the future
+
+PostgREST answers a request whose JWT `iat` lies more than 30 seconds after its own clock with
+HTTP 401 and the code `PGRST303` ("JWT issued at future"; `allowedSkewSeconds = 30` in
+PostgREST's `Auth/Jwt.hs`, read on the main branch, not checked against the v16.2 image). In the
+Stage 4 browser check on the local stack (PostgREST v16.2, Auth v2.196.0) this hit the first
+requests right after a sign-in or sign-up (the customer lookup, `accept_invite`, the
+keep-alive), with the body `{"code":"PGRST303",…,"message":"JWT issued at future"}`.
+
+Cause: not found (a capped check, 2026-10-24). Auth and PostgREST run on the same Docker VM
+clock, and fresh tokens had `iat` equal to the host time; a fresh token used at once, after 10
+seconds and after 70 seconds of idle was accepted every time. One trace had two requests sent
+in the same millisecond with the same token, one refused and one accepted, so it is not a
+steady clock offset between the containers; a stale "now" inside PostgREST for a single request
+fits, but was not reproduced. Whether the hosted project can show it is unknown.
+
+Whatever the cause, the one client in `lib/supabase.ts` fetches through `retryIssuedAtFuture(fetch)`
+(`global.fetch` of `createClient`): a response with status 401 whose JSON body has
+`code: "PGRST303"` is retried exactly once, after one second, with the same request; the
+retry's answer is returned whatever it is. Any other response, including other 401s and bodies
+that are not JSON, is returned as it is without a retry. The body is read from a clone, so the
+original response stays readable. Supabase Auth requests go through the same wrapper and never
+match: Auth error bodies carry a numeric `code` (the HTTP status), not `PGRST303`.
 
 ## Keep-alive
 

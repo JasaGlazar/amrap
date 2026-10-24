@@ -7,6 +7,7 @@ export const supportedEnvironment: PushEnvironment = {
   pushManager: true,
   notification: true,
   ios: false,
+  android: false,
   standalone: false,
   vapidKey:
     'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U',

@@ -12,4 +12,28 @@ if (!url || !anonKey) {
   );
 }
 
-export const supabase = createClient<Database>(url, anonKey);
+const RETRY_DELAY_MS = 1000;
+
+async function isIssuedAtFuture(response: Response): Promise<boolean> {
+  if (response.status !== 401) return false;
+  try {
+    const body: unknown = await response.clone().json();
+    return (body as { code?: unknown } | null)?.code === 'PGRST303';
+  } catch {
+    return false;
+  }
+}
+
+// PostgREST sometimes refuses a fresh token as issued in the future (PGRST303); a retry passes.
+export function retryIssuedAtFuture(fetchImpl: typeof fetch): typeof fetch {
+  return async (input, init) => {
+    const response = await fetchImpl(input, init);
+    if (!(await isIssuedAtFuture(response))) return response;
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+    return fetchImpl(input, init);
+  };
+}
+
+export const supabase = createClient<Database>(url, anonKey, {
+  global: { fetch: retryIssuedAtFuture((input, init) => fetch(input, init)) },
+});

@@ -4,6 +4,7 @@
 |---|---|
 | [../CONTEXT.md](../CONTEXT.md) | Domain language and business rules |
 | [harness.md](harness.md) | Repo conventions and gates (docs 1:1, ADRs, diagrams, skills, reviewer, pgTAP and Deno testing) |
+| [pilot.md](pilot.md) | The trial week: owner prerequisites, the trainer's first-day setup and daily check (Slovenian), text for customers, what the owner watches, how to report problems |
 | [runbook.md](runbook.md) | Operations: unpause, bootstrap trainer, invite and re-link a customer, deploy migrations and the edge function, turn on push, Cloudflare Pages |
 | [adr/](adr/README.md) | Architecture decision records |
 | [schema.md](schema.md) | Tables (including the `notifications` log), columns, constraints, indexes, RLS, grants, views `customer_balances` and `slot_occupancy`, helpers, migrations list |
@@ -13,7 +14,8 @@
 | [auth.md](auth.md) | App auth: session loading, customer-row lookup, role gating, lookup failed vs not linked, sign-out, invite acceptance, keep-alive, start-up error |
 | [data-layer.md](data-layer.md) | App data layer: reads and RPC wrappers in `app/src/data/`, what each selects |
 | [time.md](time.md) | Gym-timezone date math: local dates, weeks, template occurrences, DST, cutoff, formatting |
-| [app-structure.md](app-structure.md) | App folders, i18n rule, data layer contract, testing with the fake Supabase client |
+| [app-structure.md](app-structure.md) | App folders, install onboarding, i18n rule, data layer contract, testing with the fake Supabase client |
+| [copy-review.md](copy-review.md) | Temporary: every UI string by screen for the trainer's sign-off (changes made, open questions); kept in step with `sl.ts` until sign-off, then deleted |
 | [screens.md](screens.md) | Routes, role gating and strings of the customer and trainer screens |
 
 ## Architecture diagrams

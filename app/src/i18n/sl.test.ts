@@ -17,6 +17,22 @@ describe('sl strings', () => {
     expect(empty.map(([path]) => path)).toEqual([]);
   });
 
+  it('gives every plural all four Slovenian forms, each with {count}', () => {
+    const forms = ['one', 'two', 'few', 'other'];
+    const plurals = leaves(sl)
+      .filter(([path]) => /\.(one|two|few|other)$/.test(path))
+      .map(([path]) => path.replace(/\.[a-z]+$/, ''));
+    const parents = [...new Set(plurals)];
+    expect(parents.length).toBeGreaterThan(0);
+    for (const parent of parents) {
+      const entries = leaves(sl).filter(([path]) => path.startsWith(`${parent}.`));
+      expect(entries.map(([path]) => path.slice(parent.length + 1)).sort()).toEqual(
+        [...forms].sort(),
+      );
+      expect(entries.filter(([, v]) => !String(v).includes('{count}'))).toEqual([]);
+    }
+  });
+
   it('is exported as t', () => {
     expect(t).toBe(sl);
   });

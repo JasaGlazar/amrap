@@ -6,6 +6,16 @@ export function fill(template: string, values: Record<string, string | number>):
   );
 }
 
+export type Plural = { one: string; two: string; few: string; other: string };
+
+const pluralRules = new Intl.PluralRules('sl');
+
+export function plural(forms: Plural, count: number): string {
+  const category = pluralRules.select(count);
+  const template = category in forms ? forms[category as keyof Plural] : forms.other;
+  return fill(template, { count });
+}
+
 const signedAmount = new Intl.NumberFormat('sl-SI', { signDisplay: 'always' });
 
 export function formatAmount(amount: number): string {

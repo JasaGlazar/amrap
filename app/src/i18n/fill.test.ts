@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fill, formatTimeUntil } from './fill';
+import { fill, formatTimeUntil, plural, type Plural } from './fill';
 import { sl } from './sl';
 
 describe('fill', () => {
@@ -22,5 +22,32 @@ describe('formatTimeUntil', () => {
   it('shows minutes under an hour', () => {
     const left = { days: 0, hours: 0, minutes: 12 };
     expect(formatTimeUntil(left)).toBe(fill(sl.time.inMinutes, left));
+  });
+});
+
+describe('plural', () => {
+  const places: Plural = {
+    one: '{count} mesto',
+    two: '{count} mesti',
+    few: '{count} mesta',
+    other: '{count} mest',
+  };
+  const rules = new Intl.PluralRules('sl');
+
+  it.each([1, 2, 3, 4, 5, 0, 11, 101, 102, 103, 104, 105])(
+    'picks the Slovenian form for %i',
+    (count) => {
+      const category = rules.select(count) as keyof Plural;
+      expect(plural(places, count)).toBe(fill(places[category], { count }));
+    },
+  );
+
+  it('uses all four forms', () => {
+    expect([1, 2, 3, 5].map((count) => plural(places, count))).toEqual([
+      '1 mesto',
+      '2 mesti',
+      '3 mesta',
+      '5 mest',
+    ]);
   });
 });

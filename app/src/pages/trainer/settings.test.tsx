@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fill, t } from '../../i18n';
+import { fill, plural, t } from '../../i18n';
 import { weekdayName } from '../../lib/time';
 import { routes } from '../../routes';
 import { db, makeCustomer, makeSession, resetFake } from '../../test/fakeSupabase';
@@ -94,7 +94,7 @@ describe('slot templates', () => {
       weekday: weekdayName(existing.weekday),
       time: existing.start_time.slice(0, 5),
       minutes: existing.duration_minutes,
-      capacity: existing.capacity,
+      places: plural(t.settings.places, existing.capacity),
     });
     const row = within(list).getByText(line).closest('li') as HTMLElement;
     expect(within(row).queryByRole('button', { name: t.settings.delete })).not.toBeInTheDocument();
@@ -208,6 +208,12 @@ describe('cutoff', () => {
 });
 
 describe('blocked periods', () => {
+  it('keeps the browser from autofilling the reason', async () => {
+    renderSettings();
+    const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+    expect(within(form).getByLabelText(t.settings.reason)).toHaveAttribute('autocomplete', 'off');
+  });
+
   it('creates a period from local date and time in the gym timezone', async () => {
     renderSettings();
     const form = await screen.findByRole('form', { name: t.settings.newBlocked });
@@ -224,6 +230,155 @@ describe('blocked periods', () => {
       starts_at: '2026-12-23T23:00:00.000Z',
       ends_at: '2026-12-26T23:00:00.000Z',
       reason: 'Prazniki',
+    });
+  });
+
+  describe('bookings inside a new period', () => {
+    const period = {
+      [t.settings.fromDate]: '2026-12-24',
+      [t.settings.fromTime]: '00:00',
+      [t.settings.toDate]: '2026-12-27',
+      [t.settings.toTime]: '00:00',
+    };
+    const appointment = (id: string, startsAt: string, status: string) => ({
+      id,
+      customer_id: 'c-1',
+      slot_template_id: null,
+      starts_at: startsAt,
+      ends_at: new Date(new Date(startsAt).getTime() + 3_600_000).toISOString(),
+      status,
+    });
+
+    beforeEach(() => {
+      db.tables.appointments = [
+        appointment('inside-booked', '2026-12-24T08:00:00.000Z', 'booked'),
+        appointment('inside-charged', '2026-12-26T09:00:00.000Z', 'charged'),
+        appointment('inside-cancelled', '2026-12-25T09:00:00.000Z', 'cancelled'),
+        appointment('ends-at-start', '2026-12-23T22:00:00.000Z', 'booked'),
+        appointment('after', '2026-12-27T08:00:00.000Z', 'booked'),
+      ];
+    });
+
+    it('warns with the number of live bookings it does not cancel and saves on a second Shrani', async () => {
+      const live = db.tables.appointments.filter(
+        (row) => row.id === 'inside-booked' || row.id === 'inside-charged',
+      ).length;
+      renderSettings();
+      const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+      await fillTemplate(form, period);
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+
+      const section = screen.getByRole('region', { name: t.settings.blockedTitle });
+      expect(await within(section).findByRole('alert')).toHaveTextContent(
+        fill(t.settings.blockedOverlapWarning, { count: live }),
+      );
+      expect(db.tables.blocked_periods).toHaveLength(0);
+
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      expect(await within(section).findByRole('status')).toHaveTextContent(t.settings.saved);
+      expect(db.tables.blocked_periods).toHaveLength(1);
+    });
+
+    it('shows an error and saves nothing when the bookings cannot be counted', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      renderSettings();
+      const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+      await fillTemplate(form, period);
+      db.readErrors.appointments = { message: 'FetchError: network down' };
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      const section = screen.getByRole('region', { name: t.settings.blockedTitle });
+      expect(await within(section).findByRole('alert')).toHaveTextContent(t.genericError);
+      expect(within(form).getByRole('button', { name: t.settings.save })).toBeEnabled();
+      expect(db.tables.blocked_periods).toHaveLength(0);
+      expect(warn).toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
+    it('counts again and warns again when the range changed after the warning', async () => {
+      renderSettings();
+      const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+      await fillTemplate(form, period);
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      const section = screen.getByRole('region', { name: t.settings.blockedTitle });
+      await within(section).findByRole('alert');
+
+      await fillTemplate(form, { [t.settings.toDate]: '2026-12-25' });
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      const stillInside = db.tables.appointments.filter((row) => row.id === 'inside-booked').length;
+      expect(await within(section).findByRole('alert')).toHaveTextContent(
+        fill(t.settings.blockedOverlapWarning, { count: stillInside }),
+      );
+      expect(db.tables.blocked_periods).toHaveLength(0);
+    });
+
+    it('does not count sessions that have already ended', async () => {
+      db.tables.appointments = [
+        appointment('held', '2026-10-20T08:00:00.000Z', 'charged'),
+        appointment('ahead', '2026-10-22T08:00:00.000Z', 'booked'),
+      ];
+      const notEnded = db.tables.appointments.filter(
+        (row) => new Date(String(row.ends_at)) > now,
+      ).length;
+      renderSettings();
+      const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+      await fillTemplate(form, {
+        [t.settings.fromDate]: '2026-10-20',
+        [t.settings.fromTime]: '00:00',
+        [t.settings.toDate]: '2026-10-23',
+        [t.settings.toTime]: '00:00',
+      });
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      const section = screen.getByRole('region', { name: t.settings.blockedTitle });
+      expect(await within(section).findByRole('alert')).toHaveTextContent(
+        fill(t.settings.blockedOverlapWarning, { count: notEnded }),
+      );
+    });
+
+    it('drops the warning when an edit is cancelled, and warns again on the next save', async () => {
+      db.tables.blocked_periods = [
+        {
+          id: 'b-xmas',
+          starts_at: '2026-12-23T23:00:00.000Z',
+          ends_at: '2026-12-26T23:00:00.000Z',
+          reason: 'Prazniki',
+        },
+      ];
+      renderSettings();
+      const section = await screen.findByRole('region', { name: t.settings.blockedTitle });
+      const edit = async () => {
+        const row = (await within(section).findByText('Prazniki')).closest('li') as HTMLElement;
+        await userEvent.click(within(row).getByRole('button', { name: t.settings.edit }));
+        return screen.findByRole('form', { name: t.settings.editBlocked });
+      };
+
+      let form = await edit();
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      await within(section).findByRole('alert');
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.cancelEdit }));
+      expect(within(section).queryByRole('alert')).not.toBeInTheDocument();
+
+      form = await edit();
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      const live = db.tables.appointments.filter(
+        (row) => row.id === 'inside-booked' || row.id === 'inside-charged',
+      ).length;
+      expect(await within(section).findByRole('alert')).toHaveTextContent(
+        fill(t.settings.blockedOverlapWarning, { count: live }),
+      );
+      expect(screen.getByRole('form', { name: t.settings.editBlocked })).toBeInTheDocument();
+    });
+
+    it('saves at once when no live booking overlaps', async () => {
+      db.tables.appointments = db.tables.appointments.filter(
+        (row) => !String(row.id).startsWith('inside-') || row.status === 'cancelled',
+      );
+      renderSettings();
+      const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+      await fillTemplate(form, period);
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      const section = screen.getByRole('region', { name: t.settings.blockedTitle });
+      expect(await within(section).findByRole('status')).toHaveTextContent(t.settings.saved);
+      expect(db.tables.blocked_periods).toHaveLength(1);
     });
   });
 

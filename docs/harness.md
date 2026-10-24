@@ -77,7 +77,7 @@ the code:
 | Layer | Doc |
 |---|---|
 | Sign-in, customer lookup, role gating, invite acceptance, keep-alive | `docs/auth.md` |
-| App folders, i18n rule, data layer contract, testing with the fake client | `docs/app-structure.md` |
+| App folders, install onboarding, i18n rule, data layer contract, testing with the fake client | `docs/app-structure.md` |
 | App reads and RPC wrappers (`app/src/data/`) | `docs/data-layer.md` |
 | Dates, weeks, DST, cutoff, formatting in the app | `docs/time.md` |
 | Tables, views, RLS, grants, seeds | `docs/schema.md` |
@@ -104,7 +104,9 @@ sequenceDiagram. Quote labels that contain parentheses or special characters.
 ## Skill rule
 
 A project skill in `.claude/skills/` is added the second time a task repeats, not before.
-Expected candidates: new-migration, deploy-functions, generate-types, release-checklist.
+Added so far: new-migration (Stage 1), release-checklist (Stage 4, after three post-merge
+releases). Deploying `send-push` is one step of release-checklist rather than its own
+deploy-functions skill; generate-types is one step of new-migration.
 
 ## Skills
 
@@ -113,12 +115,15 @@ Project skills live in `.claude/skills/<name>/SKILL.md`.
 | Skill | Use when |
 |---|---|
 | `new-migration` | Any change under `supabase/migrations/`: create the file with `supabase migration new`, failing pgTAP test first, `supabase db reset` + `supabase test db` + `supabase db lint`, update `docs/schema.md` / `docs/rpcs.md` / `docs/jobs.md` and the affected diagram, regenerate `app/src/lib/database.types.ts`, commit together. |
+| `release-checklist` | After a stage PR is merged to `main`: confirm the merge and CI, `supabase db push` from `main`, verify migrations, `cron.job` and pg_net, deploy `send-push` only when `supabase/functions/` changed, check the Pages deploy, smoke-test both roles at phone width, record the release on the PR. The steps' details stay in `docs/runbook.md`. |
 
 ## Reviewer gate
 
 Every task is reviewed by the `reviewer` agent (`.claude/agents/reviewer.md`) against
 `PLAN.md` and this checklist before it counts as done. Critical and Important findings are
-fixed before merge.
+fixed before merge. Since Stage 4 the checklist also covers the phone UI rules in
+[screens.md](screens.md#behaviour-shared-by-all-screens) and keeping `docs/copy-review.md` in
+step with `sl.ts` until the trainer's sign-off.
 
 ## No blocking hooks
 

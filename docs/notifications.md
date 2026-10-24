@@ -100,7 +100,9 @@ and registered by the plugin's `registerSW.js`:
 
 - `support.ts`: `pushSupport(environment)` → `supported`, `needs-install` (iOS outside the
   home-screen app, where Safari has no web push), `unsupported` or `no-key` (the build lacks
-  `VITE_VAPID_PUBLIC_KEY`).
+  `VITE_VAPID_PUBLIC_KEY`). On iOS the user has to install the app first; the
+  [install card](screens.md#install-card) gives the steps. The device part of the environment
+  (`ios`, `android`, `standalone`) comes from `lib/device.ts`, shared with the install card.
 - `browser.ts`: `browserPlatform`, the only code that touches `navigator.serviceWorker`,
   `PushManager` and `Notification`. It uses the existing service worker registration
   (`getRegistration()`), so on the Vite dev server, which registers no service worker, push is

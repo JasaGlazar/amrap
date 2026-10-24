@@ -14,6 +14,24 @@ type Props = {
   onCancelled: () => void;
 };
 
+function keepFocusInside(dialog: HTMLElement, event: KeyboardEvent) {
+  const items = [...dialog.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]')];
+  if (items.length === 0) return;
+  const first = items[0];
+  const last = items[items.length - 1];
+  const active = document.activeElement;
+  if (!dialog.contains(active)) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  } else if (event.shiftKey && (active === first || active === dialog)) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 export function CancelDialog({
   appointment,
   settings,
@@ -31,11 +49,22 @@ export function CancelDialog({
   const [busy, setBusy] = useState(false);
   const cutoff = cutoffOf(startsAt, lateCancelHours);
 
-  useEffect(() => dialogRef.current?.focus(), []);
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const root = document.documentElement;
+    const overflow = root.style.overflow;
+    root.style.overflow = 'hidden';
+    dialogRef.current?.focus();
+    return () => {
+      root.style.overflow = overflow;
+      if (opener?.isConnected) opener.focus();
+    };
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
+      if (event.key === 'Tab' && dialogRef.current) keepFocusInside(dialogRef.current, event);
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);

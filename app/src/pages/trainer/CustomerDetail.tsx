@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { chargedSince, upcomingAppointments, type Appointment } from '../../data/appointments';
 import type { ActionResult } from '../../data/client';
 import { adjust, balanceOf, ledgerOf, topUp } from '../../data/credits';
@@ -37,16 +37,35 @@ export function TrainerCustomerDetail() {
     return { now, customer, settings, balance, ledger, upcoming, recent, rules, templates };
   }, [id]);
   const [state, reload] = useLoad(load);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const starting = location.state as { startingError?: string; startingBalance?: number } | null;
+  const startingError = starting?.startingError;
   const [busy, setBusy] = useState(false);
-  const [notices, setNotices] = useState<Record<string, Notice>>({});
-  const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
+  const [notices, setNotices] = useState<Record<string, Notice>>((): Record<string, Notice> =>
+    startingError === undefined
+      ? {}
+      : {
+          credits: {
+            error: true,
+            text: fill(t.customerDetail.startingFailed, { error: startingError }),
+          },
+        },
+  );
+  const [amount, setAmount] = useState(() =>
+    starting?.startingBalance === undefined ? '' : String(starting.startingBalance),
+  );
+  const [note, setNote] = useState<string | null>(null);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [chosenTemplate, setChosenTemplate] = useState('');
   const [cancelling, setCancelling] = useState<{
     appointment: Appointment;
     section: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (location.state !== null) void navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
 
   async function run<T>(
     section: string,
@@ -71,7 +90,9 @@ export function TrainerCustomerDetail() {
   if (state.status === 'error') {
     return (
       <>
-        <Link to="/t/stranke">{t.customerDetail.back}</Link>
+        <Link to="/t/stranke" className="back-link">
+          {t.customerDetail.back}
+        </Link>
         <p role="alert" className="error">
           {t.common.loadFailed}
         </p>
@@ -93,6 +114,7 @@ export function TrainerCustomerDetail() {
       time: template.start_time.slice(0, 5),
     });
   };
+  const noteShown = note ?? (ledger.length === 0 ? t.customerDetail.startingNote : '');
   const ruleTemplates = new Set(rules.map((rule) => rule.slotTemplateId));
   const addableTemplates = templates.filter(
     (template) => template.active && !ruleTemplates.has(template.id),
@@ -162,7 +184,7 @@ export function TrainerCustomerDetail() {
       }));
       return;
     }
-    const noteValue = note.trim() === '' ? null : note.trim();
+    const noteValue = noteShown.trim() === '' ? null : noteShown.trim();
     const ok = await run(
       'credits',
       () => (kind === 'topUp' ? topUp : adjust)(supabase, customer.id, value, noteValue),
@@ -170,13 +192,15 @@ export function TrainerCustomerDetail() {
     );
     if (ok) {
       setAmount('');
-      setNote('');
+      setNote(null);
     }
   }
 
   return (
     <>
-      <Link to="/t/stranke">{t.customerDetail.back}</Link>
+      <Link to="/t/stranke" className="back-link">
+        {t.customerDetail.back}
+      </Link>
       <h1>{customer.name}</h1>
       <section className="card">
         <p className="label">{t.customer.balanceLabel}</p>
@@ -193,7 +217,6 @@ export function TrainerCustomerDetail() {
           {t.customerDetail.amount}
           <input
             type="number"
-            inputMode="numeric"
             step="1"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -201,7 +224,7 @@ export function TrainerCustomerDetail() {
         </label>
         <label>
           {t.customerDetail.note}
-          <input value={note} onChange={(e) => setNote(e.target.value)} />
+          <input autoComplete="off" value={noteShown} onChange={(e) => setNote(e.target.value)} />
         </label>
         <NoticeLine notice={notices.credits} />
         <div className="actions">

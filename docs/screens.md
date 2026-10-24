@@ -15,10 +15,10 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/` | signed in | Redirects to `/t` for the trainer or `/c` for a customer. | none | Stage 1 |
 | (any route below `/`) | signed in, customer lookup failed | Error page with a retry button and a sign-out link to `/logout`. | `lookupFailed`, `common.signOut` | Stage 1 |
 | (any route below `/`) | signed in, no `customers` row | "Account not linked" page with a sign-out link to `/logout`. Shown instead of the route, URL unchanged. | `notLinked`, `common.signOut` | Stage 1 |
-| `/c` | customer | Customer shell: top bar with the app name and a sign-out link to `/logout`, bottom navigation (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle` | Stage 2, push Stage 3 |
+| `/c` | customer | Customer shell: top bar with the app name and a sign-out link to `/logout`, the [install card](#install-card), bottom navigation (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `install`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle` | Stage 2, push Stage 3, install Stage 4 |
 | `/c/koledar` | customer | Week calendar: book open slots, cancel own bookings. | `customer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
-| `/t` | trainer | Trainer shell: the same top bar with sign-out, bottom navigation (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `trainer`, `calendar`, `slot` | Stage 2 |
+| `/t` | trainer | Trainer shell: the same top bar with sign-out, the [install card](#install-card), bottom navigation (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/t/stranke` | trainer | Customer list with balance and invite status; create a customer. | `trainer`, `customers` | Stage 2 |
 | `/t/stranke/:id` | trainer | One customer: credits, invite link, recurring rules, upcoming appointments, details, ledger. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType` | Stage 2 |
@@ -77,8 +77,16 @@ data.
 
 - Shows the appointment (`slot.when`), the cutoff (`Brezplačna odpoved do {day} ob {time}`,
   `starts_at − settings.late_cancel_hours`) and either `cancelDialog.free` (now before the
-  cutoff) or `cancelDialog.late` (`zaračunan 1 kredit`, from the cutoff on), like `cancel()`.
-- It takes focus when it opens; Escape and **Nazaj** close it.
+  cutoff) or `cancelDialog.late` (`zaračunan bo 1 kredit`, from the cutoff on), like `cancel()`.
+- While it is open the page behind it does not scroll (`overflow: hidden` on the root element,
+  restored to its previous value on close). iOS Safari has ignored this for touch scrolling in
+  some versions; checked on a real iPhone as an owner action.
+- It takes focus when it opens and keeps Tab and Shift+Tab inside, also when focus has left it
+  (for example the focused **Odpovej termin** was disabled after a server error: the next Tab
+  goes to the first enabled button, Shift+Tab to the last). Escape and **Nazaj** close it. On
+  close, focus returns to the button that opened it when that button still exists and had
+  focus (keyboard, desktop browsers); on iOS a tap does not focus a button, so there is
+  nothing to return to.
 - **Odpovej termin** first re-checks free vs late against the current time. If the answer
   changed since the dialog opened (it stayed open past the cutoff), it only switches the copy
   and does not cancel; a second click confirms. Otherwise it calls `cancel`; on success the
@@ -138,7 +146,7 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   `trainer.missingCustomer`. Submit calls `book` without a template (`p_ends_at`); ad-hoc
   appointments have no capacity.
 - **Cancel:** the cancel dialog in trainer mode: the customer's name, no cutoff, and
-  `cancelDialog.noCharge` for a booked appointment or `cancelDialog.refund` ("s povračilom",
+  `cancelDialog.noCharge` for a booked appointment or `cancelDialog.refund` ("z vračilom",
   +1 credit) for a charged one, matching what `cancel()` does for the trainer.
 
 ### Customers (`/t/stranke`)
@@ -149,7 +157,18 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   (`customers.inviteStatus`: linked, pending = an unexpired token, none) and the balance (red
   when negative).
 - **Nova stranka:** name (required, `customers.nameRequired`), phone and email (empty becomes
-  null). Submit inserts the record through RLS (`createCustomer`) and opens its detail page.
+  null), and an optional starting balance from the paper sheet (`customers.startingBalance`, a
+  whole number that may be negative, else `customers.startingInvalid`; nothing is created then).
+  A value the browser cannot read as a number (`validity.badInput`, for example `2,5` or `3-`
+  typed on a phone keyboard, which reaches the app as an empty value) is rejected the same way
+  instead of being taken as "no starting balance".
+  Submit inserts the record through RLS (`createCustomer`). A positive starting balance is then
+  recorded with `top_up`, a negative one with `adjust`, both with the note
+  `customerDetail.startingNote`; empty or 0 records nothing. Then the detail page opens. If the
+  credit call fails, the detail page still opens (the customer exists once) and its **Krediti**
+  section shows `customerDetail.startingFailed` with the error, with the amount and the note
+  already filled in, so one tap records it. The message comes through the navigation state,
+  which the detail page clears at once, so a reload does not show it again.
 
 ### Customer detail (`/t/stranke/:id`)
 
@@ -160,14 +179,17 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Krediti:** one amount field and a note. **Dodaj kredite** calls `top_up` (a positive whole
   number, else `customerDetail.topUpInvalid`); **Popravi stanje** calls `adjust` (any non-zero
   whole number, negative subtracts; else `customerDetail.adjustInvalid`). Waiving a late
-  cancel is an adjustment of +1.
+  cancel is an adjustment of +1. While the customer has no ledger rows the note is prefilled
+  with `customerDetail.startingNote`, so a starting balance entered here is marked the same
+  way; it can be edited or cleared.
 - **Povabilo:** for an unlinked record, **Ustvari povabilo** calls `create_invite` and shows the
   full link `${location.origin}/invite/<token>` in a read-only field (focus selects it) with
   **Kopiraj** (clipboard; `customerDetail.copied`, or `customerDetail.copyFailed` when the
   browser refuses, e.g. without HTTPS) and the 7-day hint. A pending invite's link is shown on
   load, and the button becomes **Ustvari novo povabilo** (a new token replaces the old one). A
-  linked record shows the re-link hint pointing to the runbook ("Re-link a customer", ADR 0007)
-  instead.
+  linked record shows the re-link hint instead (`customerDetail.relinkHint`): if the customer
+  loses access, the app administrator removes the old account, then the trainer creates a new
+  invite on this page. The procedure is runbook "Re-link a customer" (ADR 0007).
 - **Stalni termini:** the customer's recurring rules (`{weekday} ob {time}`, stopped ones
   greyed with `ustavljen`). **Ustavi** calls `deactivate_rule` (future booked instances are
   cancelled; the message shows how many); **Ponovno vključi** calls `activate_rule` (shows how
@@ -188,8 +210,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 
 - **Data:** `getSettings`, `allTemplates` (active and inactive), `upcomingBlocked` (periods
   that have not ended). Every write goes through RLS and shows `settings.saved` or the error.
-- **Termini v tednu:** each template as `{weekday} ob {time} · {minutes} min · {capacity}
-  mest`, inactive ones greyed with `neaktiven`, each with **Uredi** (the form inline). The form
+- **Termini v tednu:** each template as `{weekday} ob {time} · {minutes} min · {places}`, the
+  capacity in its Slovenian plural form (`settings.places`: 1 mesto, 2 mesti, 3 mesta, 5 mest),
+  inactive ones greyed with `neaktiven`, each with **Uredi** (the form inline). The form
   (also **Nov termin** below the list): weekday, start time, duration in minutes, capacity and
   an active checkbox. Validation: start time required, duration and capacity positive whole
   numbers (`settings.durationInvalid`, `settings.capacityInvalid`). There is no delete: a
@@ -211,8 +234,45 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   date and time, to date and time (in the gym timezone, via `zonedInstant`) and an optional
   reason; a time that does not exist that day or an end not after the start is rejected
   (`trainer.invalidTime`, `trainer.invalidRange`). A new block does not cancel appointments
-  already booked in it; `book()` and materialization reject or skip later ones.
+  already booked in it; `book()` and materialization reject or skip later ones. So saving a new
+  or edited period first counts the live appointments that overlap it and have not ended yet
+  (`liveCountBetween`; sessions already held are not counted); if there are any, the section
+  shows `settings.blockedOverlapWarning` with the count (they stay booked and are charged unless
+  the trainer cancels them in the calendar) and saves only when **Shrani** is clicked again with
+  the same range. A changed range is counted again; a failed count shows the error and saves
+  nothing; **Prekliči** on an edit clears the warning, so the next save counts again.
 - **Obvestila:** the notifications toggle with the trainer hint (`pushToggle.trainerHint`).
+
+## Install card
+
+`pages/shared/InstallCard.tsx`, rendered by `AppShell` above every customer and trainer screen
+(an `aside`, a complementary landmark named `install.title`), so it is also the first thing a
+new customer sees after accepting an invite. It says why to install (`install.why`) and, on iOS,
+where push works only in the home-screen app, what that means for the role:
+`install.iosWhyCustomer` (no reminder before a charge without it) or `install.iosWhyTrainer`
+(booking and cancel notifications). Then, by mode:
+
+| Mode | When | Shows |
+|---|---|---|
+| hidden | the app runs standalone (opened from the home screen), or it was installed on this device (`appinstalled` or an accepted prompt, remembered in `amrap.install.installed`, so a browser tab opened later does not offer it again) | nothing |
+| prompt | the browser fired `beforeinstallprompt` (Chromium: Android Chrome, desktop Chrome and Edge) | **Namesti aplikacijo**, which opens the browser's install dialog |
+| ios | iOS, not standalone | the Share steps (`install.iosShare`, `install.iosAdd`, `install.openFromHome`) and `install.iosOtherBrowsers` |
+| android-manual | Android without a prompt (another browser, or the prompt was declined) | the browser menu steps (`install.androidMenu`, `install.androidAdd`, `install.openFromHome`) |
+| none | any other browser without a prompt (desktop Safari, Firefox) | nothing |
+
+- **Ne zdaj** hides the card on this device for good (`localStorage` key
+  `amrap.install.dismissed`). Storage that cannot be read counts as not dismissed and a failed
+  write is logged (`console.warn`); either way the card hides until the next load. The same
+  applies to the installed flag. An app removed from the home screen later stays "installed"
+  for the card on that device until its site data is cleared.
+- The browser's prompt can be shown once. While its dialog is open the card stays as it is (a
+  second tap does nothing). Accepted, the card hides; declined, the prompt is dropped and the
+  card falls back to the Android menu steps (Android) or disappears (desktop)
+  until the browser offers a new prompt.
+- On iOS the [notifications toggle](#notifications-toggle) refers to the card while it is shown
+  instead of repeating the steps.
+- Code layout (the prompt listener, the store, the mode) is in
+  [app-structure.md](app-structure.md#install-onboarding).
 
 ## Notifications toggle
 
@@ -222,7 +282,7 @@ is in [notifications.md](notifications.md).
 
 | State | When | Shows |
 |---|---|---|
-| install hint | iOS and not opened from the home screen | `pushToggle.needsInstall` (Share, Add to Home Screen, open from there) |
+| install hint | iOS and not opened from the home screen | `pushToggle.needsInstallSeeCard` (the steps are in the install card above) while the [install card](#install-card) is shown, else `pushToggle.needsInstall` (Share, Add to Home Screen, open from there) |
 | unsupported | no service worker, Push API or Notification API | `pushToggle.unsupported` |
 | unavailable | the build has no `VITE_VAPID_PUBLIC_KEY` | `pushToggle.noKey` |
 | blocked | the browser's notification permission is `denied` | `pushToggle.blocked` |
@@ -255,6 +315,23 @@ How the guards and the auth state work is in [auth.md](auth.md).
 
 ## Behaviour shared by all screens
 
+- **Phone layout and accessibility** (Stage 4 Task 17; every new screen follows these):
+  - no horizontal scroll at 360 px wide; the fixed bottom navigation never covers the last item;
+  - every tap target (buttons, links outside running text, inputs, selects, checkbox labels)
+    is at least 44 × 44 px (`--tap` in `styles.css`);
+  - everything focusable shows a 3 px accent ring on `:focus-visible` (not the dialog box
+    itself, which only receives focus so screen readers start there);
+  - text contrast at least 4.5:1, control borders at least 3:1 (`--muted` #4b5563,
+    `--control-border` #6b7280); greyed rows use the muted colour, never opacity;
+  - inputs are 16 px, so iOS does not zoom on focus; a number that may be negative uses
+    `type="number"` without `inputMode="numeric"` (the iOS numeric pad has no minus key);
+    fields the trainer fills in about someone else (customer name, phone, email, credit note,
+    blocked-period reason) have `autoComplete="off"`, best effort: some browsers and password
+    managers ignore it;
+  - in a row, text wraps anywhere but buttons and amounts never wrap or shrink;
+  - safe-area insets on the top bar, the page sides, the bottom navigation and the dialog;
+  - errors are `role="alert"`, results `role="status"`.
+
 - **Keep-alive.** Once per signed-in user per page load, `AuthProvider` runs
   `select id from settings limit 1` (ADR 0005). A failure is logged with `console.warn` and
   never blocks the app. Token refreshes do not repeat it.
@@ -267,6 +344,7 @@ How the guards and the auth state work is in [auth.md](auth.md).
   build, serves `index.html` for every navigation (deep links work offline), updates itself
   (`skipWaiting` + `clientsClaim`, the `autoUpdate` behaviour) and shows push notifications
   ([notifications.md](notifications.md#service-worker)). `display: standalone`, manifest
-  language `sl`, icons 192 and 512 px. Cloudflare Pages falls back to `index.html` for unknown
-  paths natively; `app/public/_redirects` is a belt-and-braces measure
+  language `sl`, icons 192 and 512 px. The [install card](#install-card) guides installing it.
+  Cloudflare Pages falls back to `index.html` for unknown paths natively;
+  `app/public/_redirects` is a belt-and-braces measure
   ([runbook.md](runbook.md#cloudflare-pages-build-settings)).

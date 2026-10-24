@@ -82,7 +82,7 @@ export function BlockedForm({
       </div>
       <label>
         {t.settings.reason}
-        <input value={reason} onChange={(e) => setReason(e.target.value)} />
+        <input autoComplete="off" value={reason} onChange={(e) => setReason(e.target.value)} />
       </label>
       {error !== null && (
         <p role="alert" className="error">

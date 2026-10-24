@@ -12,17 +12,40 @@ screens are in [screens.md](screens.md), sign-in and role gating in [auth.md](au
 | `src/routes.tsx` | The route tree (React Router v7 data router). The tests render the same tree. |
 | `src/data/` | Typed reads and RPC wrappers ([data-layer.md](data-layer.md)). |
 | `src/auth/` | `AuthProvider`, `useAuth()`, the route guards ([auth.md](auth.md)). |
-| `src/pages/` | One component per screen or state page. The shells (`CustomerPages.tsx`, `TrainerPages.tsx`) use `AppShell`: a top bar with the app name and a sign-out link, the page, and a fixed bottom navigation bar. Customer screens are in `pages/customer/`, trainer screens in `pages/trainer/`; the pieces several screens use (`WeekNav`, `WeekSlots`, `CancelDialog`, `LedgerList`, `NoticeLine`) are in `pages/shared/` ([screens.md](screens.md#customer-screens)). |
+| `src/pages/` | One component per screen or state page. The shells (`CustomerPages.tsx`, `TrainerPages.tsx`) use `AppShell`: a top bar with the app name and a sign-out link, the install card, the page, and a fixed bottom navigation bar. Customer screens are in `pages/customer/`, trainer screens in `pages/trainer/`; the pieces several screens use (`WeekNav`, `WeekSlots`, `CancelDialog`, `LedgerList`, `NoticeLine`, `PushToggle`, `InstallCard`) are in `pages/shared/` ([screens.md](screens.md#customer-screens)). |
 | `src/i18n/` | `sl.ts` (all copy), `errors.ts` (`fromError`), `fill.ts` (`fill` for `{name}` placeholders, `formatTimeUntil`), `index.ts` (exports `t` and the helpers). |
+| `src/install/` | Install onboarding: the `beforeinstallprompt` capture and store, the install mode, the per-device dismissal ([Install onboarding](#install-onboarding)). |
 | `src/push/` | Web push in the browser: `render.ts` (notification copy, used by the service worker), `support.ts`, `browser.ts`, `subscribe.ts` ([notifications.md](notifications.md#subscribing-in-the-app)). |
 | `src/sw.ts` | The service worker: precache, outdated-cache cleanup, `index.html` for navigations, self-update, push and notification click ([notifications.md](notifications.md#service-worker)). Type-checked by `tsconfig.sw.json` with the `WebWorker` lib and left out of `tsconfig.app.json` and `tsconfig.test.json`. |
-| `src/lib/` | `supabase.ts` (the one client), `database.types.ts` (generated), `keepAlive.ts`, `time.ts` ([time.md](time.md)), `useLoad.ts`. |
-| `src/test/` | `fakeSupabase.ts`, `fakePush.ts` (a fake `PushPlatform`) and the Vitest setup (`setup.ts`: jest-dom matchers, cleanup after each test). |
+| `src/lib/` | `supabase.ts` (the one client; retries a `PGRST303` answer once, [auth.md](auth.md#token-refused-as-issued-in-the-future)), `database.types.ts` (generated), `keepAlive.ts`, `time.ts` ([time.md](time.md)), `useLoad.ts`, `device.ts` (`deviceEnvironment()`: iOS, Android, standalone; used by push support and the install card). |
+| `src/test/` | `fakeSupabase.ts`, `fakePush.ts` (a fake `PushPlatform`), `fakeInstall.ts` (a fake `InstallPlatform`, a prompt event, in-memory storage) and the Vitest setup (`setup.ts`: jest-dom matchers, cleanup after each test). |
 | `src/styles.css` | Plain CSS for the whole app. |
 | `public/` | Icons and `_redirects` (SPA fallback). `scripts/generate-icons.mjs` (`npm run icons`) regenerates the icons. |
 
 `start.tsx` takes `RouterProvider` from `react-router`, not `react-router/dom`, so the app and
 the tests render the same component (the `/dom` variant only adds `flushSync` for transitions).
+
+## Install onboarding
+
+What the install card shows is in [screens.md](screens.md#install-card). The code in
+`src/install/`:
+
+- `capture.ts`: `createInstallStore(storage)` holds the captured prompt event, whether the app
+  was installed on this device and whether the card was dismissed (both read from storage at
+  start), with `subscribe` / `getState` for `useSyncExternalStore`; `install()` calls `prompt()`
+  synchronously inside the tap (Chrome needs the user gesture), keeps the event while the dialog
+  is open (a second call meanwhile returns `unavailable`) and drops it once the browser answers,
+  since it cannot be reused. `listenForInstallPrompt(target, store)` handles
+  `beforeinstallprompt` (`preventDefault()`, keep the event) and `appinstalled`. `main.tsx`
+  registers it before `start()`, because Chrome can fire the event before React has rendered
+  anything. The event type is declared locally (Chromium only, not in `lib.dom`).
+- `mode.ts`: `installMode({ standalone, ios, android, installed, hasPrompt })`, pure.
+- `flags.ts`: the per-device flags `amrap.install.dismissed` and `amrap.install.installed`
+  (`isFlagSet` / `setFlag`), every access in try/catch.
+- `platform.ts`: `installPlatform` (`lib/device.ts` detection and the app's one store over
+  `window.localStorage`) and `InstallContext`, whose default is `installPlatform`.
+- `useInstall.ts`: `useInstall()` → `{ mode, cardShown, install, dismiss }`, used by
+  `InstallCard` and by `PushToggle` (the iOS hint depends on whether the card is shown).
 
 ## i18n rule
 
@@ -35,9 +58,27 @@ English. `fromError(error)` turns an error into copy:
 2. else a Supabase Auth `error.code` → `sl.authErrors[code]`;
 3. else `sl.genericError`.
 
+Copy conventions:
+
+- Messages address the user formally ("vi": "Vpišite", "Obrnite se"); buttons, menu items and
+  select placeholders use the short form ("Rezerviraj", "Izberi stranko").
+- One Slovenian word per domain term ([CONTEXT.md](../CONTEXT.md) has the English ones):
+  termin (appointment and slot), rezervacija (booking), kredit (credit), stanje kreditov
+  (balance), dodati kredite / nakup kreditov (top-up), popravek (adjustment), pozna odpoved
+  (late cancel), vračilo (refund), rok za brezplačno odpoved (cutoff), stalni termin
+  (recurring rule), zaprto obdobje (blocked period), povabilo (invite).
+- A noun after a count takes its Slovenian plural form: the string is a `Plural`
+  (`{ one, two, few, other }`, each a template with `{count}`) and the component calls
+  `plural(forms, count)` from `i18n/fill.ts`, which picks the form with
+  `Intl.PluralRules('sl')` (1 mesto, 2 mesti, 3 mesta, 5 mest). Copy that avoids the noun
+  ("Novih terminov: {count}") needs no plural.
+- Punctuation: `…` after a space for "in progress" lines, en dash for ranges, `»«` around the
+  names of buttons and screens quoted in a sentence. Dates and times as in [time.md](time.md).
+
 `sl.test.ts` checks that every token in the [rpcs.md](rpcs.md#error-tokens) error table has
 an entry in `sl.errors`, that every `sl.errors` key appears in backticks somewhere in
-`rpcs.md`, that no string is empty, and that no `.ts`, `.tsx` or `.css` file in `src/` outside
+`rpcs.md`, that no string is empty, that every `Plural` has all four forms and each contains
+`{count}`, and that no `.ts`, `.tsx` or `.css` file in `src/` outside
 `src/i18n/` (tests and `lib/database.types.ts` excepted) contains `č`, `š` or `ž` (a proxy for
 hardcoded Slovenian).
 
@@ -92,6 +133,11 @@ vi.mock('./lib/supabase', async () => ({
   `signInWithPassword` mocks and any other RPC are set per test.
 - `src/data/data.test.ts` and `trainer.test.ts` call the data layer with the fake directly
   (`fakeSupabase as unknown as Client`).
+
+Install tests wrap what they render in `InstallContext.Provider` with
+`fakeInstallPlatform({ device?, dismissed? })` from `fakeInstall.ts` (`firePrompt(outcome)`
+captures a fake prompt event); `routes.test.tsx`'s `renderAt` does the same with a desktop
+default (no card) unless a test passes its own.
 
 Push tests pass `fakePlatform(...)` from `fakePush.ts` to `PushToggle` (its `platform` prop) or
 to `enablePush` / `disablePush`, so they need no browser push APIs; `push/logout.test.tsx` mocks

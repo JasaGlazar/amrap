@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { useLoad } from '../../lib/useLoad';
 import { browserPlatform, type PushPlatform } from '../../push/browser';
 import { disablePush, enablePush } from '../../push/subscribe';
+import { useInstall } from '../../install/useInstall';
 import { pushSupport, type PushSupport } from '../../push/support';
 import { NoticeLine, type Notice } from './NoticeLine';
 
@@ -37,6 +38,7 @@ export function PushToggle({
     return (await hasPushSubscription(supabase, subscription.endpoint, userId)) ? 'on' : 'off';
   }, [platform, userId]);
   const [state, reload] = useLoad(load);
+  const { cardShown } = useInstall();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
 
@@ -70,7 +72,11 @@ export function PushToggle({
       )}
       {state.status === 'ok' && (
         <>
-          <p>{stateText[state.data]}</p>
+          <p>
+            {state.data === 'needs-install' && cardShown
+              ? t.pushToggle.needsInstallSeeCard
+              : stateText[state.data]}
+          </p>
           {(state.data === 'on' || state.data === 'off') && (
             <button
               type="button"
