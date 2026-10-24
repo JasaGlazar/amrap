@@ -134,7 +134,7 @@ so the old auth user is removed first (ADR 0007).
    delete it. The foreign key `on delete set null` clears `customers.auth_user_id`; the
    customer's appointments and credits stay as they are. Their push subscriptions are deleted.
 3. Check the record is unlinked: the query from step 1 now shows `auth_user_id` null, and in
-   the app the customer's status is no longer "Povezan račun".
+   the app the customer is tagged "Brez računa" (on Stranke and on the customer's page).
 4. Issue a new invite on the customer's page and send the new link, as in
    [Invite a customer](#invite-a-customer).
 5. The customer opens the link and signs up again with a new password (same or new email);

@@ -20,7 +20,7 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
 | `/t` | trainer | Trainer shell: the same top bar with sign-out, the [install card](#install-card), bottom navigation (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
-| `/t/stranke` | trainer | Customer list with balance and invite status; create a customer. | `trainer`, `customers` | Stage 2 |
+| `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; create a customer. | `trainer`, `customers` | Stage 2 |
 | `/t/stranke/:id` | trainer | One customer: credits, invite link, recurring rules, upcoming appointments, details, ledger. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType` | Stage 2 |
 | `/t/nastavitve` | trainer | Slot templates, cutoff hours, blocked periods, notifications toggle. | `settings`, `trainer`, `pushToggle` | Stage 2, push Stage 3 |
 | anything else | anyone | Redirects to `/`. | none | Stage 1 |
