@@ -17,7 +17,7 @@ app relies on.
   copy in `app/src/i18n/sl.ts`; the detail after it is for logs only and may change.
 - **Grants.** The initial migration revoked default execute, so each RPC below is granted
   explicitly to `authenticated` and `service_role` (never `anon`), except the job functions
-  `charge_due_appointments()` and `send_cutoff_reminders()` and the edge function's
+  `charge_due_appointments()`, `send_cutoff_reminders()` and `prune_cron_history()` and the edge function's
   `claim_notifications()`, which have no grant to `authenticated` or `anon` (`service_role`
   only), and `save_push_subscription()`, which is granted to `authenticated` only (it acts on
   the caller's auth user, so `service_role` has no use for it). The grant is not the protection: `materialize_recurring()` is granted to
@@ -31,7 +31,7 @@ app relies on.
 
 | Token | Meaning | Raised by |
 |---|---|---|
-| `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record, or (`accept_invite`) there is no signed-in user | all except `charge_due_appointments`, `send_cutoff_reminders` and `claim_notifications` |
+| `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record, or (`accept_invite`) there is no signed-in user | all except `charge_due_appointments`, `send_cutoff_reminders`, `prune_cron_history` and `claim_notifications` |
 | `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record) | `book`, `top_up`, `adjust`, `create_invite`, `materialize_recurring`, `save_push_subscription` |
 | `AMRAP_NOT_FOUND` | The referenced customer, slot template, appointment or recurring rule does not exist | `book`, `cancel`, `top_up`, `adjust`, `create_invite`, `activate_rule`, `deactivate_rule` |
 | `AMRAP_SLOT_INACTIVE` | The slot template is deactivated | `book` |
@@ -300,6 +300,22 @@ public.send_cutoff_reminders() returns int
   ever, so a second or overlapping run inserts and dispatches nothing for it (a concurrent run
   waits on the unique index and then skips). Details in [notifications.md](notifications.md).
 - **Diagram:** [architecture/push-sequence.md](architecture/push-sequence.md).
+
+## prune_cron_history
+
+```sql
+public.prune_cron_history() returns int
+```
+
+- **Who may call:** pg_cron (as `postgres`, daily at 03:07 UTC, see [jobs.md](jobs.md#schedules))
+  and `service_role` only. No role check inside; `execute` is revoked from `public`, `anon` and
+  `authenticated` (SQLSTATE `42501`), the `charge_due_appointments` pattern.
+- **Rules:** deletes every `cron.job_run_details` row whose `end_time`, or `start_time` when the
+  run never ended, is more than 14 days before `now()`; a run exactly 14 days old stays
+  ([ADR 0013](adr/0013-data-retention.md)).
+- **Errors:** none of its own.
+- **Side effects:** the delete. Returns the number of rows deleted. Idempotent: a second run
+  returns 0.
 
 ## claim_notifications
 

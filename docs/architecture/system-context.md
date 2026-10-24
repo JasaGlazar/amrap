@@ -31,6 +31,7 @@ flowchart LR
     auth --- pg
     cron -->|"charge_due_appointments (every 15 min), materialize_recurring (nightly)"| pg
     cron -->|"send_cutoff_reminders (every 15 min)"| pg
+    cron -->|"prune_cron_history (daily)"| pg
     pg -->|"pg_net after commit: send-push with notification ids"| edge
     edge -->|"claim_notifications, delete expired subscriptions"| pg
     edge -->|"VAPID push"| push

@@ -18,6 +18,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `20261023192556_recurring_and_jobs.sql` | `book()` replaced to check blocked periods by interval overlap; `appointments_rule_id_starts_at_idx`; `materialize_rule()`, `materialize_recurring()`, `activate_rule()`, `deactivate_rule()` and their grants; `slot_occupancy` view; the `pg_cron` extension and both job schedules ([jobs.md](jobs.md)). |
 | `20261023214654_notifications_and_reminders.sql` | The `pg_net` extension (schema `extensions`); `notification_kind` enum; `notifications` table; `push_config()`, `dispatch_notifications()`, `claim_notifications()`, `send_cutoff_reminders()` and their grants; the `send_cutoff_reminders` schedule ([jobs.md](jobs.md), [notifications.md](notifications.md)). |
 | `20261023215339_event_notifications.sql` | `enqueue_notification()`, the trigger functions `notify_booking_created()`, `notify_booking_cancelled()`, `notify_credit_change()` and their triggers on `appointments` and `credit_transactions`; the https-only check on `push_subscriptions.endpoint`; `save_push_subscription()`; grants ([notifications.md](notifications.md#event-notifications)). |
+| `20261024193349_data_retention.sql` | `prune_cron_history()` and its grants; the `prune_cron_history` schedule that keeps the pg_cron run log to 14 days ([jobs.md](jobs.md), [ADR 0013](adr/0013-data-retention.md)). |
 
 ## Enums
 

@@ -3,8 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fill, formatAmount, formatBalance, t } from '../../i18n';
-import { weekdayName } from '../../lib/time';
+import { formatLongDay, formatTime, weekdayName } from '../../lib/time';
 import { routes } from '../../routes';
+import { PAGE_SIZE } from '../../data/page';
 import { RECENT_DAYS } from './CustomerDetail';
 import {
   db,
@@ -14,6 +15,12 @@ import {
   makeSession,
   resetFake,
 } from '../../test/fakeSupabase';
+import {
+  expectEveryPage,
+  expectLoadingThenRows,
+  expectRetryAfterFailure,
+  PAGED_TOTAL,
+} from '../../test/paging';
 
 vi.mock('../../lib/supabase', async () => ({
   supabase: (await import('../../test/fakeSupabase')).fakeSupabase,
@@ -181,6 +188,14 @@ describe('customer list', () => {
     await createWithStart('Dora', starting);
     expect(await screen.findByRole('heading', { name: 'Dora' })).toBeVisible();
     expect(ledgerOf('Dora')).toEqual([]);
+  });
+
+  it('labels the starting balance without a reference to the paper sheet', async () => {
+    renderAt('/t/stranke');
+    const form = await openNewCustomer();
+    const starting = within(form).getByLabelText(t.customers.startingBalance);
+    expect(t.customers.startingBalance).not.toMatch(/papir/i);
+    expect(starting).toHaveAccessibleDescription(t.customers.startingHint);
   });
 
   it('rejects a starting balance that is not a whole number and creates nobody', async () => {
@@ -573,5 +588,90 @@ describe('customer detail', () => {
     await userEvent.click(within(rules).getByRole('button', { name: t.customerDetail.addRule }));
     const addable = within(rules).getByLabelText(t.customerDetail.ruleTemplate);
     expect(within(addable).getAllByRole('option')).toHaveLength(1);
+  });
+});
+
+describe('customer detail history pages', () => {
+  const hour = 3_600_000;
+  const tz = 'Europe/Ljubljana';
+  const starts = Array.from(
+    { length: PAGED_TOTAL },
+    (_, index) => new Date(Date.now() - (index + 1) * 12 * hour - index * 60_000),
+  );
+  const recentLabels = starts.map((startsAt) =>
+    fill(t.slot.when, { day: formatLongDay(startsAt, tz), time: formatTime(startsAt, tz) }),
+  );
+  const notes = starts.map((_, index) => `Vnos ${String(index).padStart(2, '0')}`);
+
+  beforeEach(() => {
+    db.tables.appointments = starts.map((startsAt, index) => ({
+      id: `a-${index}`,
+      customer_id: ana.id,
+      slot_template_id: template.id,
+      starts_at: startsAt.toISOString(),
+      ends_at: startsAt.toISOString(),
+      status: 'charged',
+    }));
+    db.tables.credit_transactions = starts.map((createdAt, index) => ({
+      id: `t-${index}`,
+      customer_id: ana.id,
+      amount: -1,
+      type: 'adjustment',
+      note: notes[index],
+      created_at: createdAt.toISOString(),
+    }));
+  });
+
+  const lists = [
+    {
+      region: fill(t.customerDetail.recentTitle, { days: RECENT_DAYS }),
+      table: 'appointments',
+      expected: recentLabels,
+    },
+    { region: t.customerDetail.ledgerTitle, table: 'credit_transactions', expected: notes },
+  ];
+
+  it('has every fixture inside the recent window', () => {
+    expect(Date.now() - starts[starts.length - 1].getTime()).toBeLessThan(RECENT_DAYS * 24 * hour);
+  });
+
+  it.each(lists)('shows $region a page at a time, newest first', async ({ region, expected }) => {
+    renderAt(`/t/stranke/${ana.id}`);
+    await expectEveryPage(await screen.findByRole('region', { name: region }), expected);
+  });
+
+  it.each(lists)('marks Pokaži več as loading in $region', async ({ region, table, expected }) => {
+    renderAt(`/t/stranke/${ana.id}`);
+    const section = await screen.findByRole('region', { name: region });
+    await expectLoadingThenRows(section, table, expected);
+  });
+
+  it.each(lists)(
+    'keeps the rows of $region when a page fails, and retries',
+    async ({ region, table, expected }) => {
+      renderAt(`/t/stranke/${ana.id}`);
+      const section = await screen.findByRole('region', { name: region });
+      await expectRetryAfterFailure(section, table, expected);
+    },
+  );
+
+  it('starts the lists again from the newest after a refund reloads the page', async () => {
+    renderAt(`/t/stranke/${ana.id}`);
+    const region = lists[0].region;
+    const section = await screen.findByRole('region', { name: region });
+    await userEvent.click(within(section).getByRole('button', { name: t.common.showMore }));
+    await waitFor(() =>
+      expect(within(section).getAllByRole('listitem')).toHaveLength(PAGE_SIZE * 2),
+    );
+    await userEvent.click(
+      within(section).getAllByRole('button', { name: t.customerDetail.refund })[0],
+    );
+    const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
+    await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
+    const reloaded = await screen.findByRole('region', { name: region });
+    await waitFor(() =>
+      expect(within(reloaded).getAllByRole('listitem')[0]).toHaveTextContent(recentLabels[1]),
+    );
+    expect(within(reloaded).getAllByRole('listitem')).toHaveLength(PAGE_SIZE);
   });
 });

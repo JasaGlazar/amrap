@@ -50,6 +50,7 @@ is a question below.
 | `login.submit` | Prijava | Prijavi se | Stage 5: the page said "Prijava" twice (heading and button); the button names the action |
 | `invite.title` | Ustvari račun | Nov račun | Stage 5: heading and button were the same; the heading names the page, the button keeps the action |
 | `customerDetail.refund` (new) | Odpovej (`slot.cancel`) | Vrni kredit | Stage 5: on a charged session the action cancels with a refund; "Odpovej" hid that |
+| `customers.startingBalance` | Začetno stanje kreditov (s papirja) | Začetno stanje kreditov | Stage 8 (issue #20): the owner removed "(s papirja)"; the hint under the field is unchanged |
 
 ## Open questions for the trainer
 
@@ -101,6 +102,7 @@ is a question below.
 | `app.name` | AMRAP |  |
 | `common.loading` | Nalaganje … | V redu, ali raje »Nalagam …«? |
 | `common.loadFailed` | Podatkov ni mogoče naložiti. |  |
+| `common.showMore` | Pokaži več | Novo (Stage 8). Pod dolgimi seznami (Zgodovina; pri stranki opravljeni termini in zgodovina kreditov): naloži naslednjih 10 vrstic. Med nalaganjem gumb kaže `common.loading`, ob napaki se nad njim pokaže `common.loadFailed`. |
 | `common.signOut` | Odjava |  |
 | `common.continue` | Nadaljuj |  |
 | `common.cancel` | Prekliči | Zapre odprt obrazec brez shranjevanja (nova stranka, termin po dogovoru, stalni termin, podatki, dodajanje stranke v termin). |
@@ -267,7 +269,7 @@ is a question below.
 | `customers.phone` | Telefon |  |
 | `customers.email` | E-poštni naslov |  |
 | `customers.create` | Dodaj stranko | Enako besedilo kot gumb pri terminu v koledarju (`trainer.addCustomer`), ki stranko doda v termin. Je to v redu, ali naj bo tukaj »Ustvari stranko«? |
-| `customers.startingBalance` | Začetno stanje kreditov (s papirja) | Novo (Stage 4). Razumljivo? |
+| `customers.startingBalance` | Začetno stanje kreditov | Spremenjeno (prej »Začetno stanje kreditov (s papirja)«, lastnik je »(s papirja)« odstranil). |
 | `customers.startingHint` | Neobvezno. Pozitivno število doda kredite, negativno vpiše dolg. | Novo. |
 | `customers.startingInvalid` | Začetno stanje mora biti celo število (lahko negativno) ali prazno. | Novo. |
 | `customers.nameRequired` | Vpišite ime. |  |

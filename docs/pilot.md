@@ -38,7 +38,7 @@ Vse na telefonu, v aplikaciji AMRAP, prijavljeni kot trener. Papirnati list imej
    rezerviranih terminov; aplikacija pove, koliko jih je, odpovejte jih v **Koledarju**
    (»Odpovej«).
 4. **Stranke → Nova stranka:** za vsako stranko s papirnatega lista vpišite ime in priimek,
-   telefon, po želji e-poštni naslov, in **Začetno stanje kreditov (s papirja)**:
+   telefon, po želji e-poštni naslov, in **Začetno stanje kreditov**:
    - ima še kredite (npr. 5): vpišite `5`;
    - je dolžna (npr. 2): vpišite `-2`;
    - stanje je 0: pustite prazno.

@@ -1,9 +1,10 @@
 # Jobs
 
 Scheduled work that runs without a user. The functions are Postgres functions; pg_cron
-schedules them, set up in `20261023192556_recurring_and_jobs.sql` and
-`20261023214654_notifications_and_reminders.sql`. Push delivery (the `send-push` edge function
-that pg_net calls) is described in [notifications.md](notifications.md).
+schedules them, set up in `20261023192556_recurring_and_jobs.sql`,
+`20261023214654_notifications_and_reminders.sql` and `20261024193349_data_retention.sql`.
+Push delivery (the `send-push` edge function that pg_net calls) is described in
+[notifications.md](notifications.md).
 
 ## Schedules
 
@@ -12,30 +13,32 @@ that pg_net calls) is described in [notifications.md](notifications.md).
 | `charge_due_appointments` | `*/15 * * * *` (every 15 minutes) | `select public.charge_due_appointments()` |
 | `materialize_recurring` | `0 2 * * *` (daily 02:00) | `select public.materialize_recurring()` |
 | `send_cutoff_reminders` | `*/15 * * * *` (every 15 minutes) | `select public.send_cutoff_reminders()` |
+| `prune_cron_history` | `7 3 * * *` (daily 03:07) | `select public.prune_cron_history()` |
 
 - **Extension:** the migration runs `create extension if not exists pg_cron with schema
   pg_catalog` and grants `postgres` usage on schema `cron` (the steps Supabase documents), so
   it works on the local stack and the hosted Free Plan project alike; no dashboard step is
   needed. `cron.schedule(name, …)` replaces a job of the same name, so re-applying is harmless.
 - **Timezone:** pg_cron reads schedules in the server's timezone, UTC on the hosted project:
-  02:00 UTC is 03:00 (winter) or 04:00 (summer) in Ljubljana. Materialization uses
+  02:00 UTC is 03:00 (winter) or 04:00 (summer) in Ljubljana, and 03:07 UTC is 04:07 or 05:07. Materialization uses
   `settings.timezone` for the dates themselves, so the run time does not change which
   occurrences it creates.
 - **How cron authenticates:** it does not go through PostgREST or a JWT. pg_cron runs each
   command in a new database session as the role that scheduled it, `postgres` (the owner of all
-  three functions), so `request.jwt.claims` is empty and `auth.uid()` is null.
-  `charge_due_appointments` and `send_cutoff_reminders` have no role check and are executable
-  only by their owner and `service_role`; `materialize_recurring` admits callers with
-  `auth.uid() is null` or the trainer. None is executable by `anon`.
+  four functions), so `request.jwt.claims` is empty and `auth.uid()` is null.
+  `charge_due_appointments`, `send_cutoff_reminders` and `prune_cron_history` have no role
+  check and are executable only by their owner and `service_role`; `materialize_recurring`
+  admits callers with `auth.uid() is null` or the trainer. None is executable by `anon`.
 - **Inspect:** `select jobid, jobname, schedule, command, active from cron.job;` and the last
   runs `select jobid, status, return_message, start_time from cron.job_run_details order by
   start_time desc limit 20;`.
 - **Run by hand, local:** `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c
   'select public.charge_due_appointments()'` (or `public.materialize_recurring()`,
-  `public.send_cutoff_reminders()`).
+  `public.send_cutoff_reminders()`, `public.prune_cron_history()`).
 - **Run by hand, hosted:** in the dashboard SQL editor (which runs as `postgres`): `select
-  public.charge_due_appointments();`, `select public.materialize_recurring();` or `select
-  public.send_cutoff_reminders();`. All three are idempotent, so a manual run next to the
+  public.charge_due_appointments();`, `select public.materialize_recurring();`, `select
+  public.send_cutoff_reminders();` or `select public.prune_cron_history();`. All four are
+  idempotent, so a manual run next to the
   scheduled one is safe. The trainer can also call `materialize_recurring` from the app
   (`supabase.rpc('materialize_recurring')`).
 
@@ -147,6 +150,35 @@ Pushes the pre-cutoff reminder, the customer's only warning before a booking bec
   pruning, no config, no settings, grants, the schedule).
 - **Manual run:** see [Schedules](#schedules).
 - **Diagram:** [architecture/push-sequence.md](architecture/push-sequence.md).
+
+## prune_cron_history (daily)
+
+```sql
+public.prune_cron_history() returns int
+```
+
+Keeps the pg_cron run log short. pg_cron writes one `cron.job_run_details` row per run and
+never deletes them (Supabase's pg_cron guide says the same and schedules a cleanup), so the
+two 15-minute jobs and the nightly one would add about 193 rows a day forever. Retention is 14
+days ([ADR 0013](adr/0013-data-retention.md)). Defined in `20261024193349_data_retention.sql`;
+the rules are in [rpcs.md](rpcs.md#prune_cron_history).
+
+- **Schedule:** daily at 03:07 UTC via pg_cron (job `prune_cron_history`), off the quarter hour
+  so it never runs next to the 15-minute jobs, and after the 02:00 materialization.
+- **Deletes:** every run whose `end_time`, or `start_time` when it never ended, is more than 14
+  days old.
+- **Returns:** the number of rows deleted.
+- **Idempotent:** a second run the same day deletes nothing.
+- **Permissions:** `cron.job_run_details` belongs to `supabase_admin`; `postgres` can delete
+  from it through the `grant all privileges on all tables in schema cron to postgres` in
+  `20261023192556_recurring_and_jobs.sql` (the step Supabase documents), and its row policy
+  (`username = current_user`) admits the rows of jobs `postgres` scheduled, which is every job
+  here. The function is `security definer` owned by `postgres`, so a `service_role` call
+  deletes the same rows.
+- **Who may run it:** pg_cron as `postgres` and `service_role`; not `authenticated` or `anon`.
+- **Tests:** `supabase/tests/033_retention.sql` (the schedule, grants, runs 13 and 15 days old,
+  one exactly 14 days old, runs that never ended, a second run).
+- **Manual run:** see [Schedules](#schedules).
 
 ## send-push (edge function)
 

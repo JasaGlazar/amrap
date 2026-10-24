@@ -273,12 +273,12 @@ input[type='checkbox'] {
   gap: var(--space-2);
 }
 
-.button:not(:disabled):active {
+.button:not(:disabled, [aria-disabled='true']):active {
   background: var(--press);
 }
 
 @media (hover: hover) {
-  .button:not(:disabled):hover {
+  .button:not(:disabled, [aria-disabled='true']):hover {
     background: var(--press);
   }
 }
@@ -425,12 +425,12 @@ input[type='checkbox'] {
 }
 
 @media (hover: hover) {
-  .button.secondary:not(:disabled):hover {
+  .button.secondary:not(:disabled, [aria-disabled='true']):hover {
     background: var(--line);
   }
 }
 
-.button.secondary:not(:disabled):active {
+.button.secondary:not(:disabled, [aria-disabled='true']):active {
   background: var(--line);
 }
 
@@ -585,12 +585,12 @@ input[type='checkbox'] {
 }
 
 @media (hover: hover) {
-  .button.danger:not(:disabled):hover {
+  .button.danger:not(:disabled, [aria-disabled='true']):hover {
     background: color-mix(in srgb, var(--debt) 85%, var(--ink));
   }
 }
 
-.button.danger:not(:disabled):active {
+.button.danger:not(:disabled, [aria-disabled='true']):active {
   background: color-mix(in srgb, var(--debt) 85%, var(--ink));
 }
 
@@ -946,14 +946,16 @@ h3 {
   margin-top: 0.25rem;
 }
 
-.button:disabled {
+.button:disabled,
+.button[aria-disabled='true'] {
   background: var(--surface);
   color: var(--muted);
   box-shadow: none;
   cursor: default;
 }
 
-.card .button:disabled {
+.card .button:disabled,
+.card .button[aria-disabled='true'] {
   background: var(--surface);
   box-shadow: inset 0 0 0 1px var(--line);
 }

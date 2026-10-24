@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { chargedSince, upcomingAppointments, type Appointment } from '../../data/appointments';
 import type { ActionResult } from '../../data/client';
@@ -15,6 +15,7 @@ import { CancelDialog } from '../shared/CancelDialog';
 import { LedgerList } from '../shared/LedgerList';
 import { NoticeLine, type Notice } from '../shared/NoticeLine';
 import { OnDemand } from '../shared/OnDemand';
+import { PagedList, type RowRef } from '../shared/PagedList';
 import { CustomerFieldsForm } from './CustomerFieldsForm';
 import { RuleForm } from './RuleForm';
 
@@ -36,7 +37,7 @@ export function TrainerCustomerDetail() {
         rulesOf(supabase, id),
         allTemplates(supabase),
       ]);
-    return { now, customer, settings, balance, ledger, upcoming, recent, rules, templates };
+    return { now, since, customer, settings, balance, ledger, upcoming, recent, rules, templates };
   }, [id]);
   const [state, reload] = useLoad(load);
   const location = useLocation();
@@ -103,7 +104,7 @@ export function TrainerCustomerDetail() {
     );
   }
 
-  const { now, customer, settings, balance, ledger, upcoming, recent, rules, templates } =
+  const { now, since, customer, settings, balance, ledger, upcoming, recent, rules, templates } =
     state.data;
   const { timeZone } = settings;
   const status = inviteStatus(customer, now);
@@ -117,7 +118,7 @@ export function TrainerCustomerDetail() {
       time: template.start_time.slice(0, 5),
     });
   };
-  const noteShown = note ?? (ledger.length === 0 ? t.customerDetail.startingNote : '');
+  const noteShown = note ?? (ledger.rows.length === 0 ? t.customerDetail.startingNote : '');
   const ruleTemplates = new Set(rules.map((rule) => rule.slotTemplateId));
   const addableTemplates = templates.filter(
     (template) => template.active && !ruleTemplates.has(template.id),
@@ -139,41 +140,49 @@ export function TrainerCustomerDetail() {
     }));
   }
 
-  const appointmentSection = (
-    section: string,
-    title: string,
-    appointments: Appointment[],
-    empty: string,
-    actionLabel: string,
-  ) => (
+  const appointmentSection = (section: string, title: string, content: ReactNode) => (
     <section aria-label={title}>
       <h2>{title}</h2>
       <NoticeLine notice={notices[section]} />
-      {appointments.length === 0 ? (
-        <p>{empty}</p>
-      ) : (
-        <ul className="list">
-          {appointments.map((appointment) => (
-            <li key={appointment.id} className="row">
-              <span>
-                {fill(t.slot.when, {
-                  day: formatLongDay(appointment.startsAt, timeZone),
-                  time: formatTime(appointment.startsAt, timeZone),
-                })}
-              </span>
-              <button
-                type="button"
-                className="button secondary small"
-                onClick={() => setCancelling({ appointment, section })}
-              >
-                {actionLabel}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {content}
     </section>
   );
+
+  const appointmentList = (
+    section: string,
+    appointments: Appointment[],
+    empty: string,
+    actionLabel: string,
+    rowRef?: RowRef,
+  ) =>
+    appointments.length === 0 ? (
+      <p>{empty}</p>
+    ) : (
+      <ul className="list">
+        {appointments.map((appointment) => (
+          <li
+            key={appointment.id}
+            ref={rowRef?.(appointment.id)}
+            tabIndex={rowRef === undefined ? undefined : -1}
+            className="row"
+          >
+            <span>
+              {fill(t.slot.when, {
+                day: formatLongDay(appointment.startsAt, timeZone),
+                time: formatTime(appointment.startsAt, timeZone),
+              })}
+            </span>
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={() => setCancelling({ appointment, section })}
+            >
+              {actionLabel}
+            </button>
+          </li>
+        ))}
+      </ul>
+    );
 
   async function changeCredits(kind: 'topUp' | 'adjust') {
     const value = Number(amount);
@@ -258,9 +267,7 @@ export function TrainerCustomerDetail() {
       {appointmentSection(
         'upcoming',
         t.customerDetail.upcomingTitle,
-        upcoming,
-        t.customer.noUpcoming,
-        t.slot.cancel,
+        appointmentList('upcoming', upcoming, t.customer.noUpcoming, t.slot.cancel),
       )}
       <section aria-label={t.customerDetail.rulesTitle}>
         <div className="head">
@@ -328,13 +335,23 @@ export function TrainerCustomerDetail() {
       {appointmentSection(
         'recent',
         fill(t.customerDetail.recentTitle, { days: RECENT_DAYS }),
-        recent,
-        t.customerDetail.noRecent,
-        t.customerDetail.refund,
+        <PagedList first={recent} fetchPage={(from) => chargedSince(supabase, id, since, from)}>
+          {(rows, rowRef) =>
+            appointmentList(
+              'recent',
+              rows,
+              t.customerDetail.noRecent,
+              t.customerDetail.refund,
+              rowRef,
+            )
+          }
+        </PagedList>,
       )}
       <section aria-label={t.customerDetail.ledgerTitle}>
         <h2>{t.customerDetail.ledgerTitle}</h2>
-        <LedgerList ledger={ledger} timeZone={timeZone} />
+        <PagedList first={ledger} fetchPage={(from) => ledgerOf(supabase, id, from)}>
+          {(rows, rowRef) => <LedgerList ledger={rows} timeZone={timeZone} rowRef={rowRef} />}
+        </PagedList>
       </section>
       <section className="card" aria-label={t.customerDetail.inviteTitle}>
         <h2>{t.customerDetail.inviteTitle}</h2>
