@@ -324,6 +324,11 @@ is a question below.
 
 | Ključ | Besedilo | Vprašanje |
 |---|---|---|
+| `settings.sectionsLabel` | Razdelki nastavitev | Ime vrstice zavihkov (bralnik zaslona) |
+| `settings.tabs.templates` | Urnik |  |
+| `settings.tabs.cutoff` | Odpoved | Zavihek z rokom za brezplačno odpoved. Dovolj jasno ali »Rok odpovedi«? |
+| `settings.tabs.blocked` | Zaprta obdobja |  |
+| `settings.tabs.notifications` | Obvestila |  |
 | `settings.templatesTitle` | Termini v tednu | »Termini v tednu« ali »Tedenski urnik«? |
 | `settings.noTemplates` | Ni terminov. |  |
 | `settings.templateLine` | {weekday} ob {time} · {minutes} min · {places} |  |

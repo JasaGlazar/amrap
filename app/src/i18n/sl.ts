@@ -171,6 +171,13 @@ export const sl = {
     ledgerTitle: 'Zgodovina kreditov',
   },
   settings: {
+    sectionsLabel: 'Razdelki nastavitev',
+    tabs: {
+      templates: 'Urnik',
+      cutoff: 'Odpoved',
+      blocked: 'Zaprta obdobja',
+      notifications: 'Obvestila',
+    },
     templatesTitle: 'Termini v tednu',
     noTemplates: 'Ni terminov.',
     templateLine: '{weekday} ob {time} · {minutes} min · {places}',

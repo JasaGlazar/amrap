@@ -19,7 +19,7 @@ All on the hosted project, from an up-to-date `main`; steps in [runbook.md](runb
    ([Cloudflare Pages build settings](runbook.md#cloudflare-pages-build-settings)).
 4. The trainer account exists ([Bootstrap the trainer](runbook.md#bootstrap-the-trainer)).
 5. On the trainer's phone: AMRAP opened from the home screen (install card), signed in as the
-   trainer, **Vklopi obvestila** on **Nastavitve**.
+   trainer, **Vklopi obvestila** on **Nastavitve → Obvestila**.
 6. The trainer has this guide's Slovenian parts (below) and the copy review
    ([copy-review.md](copy-review.md)) if it is not signed off yet.
 
@@ -27,9 +27,9 @@ All on the hosted project, from an up-to-date `main`; steps in [runbook.md](runb
 
 Vse na telefonu, v aplikaciji AMRAP, prijavljeni kot trener. Papirnati list imejte ob sebi.
 
-1. **Nastavitve → Rok za brezplačno odpoved:** koliko ur pred začetkom lahko stranka še
+1. **Nastavitve → Odpoved:** koliko ur pred začetkom lahko stranka še
    brezplačno odpove (privzeto 5). Tapnite »Shrani«.
-2. **Nastavitve → Termini v tednu → Nov termin:** za vsak redni termin v tednu vpišite dan,
+2. **Nastavitve → Urnik → Nov termin:** za vsak redni termin v tednu vpišite dan,
    začetek, trajanje (min) in število mest; »Aktiven (stranke ga vidijo in rezervirajo)« naj
    ostane označen. Tapnite »Shrani«.
    Ponovite za vse termine z whiteboarda.

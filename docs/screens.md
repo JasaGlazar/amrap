@@ -22,7 +22,11 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; create a customer. | `trainer`, `customers` | Stage 2 |
 | `/t/stranke/:id` | trainer | One customer: credits, invite link, recurring rules, upcoming appointments, details, ledger. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType` | Stage 2 |
-| `/t/nastavitve` | trainer | Slot templates, cutoff hours, blocked periods, notifications toggle. | `settings`, `trainer`, `pushToggle` | Stage 2, push Stage 3 |
+| `/t/nastavitve` | trainer | Settings, one tab per topic ([Settings](#settings-tnastavitve)); the bare path redirects to `/t/nastavitve/urnik`. | `settings` | Stage 2, tabs Stage 7 |
+| `/t/nastavitve/urnik` | trainer | Tab **Urnik**: slot templates. | `settings`, `trainer` | Stage 2, own route Stage 7 |
+| `/t/nastavitve/odpoved` | trainer | Tab **Odpoved**: cutoff hours. | `settings` | Stage 2, own route Stage 7 |
+| `/t/nastavitve/zaprto` | trainer | Tab **Zaprta obdobja**: blocked periods. | `settings`, `trainer`, `slot` | Stage 2, own route Stage 7 |
+| `/t/nastavitve/obvestila` | trainer | Tab **Obvestila**: notifications toggle. | `pushToggle` | Stage 3, own route Stage 7 |
 | anything else | anyone | Redirects to `/`. | none | Stage 1 |
 
 ## Customer screens
@@ -218,9 +222,18 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 
 ### Settings (`/t/nastavitve`)
 
-- **Data:** `getSettings`, `allTemplates` (active and inactive), `upcomingBlocked` (periods
-  that have not ended). Every write goes through RLS and shows `settings.saved` or the error.
-- **Termini v tednu:** each template as `{weekday} ob {time} · {minutes} min · {places}`, the
+- **Layout:** the title **Nastavitve**, then a row of tabs, a `nav` named
+  `settings.sectionsLabel`: **Urnik** (`urnik`), **Odpoved** (`odpoved`), **Zaprta obdobja**
+  (`zaprto`), **Obvestila** (`obvestila`), each a link to its own route with
+  `aria-current="page"` on the open one (`--ink` with a 2 px underline on the row's 1 px
+  `--line`; the others `--muted`). Below 768 px the tabs spread across the column, from 768 px
+  they sit left aligned. `/t/nastavitve` redirects to `/t/nastavitve/urnik` (replacing the
+  history entry), and the main navigation's **Nastavitve** stays current on every tab.
+- **Data:** each tab loads only what it shows: **Urnik** `allTemplates` (active and inactive),
+  **Odpoved** `getSettings`, **Zaprta obdobja** `getSettings` (the timezone) and
+  `upcomingBlocked` (periods that have not ended). Every write goes through RLS and shows
+  `settings.saved` or the error.
+- **Termini v tednu** (tab **Urnik**): each template as `{weekday} ob {time} · {minutes} min · {places}`, the
   capacity in its Slovenian plural form (`settings.places`: 1 mesto, 2 mesti, 3 mesta, 5 mest),
   inactive ones greyed with a `neaktiven` tag right after the text, each with **Uredi** (the
   form inline). The form
@@ -237,10 +250,10 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   **Shrani** is clicked again with the same values. The form is busy while the count is read;
   if the read fails, the section shows the error (`genericError` for a network failure) and
   nothing is saved. Capacity, duration and reactivation save at once.
-- **Rok za brezplačno odpoved:** `settings.late_cancel_hours`, a whole number of hours, 0 or
+- **Rok za brezplačno odpoved** (tab **Odpoved**): `settings.late_cancel_hours`, a whole number of hours, 0 or
   more (`settings.cutoffInvalid`). It applies to every later cancel and to the customers'
   cancel dialog.
-- **Zaprta obdobja:** upcoming blocked periods with their range and reason, each with
+- **Zaprta obdobja** (tab **Zaprta obdobja**): upcoming blocked periods with their range and reason, each with
   **Uredi** and **Izbriši** (deletes at once) on one line at the right; the text wraps. The
   form (also **Novo zaprto obdobje**): from date and time, to date and time (in the gym
   timezone, via `zonedInstant`) and an optional reason; a time that does not exist that day or an end not after the start is rejected
@@ -252,7 +265,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   the trainer cancels them in the calendar) and saves only when **Shrani** is clicked again with
   the same range. A changed range is counted again; a failed count shows the error and saves
   nothing; **Prekliči** on an edit clears the warning, so the next save counts again.
-- **Obvestila:** the notifications toggle with the trainer hint (`pushToggle.trainerHint`).
+- **Obvestila** (tab **Obvestila**): the notifications toggle with the trainer hint
+  (`pushToggle.trainerHint`).
 
 ## Main navigation
 

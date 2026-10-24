@@ -14,6 +14,10 @@ import { LoginPage } from './pages/LoginPage';
 import { LogoutFailedPage } from './pages/LogoutFailedPage';
 import { TrainerShell } from './pages/TrainerPages';
 import { TrainerSettings } from './pages/trainer/Settings';
+import { SettingsBlocked } from './pages/trainer/SettingsBlocked';
+import { SettingsCutoff } from './pages/trainer/SettingsCutoff';
+import { SettingsNotifications } from './pages/trainer/SettingsNotifications';
+import { SettingsTemplates } from './pages/trainer/SettingsTemplates';
 import { TrainerCustomerDetail } from './pages/trainer/CustomerDetail';
 import { TrainerCustomers } from './pages/trainer/Customers';
 import { TrainerCalendar } from './pages/trainer/Calendar';
@@ -79,7 +83,17 @@ export const routes: RouteObject[] = [
                   { path: 'koledar', element: <TrainerCalendar /> },
                   { path: 'stranke', element: <TrainerCustomers /> },
                   { path: 'stranke/:id', element: <TrainerCustomerDetail /> },
-                  { path: 'nastavitve', element: <TrainerSettings /> },
+                  {
+                    path: 'nastavitve',
+                    element: <TrainerSettings />,
+                    children: [
+                      { index: true, element: <Navigate to="urnik" replace /> },
+                      { path: 'urnik', element: <SettingsTemplates /> },
+                      { path: 'odpoved', element: <SettingsCutoff /> },
+                      { path: 'zaprto', element: <SettingsBlocked /> },
+                      { path: 'obvestila', element: <SettingsNotifications /> },
+                    ],
+                  },
                 ],
               },
             ],
