@@ -185,6 +185,13 @@ a {
   padding-bottom: calc(var(--nav-height) + var(--space-6) + env(safe-area-inset-bottom));
 }
 
+@media (min-width: 48rem) {
+  .shell .page {
+    padding-top: var(--space-6);
+    padding-bottom: var(--space-7);
+  }
+}
+
 .status {
   padding: var(--space-4);
   color: var(--muted);
@@ -296,9 +303,10 @@ input[type='checkbox'] {
   color: var(--debt);
 }
 
-.bottom-nav {
+.main-nav {
   position: fixed;
   inset: auto 0 0 0;
+  z-index: 5;
   display: flex;
   height: calc(var(--nav-height) + env(safe-area-inset-bottom));
   padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -306,19 +314,49 @@ input[type='checkbox'] {
   border-top: 1px solid var(--line);
 }
 
-.bottom-nav a {
+.main-nav a {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--muted);
   font-size: var(--text-sm);
+  font-weight: 600;
   text-decoration: none;
 }
 
-.bottom-nav a.active {
+.main-nav a[aria-current='page'] {
   color: var(--ink);
-  font-weight: 700;
+  box-shadow: inset 0 2px 0 var(--ink);
+}
+
+@media (min-width: 48rem) {
+  .main-nav {
+    position: static;
+    flex: 1;
+    gap: var(--space-1);
+    height: auto;
+    margin-bottom: -1px;
+    padding: 0;
+    background: none;
+    border: 0;
+  }
+
+  .main-nav a {
+    flex: none;
+    padding: 0 var(--space-3);
+    font-size: var(--text-md);
+  }
+
+  .main-nav a[aria-current='page'] {
+    box-shadow: inset 0 -2px 0 var(--ink);
+  }
+}
+
+@media (hover: hover) {
+  .main-nav a:hover {
+    color: var(--ink);
+  }
 }
 
 .actions {
@@ -353,10 +391,33 @@ input[type='checkbox'] {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: var(--content);
-  margin: 0 auto;
-  padding: max(0.75rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) 0
-    max(1rem, env(safe-area-inset-left));
+  gap: var(--space-6);
+  padding: max(var(--space-3), env(safe-area-inset-top))
+    max(
+      var(--space-4),
+      env(safe-area-inset-right),
+      calc((100% - var(--content)) / 2 + var(--space-4))
+    )
+    0
+    max(
+      var(--space-4),
+      env(safe-area-inset-left),
+      calc((100% - var(--content)) / 2 + var(--space-4))
+    );
+}
+
+@media (min-width: 48rem) {
+  .topbar {
+    align-items: stretch;
+    min-height: calc(4rem + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .topbar > .brand-mark,
+  .topbar > .account {
+    align-self: center;
+  }
 }
 
 .brand-mark {

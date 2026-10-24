@@ -211,6 +211,30 @@ describe('shells', () => {
     expect(labels).toEqual([t.nav.home, t.nav.calendar, t.nav.history]);
   });
 
+  it.each([
+    ['customer', customer, '/c', t.nav.customerLabel],
+    ['trainer', trainer, '/t', t.nav.trainerLabel],
+  ])('renders the %s navigation once, inside the top bar', async (_name, row, path, label) => {
+    signedInAs(row);
+    renderAt(path);
+    const banner = await screen.findByRole('banner');
+    expect(within(banner).getByRole('navigation', { name: label })).toBeInTheDocument();
+    expect(screen.getAllByRole('navigation')).toHaveLength(1);
+  });
+
+  it('marks the link of the open screen as the current page', async () => {
+    signedInAs(trainer);
+    renderAt('/t/stranke');
+    const nav = await screen.findByRole('navigation', { name: t.nav.trainerLabel });
+    expect(within(nav).getByRole('link', { name: t.nav.customers })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(nav).getByRole('link', { name: t.nav.today })).not.toHaveAttribute(
+      'aria-current',
+    );
+  });
+
   it('shows the install card in the trainer shell too', async () => {
     signedInAs(trainer);
     renderAt('/t', fakeInstallPlatform({ device: { ios: true } }).platform);

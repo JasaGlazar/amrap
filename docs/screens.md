@@ -15,10 +15,10 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/` | signed in | Redirects to `/t` for the trainer or `/c` for a customer. | none | Stage 1 |
 | (any route below `/`) | signed in, customer lookup failed | Error page with a retry button and a sign-out link to `/logout`. | `lookupFailed`, `common.signOut` | Stage 1 |
 | (any route below `/`) | signed in, no `customers` row | "Account not linked" page with a sign-out link to `/logout`. Shown instead of the route, URL unchanged. | `notLinked`, `common.signOut` | Stage 1 |
-| `/c` | customer | Customer shell: top bar with the framed wordmark and the [account menu](#account-menu) (theme, sign-out), the [install card](#install-card), bottom navigation (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `account`, `install`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle` | Stage 2, push Stage 3, install Stage 4, account menu Stage 6 |
+| `/c` | customer | Customer shell: top bar with the framed wordmark and the [account menu](#account-menu) (theme, sign-out), the [install card](#install-card), the [main navigation](#main-navigation) (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `account`, `install`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle` | Stage 2, push Stage 3, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
 | `/c/koledar` | customer | Week calendar: book open slots, cancel own bookings. | `customer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
-| `/t` | trainer | Trainer shell: the same top bar with the [account menu](#account-menu), the [install card](#install-card), bottom navigation (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `account`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4, account menu Stage 6 |
+| `/t` | trainer | Trainer shell: the same top bar with the [account menu](#account-menu), the [install card](#install-card), the [main navigation](#main-navigation) (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `account`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; create a customer. | `trainer`, `customers` | Stage 2 |
 | `/t/stranke/:id` | trainer | One customer: credits, invite link, recurring rules, upcoming appointments, details, ledger. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType` | Stage 2 |
@@ -254,6 +254,25 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   nothing; **Prekliči** on an edit clears the warning, so the next save counts again.
 - **Obvestila:** the notifications toggle with the trainer hint (`pushToggle.trainerHint`).
 
+## Main navigation
+
+`AppShell` renders one `nav` (named `nav.customerLabel` or `nav.trainerLabel`) inside the top
+bar, between the wordmark and the account menu; CSS alone places it, so tests and screen
+readers find one navigation at every width.
+
+- **From 768 px:** the links sit in the top bar on one line after the wordmark, left aligned;
+  the account menu stays at the right end. The bar spans the window with a 1 px `--line` edge
+  below it, and its wordmark lines up with the page text (the same 46 rem column). Links are
+  16 px, weight 600, `--muted`; the open screen's link is `--ink` with a 2 px `--ink` underline
+  that sits on the bar's edge. There is no bottom bar and no bottom padding for one.
+- **Below 768 px:** the same links are a fixed bar at the bottom (14 px, weight 600, equal
+  widths), above the bottom safe-area inset, with a 1 px `--line` edge on top; the open
+  screen's tab is `--ink` with a 2 px `--ink` bar on top. The page keeps bottom padding so the
+  bar never covers the last item.
+- The open screen's link has `aria-current="page"` (React Router's `NavLink`); a link stays
+  current on the routes below it (**Nastavitve** on every settings tab, **Stranke** on a
+  customer), except **Danes** and **Domov**, which match their own path only.
+
 ## Account menu
 
 `pages/shared/AccountMenu.tsx`, at the right end of the top bar in both shells: a square button
@@ -346,7 +365,8 @@ How the guards and the auth state work is in [auth.md](auth.md).
 ## Behaviour shared by all screens
 
 - **Phone layout and accessibility** (Stage 4 Task 17; every new screen follows these):
-  - no horizontal scroll at 360 px wide; the fixed bottom navigation never covers the last item;
+  - no horizontal scroll at 360 px wide; the fixed bottom navigation (below 768 px) never
+    covers the last item;
   - every tap target (buttons, links outside running text, inputs, selects, checkbox labels)
     is at least 44 × 44 px (`--tap` in `styles.css`);
   - everything focusable shows a 3 px `--ink` ring on `:focus-visible` (not the dialog box
@@ -360,12 +380,14 @@ How the guards and the auth state work is in [auth.md](auth.md).
     managers ignore it;
   - in a row, text wraps anywhere but buttons and amounts never wrap or shrink; a row's
     buttons stay on one line together, and a tag sits next to the text it describes;
-  - links are `--ink` and underlined (never the browser's default blue);
+  - links are `--ink` and underlined (never the browser's default blue); navigation links
+    are marked by position and the current-page bar instead;
   - a disabled button is neutral, whatever its kind: surface background, muted text, no
     outline and no opacity; on a card it keeps a 1 px `--line` outline so it still reads as a
     button. An enabled secondary button has a 1 px `--control-line` outline, so an enabled
     and a disabled one are told apart (for example the week arrows);
   - safe-area insets on the top bar, the page sides, the bottom navigation and the dialog;
+    the top bar's sides take the larger of the inset and the page column's edge;
   - errors are `role="alert"`, results `role="status"`.
 
 - **Brand mark.** The framed AMRAP wordmark (`public/brand-mark.png`, alt `app.name`) replaces
@@ -375,7 +397,8 @@ How the guards and the auth state work is in [auth.md](auth.md).
 
 - **Type.** One family, Archivo ([app-structure.md](app-structure.md#font)), tabular figures
   everywhere so times and amounts line up. Scale (tokens `--text-xs` to `--text-2xl`): 0.8125
-  rem tags, 0.875 secondary text, small buttons and the bottom navigation, 1 body and `h3`,
+  rem tags, 0.875 secondary text, small buttons and the bottom navigation, 1 body, `h3` and the
+  top-bar navigation,
   1.25 `h2` (weight 700) and slot times, 1.75 `h1` (2 from 768 px), 3.5 the balance. The
   display treatment, width 75 and weight 800 in `--ink`, echoes the wordmark and is kept for
   page titles (`h1`), the balance and slot times; everything else is width 100, weight 400 with

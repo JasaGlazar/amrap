@@ -18,19 +18,19 @@ export function AppShell({
     <div className="shell">
       <header className="topbar">
         <BrandMark />
+        <nav className="main-nav" aria-label={label}>
+          {items.map((item) => (
+            <NavLink key={item.to} to={item.to} end={item.end}>
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
         <AccountMenu />
       </header>
       <main className="page">
         <InstallCard audience={audience} />
         <Outlet />
       </main>
-      <nav className="bottom-nav" aria-label={label}>
-        {items.map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.end}>
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
     </div>
   );
 }
