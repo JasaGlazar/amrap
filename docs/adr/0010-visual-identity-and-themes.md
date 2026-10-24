@@ -46,7 +46,8 @@ build tools for images.
 
 - A colour change is a token change, and its contrast is recomputed and recorded in
   `screens.md`.
-- The font adds about 100 kB (two woff2 files) to the first load and the precache.
+- The font adds about 176 kB (two woff2 files with the width and weight axes) to the first
+  load and the precache.
 - Replacing the logo means re-running the `sips` commands in
   [app-structure.md](../app-structure.md#brand-assets) by hand; they need a Mac.
 - Pages that are not in the app shell (sign-in, invite, error pages) follow the theme too,

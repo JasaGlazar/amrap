@@ -20,7 +20,7 @@ screens are in [screens.md](screens.md), sign-in and role gating in [auth.md](au
 | `src/sw.ts` | The service worker: precache, outdated-cache cleanup, `index.html` for navigations, self-update, push and notification click ([notifications.md](notifications.md#service-worker)). Type-checked by `tsconfig.sw.json` with the `WebWorker` lib and left out of `tsconfig.app.json` and `tsconfig.test.json`. |
 | `src/lib/` | `supabase.ts` (the one client; retries a `PGRST303` answer once, [auth.md](auth.md#token-refused-as-issued-in-the-future)), `database.types.ts` (generated), `keepAlive.ts`, `time.ts` ([time.md](time.md)), `useLoad.ts`, `device.ts` (`deviceEnvironment()`: iOS, Android, standalone; used by push support and the install card). |
 | `src/test/` | `fakeSupabase.ts`, `fakePush.ts` (a fake `PushPlatform`), `fakeInstall.ts` (a fake `InstallPlatform`, a prompt event, in-memory storage) and the Vitest setup (`setup.ts`: jest-dom matchers, cleanup after each test). |
-| `src/styles.css` | Plain CSS for the whole app. |
+| `src/styles.css` | Plain CSS for the whole app: the two `@font-face` rules ([Font](#font)), the colour tokens and both themes, then the components. |
 | `public/` | The gym logo, the wordmark and the icons cut from it ([Brand assets](#brand-assets)), and `_redirects` (SPA fallback). |
 
 `start.tsx` takes `RouterProvider` from `react-router`, not `react-router/dom`, so the app and
@@ -85,6 +85,19 @@ so it is black on white). In the icons the wordmark is about 380 px of 512, its 
 38.5 % of the size from the centre, inside the 40 % maskable safe zone. The manifest's
 `background_color` is black (the splash screen matches the icon) and `theme_color` the light
 paper; at run time the `theme-color` meta tags follow the theme ([Theme](#theme)).
+
+## Font
+
+Archivo, one variable family with a width axis (62-125 %) and a weight axis (100-900), from
+`@fontsource-variable/archivo` (pinned) so it is served from the app's own origin and works
+offline ([ADR 0010](adr/0010-visual-identity-and-themes.md)). The package's `wdth.css` would
+also pull the Vietnamese subset, so `styles.css` declares its own two `@font-face` rules
+(family `Archivo Variable`, `font-stretch: 62% 125%`) for the `latin` and `latin-ext` files of
+the `wdth` cut, with the package's `unicode-range`s; Vite resolves the package paths in `url()`
+and emits the two woff2 files (about 90 and 86 kB) into `dist/assets/`. Slovenian text needs
+both (č, š and ž are in `latin-ext`). `vite.config.ts` adds `woff2` to the service worker's
+precache glob. The type scale and the display treatment are in
+[screens.md](screens.md#behaviour-shared-by-all-screens).
 
 ## i18n rule
 

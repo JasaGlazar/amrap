@@ -425,7 +425,8 @@ How the guards and the auth state work is in [auth.md](auth.md).
   build, serves `index.html` for every navigation (deep links work offline), updates itself
   (`skipWaiting` + `clientsClaim`, the `autoUpdate` behaviour) and shows push notifications
   ([notifications.md](notifications.md#service-worker)). `display: standalone`, manifest
-  language `sl`, icons 192 and 512 px. The [install card](#install-card) guides installing it.
+  language `sl`, icons 192 and 512 px (the framed wordmark on black), the font precached so
+  the app looks the same offline. The [install card](#install-card) guides installing it.
   Cloudflare Pages falls back to `index.html` for unknown paths natively;
   `app/public/_redirects` is a belt-and-braces measure
   ([runbook.md](runbook.md#cloudflare-pages-build-settings)).

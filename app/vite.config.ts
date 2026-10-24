@@ -12,6 +12,7 @@ if (!process.env.VITEST) {
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
+      injectManifest: { globPatterns: ['**/*.{js,css,html,woff2}'] },
       includeAssets: ['icon-192.png', 'brand-mark.png'],
       manifest: {
         name: 'AMRAP',
