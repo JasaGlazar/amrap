@@ -1,7 +1,8 @@
 # Architecture Decision Records
 
 One ADR per decision. An ADR is never deleted: when a decision changes, write a new ADR and
-mark the old one `Status: Superseded by NNNN`.
+mark the old one `Status: Superseded by NNNN` (or `Superseded in part by NNNN` when only part
+of it changes).
 
 ## Index
 

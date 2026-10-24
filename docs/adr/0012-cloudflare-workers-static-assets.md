@@ -11,8 +11,8 @@ the Supabase part stands.
 ADR 0005 planned Cloudflare Pages with a Git integration. Nothing was ever deployed there. The
 owner installed and signed in to the Cloudflare CLI, `cf` (OAuth). `cf deploy` deploys
 Workers; for Pages `cf` only manages existing projects and cannot upload. Cloudflare now
-documents Workers with static assets as the way to host a static site or SPA, and the
-features AMRAP needs (SPA fallback, `_headers`, `_redirects`) exist there. There is no custom
+documents Workers with static assets as the way to host a static site or SPA; the SPA
+fallback AMRAP needs exists there, and so do `_headers` and `_redirects`. There is no custom
 domain yet: the app goes on the free `*.workers.dev` address.
 
 Findings from the Cloudflare docs (checked 2026-10-25):
@@ -37,7 +37,7 @@ Findings from the Cloudflare docs (checked 2026-10-25):
   ([billing and limitations](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/)).
   On Workers Free a version holds up to 20,000 files of at most 25 MiB each
   ([limits](https://developers.cloudflare.com/workers/platform/limits/#static-assets)); the build
-  has 16 files, the largest about 320 kB. Over a limit, Free returns errors (for example 429)
+  has 15 files, the largest about 320 kB. Over a limit, Free returns errors (for example 429)
   and does not bill.
 - **`cf` projects.** `cf dev`, `cf build` and `cf deploy` read `cloudflare.config.ts`, not
   `wrangler.jsonc`. In a directory with a Vite config `cf` runs `vite build` and expects the

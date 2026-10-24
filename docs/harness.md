@@ -93,7 +93,8 @@ comments: its SQL statements stay byte-identical.
 
 One ADR per decision, in `docs/adr/NNNN-kebab-title.md`, with Status, Date, Context, Decision
 and Consequences. An ADR is never deleted: a changed decision gets a new ADR and the old one is
-marked `Superseded by NNNN`. Add the ADR to the index in `docs/adr/README.md`.
+marked `Superseded by NNNN` (`Superseded in part by NNNN` when only part changes). Add the ADR
+to the index in `docs/adr/README.md`.
 
 ## Diagram rule
 

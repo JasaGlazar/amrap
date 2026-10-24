@@ -313,6 +313,7 @@ goes into the file):
 cd app
 key=$(supabase projects api-keys --project-ref etzkbwqgjuipihypokjp -o json 2>/dev/null \
   | jq -r '.[] | select(.name=="anon") | .api_key')
+[ -n "$key" ] || { echo "no anon key: check supabase login and the project ref" >&2; exit 1; }
 printf 'VITE_SUPABASE_URL=https://etzkbwqgjuipihypokjp.supabase.co\nVITE_SUPABASE_ANON_KEY=%s\nVITE_VAPID_PUBLIC_KEY=\n' \
   "$key" > .env.production.local
 unset key
