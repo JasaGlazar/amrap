@@ -1101,6 +1101,37 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   issue #7 that open question 1 is answered by #18 (closed by this PR) and that #19 relates to
   open question 3 (a Settings blocked period still only warns); the trainer answers the new
   `copy-review.md` questions (`occurrenceDialog.done`, `occurrenceDialog.notify`).
+- Fix list 2 done (`.superpowers/fixes-2.md`, items 1-5; pgTAP 507, Vitest 571, Deno 20, db
+  lint, types unchanged, lint, typecheck, build, `check-docs.sh` green). No migration changed
+  and none added: the RPC keeps its scope.
+  - Item 1 (cbb3c72): `cancel_occurrence` closes an overlapping template's occurrence too but
+    leaves its live bookings booked. The confirm dialog counts them (`liveIdsOverlapping` minus
+    the occurrence's own, past or not) and warns (`occurrenceDialog.overlapping`, copy-review
+    row); ADR 0016, `rpcs.md` and `screens.md` say so. 034 has a 09:30 template overlapping
+    the 09:00 one with a live booking for a customer with a device: still booked, no refund, no
+    notification, and `book()` on that occurrence `AMRAP_BLOCKED` (these three passed at once,
+    since they pin the RPC as it is). The two Vitest cases (warning with an overlapping
+    booking, none without, both views) failed before the dialog change.
+  - Item 2 (7dcb098): 032's three later bookings now start at `(today + N) + 09:00` in the gym
+    timezone instead of `next_week + interval 'N days'`. 011's and 032's other
+    `now() + interval` rows are inserted without a template, so nothing matches them against a
+    weekday and time; 034's settings case now uses a local-date key too.
+  - Item 3 (cbb3c72): ADR 0016 names both races the per-occurrence lock leaves (an ad-hoc
+    booking, a booking of an overlapping template): the booking stays and is cancelled one by
+    one.
+  - Item 4 (fa8a8d0): **Odpovej termin** is a quiet text button (`button quiet`: no border or
+    fill, `--muted` 0.8125 rem, 44 px, `--debt` on hover, press and focus-visible) in a
+    `.roster-actions` group with **Dodaj stranko**: on one row when it fits (booked occurrences;
+    "Polno  Odpovej termin" at 390), right-aligned under it for an empty occurrence at 360-390
+    px, where `Ni prijavljenih strank.` now stays level with **Dodaj stranko**; left-aligned at
+    the foot of grid cards (92 x 44 px). `screens.md` updated; the action test checks the class.
+  - Browser (`f2-*` in `.superpowers/shots/`): day view at 360 (light) and 390 (both themes),
+    week grid at 1440 and 1280 (both themes; 1056 in 1056 and 976 in 976, no page scroll). The
+    overlap warning: one throwaway booking for Marko Kranjc on Monday 2 Nov 07:07
+    (`4f313a04-0045-4b87-884d-d549bd8644ba`, booked through the UI), **Odpovej termin** opened on
+    07:00 at 390 and 1440 in both themes ("… drugih terminov: 1 …") and closed with Escape,
+    never confirmed (still 2 blocked periods); then the booking was cancelled with **Odpovej**,
+    so it stays as `cancelled_by_trainer`. `customer_balances` equals the pre-check snapshot.
 
 ---
 
