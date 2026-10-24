@@ -1,6 +1,6 @@
 # 0005. Supabase free tier and Cloudflare Pages
 
-Status: Accepted
+Status: Superseded in part by 0012
 Date: 2026-10-23
 
 ## Context

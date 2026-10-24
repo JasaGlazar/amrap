@@ -14,9 +14,9 @@ All on the hosted project, from an up-to-date `main`; steps in [runbook.md](runb
 2. Push is on and was checked on a phone ([Turn on push
    notifications](runbook.md#turn-on-push-notifications), Stage 3 owner actions 1-8). Without
    it there are no reminders, and the reminder is the customer's only warning before a charge.
-3. Cloudflare Pages serves `main`, with `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and
-   `VITE_VAPID_PUBLIC_KEY` set; the auth URL settings and "Confirm email" off are done
-   ([Cloudflare Pages build settings](runbook.md#cloudflare-pages-build-settings)).
+3. The Cloudflare Worker serves a build of `main`, with `VITE_SUPABASE_URL`,
+   `VITE_SUPABASE_ANON_KEY` and `VITE_VAPID_PUBLIC_KEY` set; the auth URL settings and
+   "Confirm email" off are done ([Cloudflare Workers deploy](runbook.md#cloudflare-workers-deploy)).
 4. The trainer account exists ([Bootstrap the trainer](runbook.md#bootstrap-the-trainer)).
 5. On the trainer's phone: AMRAP opened from the home screen (install card), signed in as the
    trainer, **Vklopi obvestila** on **Nastavitve → Obvestila**.

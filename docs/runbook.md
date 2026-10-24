@@ -148,7 +148,7 @@ trainer, create a new auth user as in "Bootstrap the trainer" step 1, then run
 ## Deploy migrations after merge
 
 Migrations reach the remote project only after the PR is merged. Never from a feature branch.
-The whole post-merge release (these steps, the function deploy, the Pages check, a smoke test
+The whole post-merge release (these steps, the function deploy, the Workers deploy, a smoke test
 and the release record) is the `release-checklist` skill
 (`.claude/skills/release-checklist/SKILL.md`).
 
@@ -255,9 +255,9 @@ select vault.create_secret('https://etzkbwqgjuipihypokjp.supabase.co/functions/v
 select vault.create_secret('<push secret>', 'amrap_push_secret');
 ```
 
-5. **Set the app's public key:** Cloudflare Pages, Settings, Variables:
-   `VITE_VAPID_PUBLIC_KEY=<public key>` for Production and Preview, then redeploy (see
-   [Cloudflare Pages build settings](#cloudflare-pages-build-settings)).
+5. **Set the app's public key:** `VITE_VAPID_PUBLIC_KEY=<public key>` in
+   `app/.env.production.local`, then build and deploy again (see
+   [Cloudflare Workers deploy](#cloudflare-workers-deploy)).
 6. **Check:** on a phone signed in as a test customer, enable notifications; then the trainer
    tops that customer up by 1 and adjusts it back by -1 (each sends the customer a
    notification). In the SQL editor:
@@ -275,40 +275,163 @@ To change the push secret, set `PUSH_SECRET` again and update the Vault row
 (`select vault.update_secret(id, '<new>') from vault.secrets where name = 'amrap_push_secret';`).
 To switch push off, delete the two Vault rows.
 
-## Cloudflare Pages build settings
+## Cloudflare Workers deploy
 
-| Setting | Value |
+The app is an assets-only Worker named `amrap` on the Workers Free plan, served at
+`https://amrap.<account subdomain>.workers.dev` ([ADR 0012](adr/0012-cloudflare-workers-static-assets.md)).
+There is no Worker script and no binding: Cloudflare serves the files of `app/dist` and
+answers any other path with `index.html` (`notFoundHandling: "single-page-application"`), so
+deep links such as `/invite/<token>` load the app. The deploy configuration is
+`app/deploy/`: `cloudflare.config.ts` (name, compatibility date, workers.dev, the SPA
+setting), `wrangler.config.ts` (assets from `../dist`) and a `package.json` pinning `cf` and
+`wrangler`. `cf` reads these files, not a `wrangler.jsonc`; both are beta interfaces.
+
+Never run `cf dev`, `cf build` or `cf deploy` in `app/` itself: there `cf` finds the Vite
+config, runs `vite build` and expects the Cloudflare Vite plugin, and its automatic setup may
+rewrite `package.json`, `vite.config.ts` and `.gitignore`. Run them only in `app/deploy/`.
+
+### Build environment
+
+| Variable | Value |
 |---|---|
-| Root directory | `app` |
-| Build command | `npm run build` |
-| Build output directory | `dist` |
-| Environment variables | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY` (optional), `NODE_VERSION=22` |
+| `VITE_SUPABASE_URL` | `https://etzkbwqgjuipihypokjp.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | the hosted project's anon key |
+| `VITE_VAPID_PUBLIC_KEY` | the public push key; empty until push is on ([Turn on push notifications](#turn-on-push-notifications)) |
 
-Production branch is `main`. Pull request branches get preview deployments.
+All three are public by design (access is controlled by RLS). They live in
+`app/.env.production.local`, which `.env.*` in `.gitignore` keeps out of git
+(`git check-ignore -v app/.env.production.local` names the rule). `vite build` runs in mode
+`production`, and that file wins over `app/.env.local`, so the local stack's values never
+reach a production build. Vite inlines the values at build time: changing one needs a new build
+and deploy. Without the URL or the anon key the app shows a start-up error page naming the
+missing variable (and logs it) instead of a blank page.
 
-Set `VITE_SUPABASE_URL` (the project URL, `https://etzkbwqgjuipihypokjp.supabase.co`) and
-`VITE_SUPABASE_ANON_KEY` (the project's anon key from the Supabase dashboard, Project Settings,
-API) for both Production and Preview. Both are public by design; access is controlled by RLS. If
-either is missing the app shows a start-up error page that names the missing variable (and logs
-it to the console) instead of a blank page, so a misconfigured deploy is visible.
-`VITE_VAPID_PUBLIC_KEY` is the public half of the push key pair ([Turn on push
-notifications](#turn-on-push-notifications)); it is public by design. Without it the app works
-and shows notifications as unavailable. `NODE_VERSION=22` pins the build's Node version
-(`app/.node-version` says the same, and `app/package.json` requires Node 22 or newer). Vite
-inlines the variables at build time, so changing them needs a new deployment.
+Write the file without printing the key (the CLI lists the other keys too; only the anon key
+goes into the file):
 
-Cloudflare Pages already falls back to `index.html` for unknown paths when a site has no
-`404.html`, so deep links such as `/invite/<token>` work natively. `app/public/_redirects`
-(`/* /index.html 200`) is a belt-and-braces measure; after the first deployment check the build
-log for the redirects being parsed (and that `/invite/test` loads the app) and delete the file
-if it is flagged.
+```sh
+cd app
+key=$(supabase projects api-keys --project-ref etzkbwqgjuipihypokjp -o json 2>/dev/null \
+  | jq -r '.[] | select(.name=="anon") | .api_key')
+printf 'VITE_SUPABASE_URL=https://etzkbwqgjuipihypokjp.supabase.co\nVITE_SUPABASE_ANON_KEY=%s\nVITE_VAPID_PUBLIC_KEY=\n' \
+  "$key" > .env.production.local
+unset key
+```
+
+Never put the service_role or secret key, the VAPID private key or a Cloudflare token in this
+file or anywhere in Cloudflare.
+
+### Deploy
+
+From an up-to-date `main`, after the release's migrations are pushed (a build calls the RPCs of
+its own `main`; deploying it before `supabase db push` breaks the screens that use new ones):
+
+```sh
+git checkout main && git pull --ff-only
+cd app && npm ci && npm run build
+grep -l etzkbwqgjuipihypokjp dist/assets/*.js   # the build targets the hosted project
+cd deploy && npm ci
+cf auth whoami                                  # the owner's account
+cf deploy --dry-run                             # builds Build Output, uploads nothing
+cf deploy --message "<stage> <merge commit>"
+```
+
+`cf deploy` hands the build to the pinned Wrangler, which copies `app/dist` into
+`app/deploy/.cloudflare/output/` (gitignored), then uploads it as a new Worker version, deploys
+it to all traffic and prints the URL. `cf` uses its own OAuth login (`cf auth login`); it does
+not reuse a Wrangler login.
+
+The first deploy needs the account's workers.dev subdomain. If the account has none, `cf`
+cannot create it: register the free subdomain in the dashboard (Workers & Pages, the
+workers.dev subdomain setting), then run `cf workers triggers deploy` in `app/deploy/`. Stop at
+anything that mentions a plan, a price or a payment method: the Free plan needs none.
+
+### Check
+
+```sh
+url=https://amrap.<account subdomain>.workers.dev
+curl -sI "$url/" | head -1                        # 200
+curl -sI "$url/invite/test" | head -1             # 200: the app shell, not a 404
+curl -sI "$url/sw.js" | grep -i cache-control     # public, max-age=0, must-revalidate
+curl -sI "$url/manifest.webmanifest" | head -1    # 200
+curl -sI "$url/icon-192.png" | head -1            # 200
+curl -sI "$url/assets/$(ls ../dist/assets | grep -m1 '\.js$')" | grep -i content-type   # JavaScript, not text/html
+```
+
+Then open the URL at 360 px: the sign-in page loads (no start-up error page), and a wrong
+password gets **Napačen e-poštni naslov ali geslo.** from the hosted Auth. The default headers
+(`max-age=0, must-revalidate` and an `ETag` on every file) mean `index.html` and `sw.js` are
+never served stale, so installed PWAs pick up the new service worker at their next update
+check; no `_headers` file is needed.
+
+### Roll back
+
+Every deploy is a Worker version; the files belong to the version, so a rollback restores the
+previous app exactly. With `cf`:
+
+```sh
+cf workers deployments list --worker amrap         # the first entry serves traffic now
+cf workers versions list --worker-id amrap         # recent versions and their messages
+cf workers deployments create --worker amrap --strategy percentage \
+  --versions '[{"version_id":"<previous version id>","percentage":100}]'
+```
+
+Or the dashboard: Workers & Pages, `amrap`, Deployments, the earlier version, Rollback. With
+Wrangler (after `wrangler login`, below): `npx wrangler rollback --name amrap` in
+`app/deploy/` returns to the version before the latest. A rollback does not undo migrations;
+an older app against a newer database is fine as long as the migrations kept the old RPC
+signatures.
+
+### Check that usage stays on Free
+
+- Static asset requests are free and unlimited and never invoke a Worker, so the Free plan's
+  100,000 requests a day (Worker invocations) does not apply while there is no Worker script.
+  A Free account that goes over a limit gets errors (for example 429), never a bill.
+- A version holds at most 20,000 files of at most 25 MiB each on Free; the build has under 20
+  files, the largest a few hundred kB.
+- Monthly, in the dashboard: Workers & Pages shows the account on the Free plan; `amrap`,
+  Metrics shows the requests. Never add a payment method, never upgrade to Workers Paid, and
+  never add R2, KV, D1, Durable Objects, Queues or another binding to the Worker.
+
+### Fallback: Wrangler
+
+If a `cf` update breaks the beta configuration, deploy the same files with Wrangler: the owner
+runs `npx wrangler login` once in `app/deploy/` (Wrangler keeps its own OAuth login), then
+writes `app/deploy/wrangler.jsonc`:
+
+```jsonc
+{
+  "name": "amrap",
+  "compatibility_date": "2026-09-21",
+  "workers_dev": true,
+  "assets": { "directory": "../dist", "not_found_handling": "single-page-application" }
+}
+```
+
+and runs `npx wrangler deploy` in `app/deploy/` (the pinned 4.152.0). The checks and rollback
+above apply unchanged.
+
+### Later: deploy from GitHub Actions (owner step)
+
+Not set up. It needs a Cloudflare API token, which only the owner creates: dashboard, My
+Profile, API Tokens, the "Edit Cloudflare Workers" template limited to this account. Store it as
+the repository secret `CLOUDFLARE_API_TOKEN`, the account id as `CLOUDFLARE_ACCOUNT_ID`, and
+the anon key as `VITE_SUPABASE_ANON_KEY`. A workflow on `main` would then:
+
+1. check out, set up Node from `app/.node-version`;
+2. in `app/`: `npm ci` and `npm run build` with `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+   and `VITE_VAPID_PUBLIC_KEY` in the environment;
+3. in `app/deploy/`: `npm ci` and `npx cf deploy --message "$GITHUB_SHA"` (`cf` and Wrangler
+   both read `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`).
+
+Run it only after `supabase db push` for the same merge (the deploy above says why), for
+example as a manual `workflow_dispatch` the release checklist triggers.
 
 ### Auth URL configuration (dashboard action for the owner)
 
-The remote Supabase project does not read `supabase/config.toml`. After the first Pages
-deployment, open the dashboard, Authentication, URL Configuration, and set Site URL to the
-Pages production URL; add the Pages URL (and `https://*.<project>.pages.dev` if preview
-deployments should work) to Redirect URLs.
+The remote Supabase project does not read `supabase/config.toml`. After the first deploy, open
+the dashboard, Authentication, URL Configuration, set Site URL to the workers.dev URL and add
+it to Redirect URLs. When a domain replaces it, change both again.
 
 Then turn email confirmations off on the hosted project (ADR 0006). `config.toml` only
 affects the local stack; a new hosted project has "Confirm email" ON by default.
