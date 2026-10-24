@@ -552,6 +552,7 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   - Calendar rows (task 9) wrap with the separator leading the second part (`· Prosta mesta:
     …`).
 - Left for the owner: the visual review of the PR.
+- Fix list 1 done (`.superpowers/fixes-1.md`, items 1-9; `box-shadow: none` on disabled buttons kept, it removes the outline off cards).
 
 ---
 
