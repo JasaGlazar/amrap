@@ -311,7 +311,8 @@ the two Stage 3 migrations (Workflow); exact steps in `docs/runbook.md`.
     by opacity 0.5 (3.38:1 time, 1.98:1 info; now the muted colour); input and select borders
     1.47:1 (`--control-border` #6b7280, 4.83:1); the credits amount used `inputMode="numeric"`,
     so an iPhone had no minus key for a negative adjustment (removed); trainer forms about
-    other people autofilled the trainer's own details (`autoComplete="off"`); the cancel
+    other people autofilled the trainer's own details (`autoComplete="off"`, best effort:
+    browsers may ignore it; real-phone check in Task 19); the cancel
     dialog let Tab leave it and dropped focus on close (trap and focus return); the page
     behind the dialog could scroll (first an `overscroll-behavior` rule that did nothing; after
     the Task 17 review the dialog sets `overflow: hidden` on the root element while open); no tabular numbers on balances, amounts
@@ -1311,7 +1312,9 @@ Branch `stage-4-pilot` off `main` (Stage 3 merged as #4). Rulings proposed for t
 2. `IMPLEMENTATION_PLAN.md`: Handoff state, Stage 4 status "Complete (PR open; trial week
    pending)"; the file stays (the trial week is open).
 3. Consolidated "Stage 4 owner actions": copy sign-off; Android and iPhone install and push from
-   the installed app; the trial week with the pilot guide; Stage 3 owner actions still open.
+   the installed app; on the trainer's phone, that the customer and blocked-period forms do not
+   offer the trainer's own name, phone or email (autofill is turned off best effort); the trial
+   week with the pilot guide; Stage 3 owner actions still open.
 4. Open product questions for the owner (not decided here): should a trainer cancel notify the
    customer; does the trainer want a veto over self-bookings (`PLAN.md` open question 1); any
    copy question the trainer leaves open.

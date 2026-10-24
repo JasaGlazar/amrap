@@ -82,7 +82,10 @@ data.
   restored on close).
 - It takes focus when it opens and keeps Tab and Shift+Tab inside, also when focus has left it
   (for example the focused **Odpovej termin** was disabled after a server error: the next Tab
-  goes to the first enabled button, Shift+Tab to the last). Escape and **Nazaj** close it; on close, focus returns to the button that opened it (when that button still exists).
+  goes to the first enabled button, Shift+Tab to the last). Escape and **Nazaj** close it. On
+  close, focus returns to the button that opened it when that button still exists and had
+  focus (keyboard, desktop browsers); on iOS a tap does not focus a button, so there is
+  nothing to return to.
 - **Odpovej termin** first re-checks free vs late against the current time. If the answer
   changed since the dialog opened (it stayed open past the cutoff), it only switches the copy
   and does not cancel; a second click confirms. Otherwise it calls `cancel`; on success the
@@ -310,7 +313,9 @@ How the guards and the auth state work is in [auth.md](auth.md).
     `--control-border` #6b7280); greyed rows use the muted colour, never opacity;
   - inputs are 16 px, so iOS does not zoom on focus; a number that may be negative uses
     `type="number"` without `inputMode="numeric"` (the iOS numeric pad has no minus key);
-    fields the trainer fills in about someone else have `autoComplete="off"`;
+    fields the trainer fills in about someone else (customer name, phone, email, credit note,
+    blocked-period reason) have `autoComplete="off"`, best effort: some browsers and password
+    managers ignore it;
   - in a row, text wraps anywhere but buttons and amounts never wrap or shrink;
   - safe-area insets on the top bar, the page sides, the bottom navigation and the dialog;
   - errors are `role="alert"`, results `role="status"`.

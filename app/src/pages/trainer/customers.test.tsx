@@ -213,6 +213,11 @@ describe('customer detail', () => {
     for (const label of [t.customers.name, t.customers.phone, t.customers.email]) {
       expect(within(details).getByLabelText(label)).toHaveAttribute('autocomplete', 'off');
     }
+    const credits = screen.getByRole('region', { name: t.customerDetail.creditsTitle });
+    expect(within(credits).getByLabelText(t.customerDetail.note)).toHaveAttribute(
+      'autocomplete',
+      'off',
+    );
   });
 
   it('creates an invite and shows the full link', async () => {

@@ -208,6 +208,12 @@ describe('cutoff', () => {
 });
 
 describe('blocked periods', () => {
+  it('keeps the browser from autofilling the reason', async () => {
+    renderSettings();
+    const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+    expect(within(form).getByLabelText(t.settings.reason)).toHaveAttribute('autocomplete', 'off');
+  });
+
   it('creates a period from local date and time in the gym timezone', async () => {
     renderSettings();
     const form = await screen.findByRole('form', { name: t.settings.newBlocked });
