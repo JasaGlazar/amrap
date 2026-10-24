@@ -29,17 +29,17 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 | `occupancyBetween(client, from, to)` | `slot_occupancy` | `from <= starts_at < to`. An occurrence nobody booked has no row: its count is 0. |
 | `blockedBetween(client, from, to)` | `blocked_periods` | overlaps `[from, to)`: `starts_at < to` and `ends_at > from` |
 | `upcomingAppointments(client, customerId, now)` | `appointments` | mine, `status = 'booked'`, `starts_at > now`, soonest first |
-| `pastAppointments(client, customerId, now)` | `appointments` | mine and not upcoming: `status <> 'booked'` or `starts_at <= now` (so a cancelled future appointment is history too), newest first |
+| `pastAppointments(client, customerId, now, from?)` | `appointments` | mine and not upcoming: `status <> 'booked'` or `starts_at <= now` (so a cancelled future appointment is history too), newest first; [paged](#paged-reads) |
 | `liveAppointmentsBetween(client, from, to, customerId?)` | `appointments` | `status in ('booked', 'charged')`, `from <= starts_at < to`, by start; only that customer's when `customerId` is given (the trainer omits it) |
 | `balanceOf(client, customerId)` | `customer_balances` | my row; 0 when there is none |
-| `ledgerOf(client, customerId)` | `credit_transactions` | mine, newest `created_at` first |
+| `ledgerOf(client, customerId, from?)` | `credit_transactions` | mine, newest `created_at` first; [paged](#paged-reads) |
 | `allBalances(client)` | `customer_balances` | every row the caller may see (the trainer: all), as a map from customer id to balance |
 | `listCustomers(client)` | `customers` | `role = 'customer'` (not the trainer's own row), by name |
 | `getCustomer(client, id)` | `customers` | one customer record; throws when missing |
 | `rulesOf(client, customerId)` | `recurring_rules` | that customer's rules, oldest first |
 | `allTemplates(client)` | `slot_templates` | active and inactive, by `weekday`, `start_time` |
 | `upcomingBlocked(client, now)` | `blocked_periods` | `ends_at > now`, by start |
-| `chargedSince(client, customerId, since)` | `appointments` | that customer's `charged` appointments with `starts_at >= since`, newest first |
+| `chargedSince(client, customerId, since, from?)` | `appointments` | that customer's `charged` appointments with `starts_at >= since`, newest first; [paged](#paged-reads) |
 | `futureBookedCount(client, templateId, now)` | `appointments` | the number of `booked` appointments of that template with `starts_at > now` |
 | `liveCountBetween(client, from, to, now)` | `appointments` | the number of live (`booked` or `charged`) appointments overlapping `[from, to)` that have not ended: `starts_at < to` and `ends_at` after both `from` and `now` |
 | `hasPushSubscription(client, endpoint, userId)` | `push_subscriptions` | whether a row with that endpoint belongs to `userId` (the signed-in auth user); filtered by `user_id` because the trainer's RLS policy returns every user's rows |
@@ -49,6 +49,22 @@ linked), `pending` (an invite token that has not expired) or `none`.
 
 Appointments carry `customerId`, `slotTemplateId` (null for ad hoc), `startsAt`, `endsAt` and
 `status`.
+
+## Paged reads
+
+The history lists grow without limit, so `pastAppointments`, `chargedSince` and `ledgerOf`
+read one page at a time (`data/page.ts`). Each returns a `Page<T>`, `{ rows, more }`, of at
+most `PAGE_SIZE` (10) rows starting at row `from` (default 0, the newest). The query asks
+PostgREST for one row more than a page, `.range(from, from + PAGE_SIZE)` (both ends inclusive),
+and `more` is whether that extra row came back; the extra row is dropped. There is no count
+query. After the newest-first order (`starts_at` or `created_at`) the rows are ordered by `id`,
+so rows with the same time (one charge run, for example) keep one order across pages. The next
+page starts at `from` plus the rows read so far. Filters that depend on the time (`now` for
+`pastAppointments`, `since` for `chargedSince`) take the value of the first page, so every
+page of a list reads the same set.
+
+Pages show them through `PagedList` (`pages/shared/PagedList.tsx`), see
+[screens.md](screens.md#show-more).
 
 ## Week
 

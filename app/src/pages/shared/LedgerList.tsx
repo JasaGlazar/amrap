@@ -2,13 +2,16 @@ import type { LedgerEntry } from '../../data/credits';
 import { fill, t } from '../../i18n';
 import { formatDate, formatTime } from '../../lib/time';
 import { Amount } from './Amount';
+import type { RowRef } from './PagedList';
 
-export function LedgerList({ ledger, timeZone }: { ledger: LedgerEntry[]; timeZone: string }) {
+type Props = { ledger: LedgerEntry[]; timeZone: string; rowRef: RowRef };
+
+export function LedgerList({ ledger, timeZone, rowRef }: Props) {
   if (ledger.length === 0) return <p>{t.history.noTransactions}</p>;
   return (
     <ul className="list">
       {ledger.map((entry) => (
-        <li key={entry.id} className="row ledger">
+        <li key={entry.id} ref={rowRef(entry.id)} tabIndex={-1} className="row ledger">
           <span className="ledger-main">
             <span>{t.transactionType[entry.type]}</span>
             {entry.note !== null && <span className="detail">{entry.note}</span>}

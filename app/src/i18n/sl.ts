@@ -5,6 +5,7 @@ export const sl = {
   common: {
     loading: 'Nalaganje …',
     loadFailed: 'Podatkov ni mogoče naložiti.',
+    showMore: 'Pokaži več',
     signOut: 'Odjava',
     continue: 'Nadaljuj',
     cancel: 'Prekliči',

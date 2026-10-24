@@ -106,7 +106,9 @@ data.
 
 ### History (`/c/zgodovina`)
 
-- **Data:** `getSettings`, `pastAppointments`, `ledgerOf`.
+- **Data:** `getSettings`, `pastAppointments`, `ledgerOf` (the first page of each).
+- **Termini** and **Krediti** each show the newest 10 rows and **Pokaži več**
+  ([below](#show-more)); the empty lines stay as they were.
 - **Termini:** every appointment of mine that is not upcoming (past, or cancelled in any way),
   newest first, with date and time and the status label (`appointmentStatus`: Rezervirano for a
   started one not charged yet, Opravljeno, Odpovedano, Pozna odpoved, Odpovedal trener).
@@ -198,8 +200,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 
 ### Customer detail (`/t/stranke/:id`)
 
-- **Data:** `getCustomer`, `getSettings`, `balanceOf`, `ledgerOf`, `upcomingAppointments`,
-  `rulesOf`, `allTemplates`. A missing record (or the trainer's own id) shows the load error
+- **Data:** `getCustomer`, `getSettings`, `balanceOf`, `ledgerOf` and `chargedSince` (the
+  first page of each), `upcomingAppointments`, `rulesOf`, `allTemplates`. A missing record (or the trainer's own id) shows the load error
   with the back link.
 - **Order:** the back link and the name, then the balance with **Krediti** beside it, then
   **Prihajajoči termini**, **Stalni termini**, **Opravljeni termini**, **Zgodovina kreditov**,
@@ -230,8 +232,12 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   the last 30 days (`RECENT_DAYS`), newest first, each with **Vrni kredit**
   (`customerDetail.refund`; the action is a cancel with a refund, so it is not labelled
   **Odpovej**); the trainer cancel dialog says the credit is refunded (`cancelDialog.refund`),
-  and `cancel()` adds the +1 refund. Older charges are corrected with an adjustment.
-- **Zgodovina kreditov:** the ledger, as on the customer's History.
+  and `cancel()` adds the +1 refund. Older charges are corrected with an adjustment. The newest
+  10 and **Pokaži več** ([below](#show-more)).
+- **Zgodovina kreditov:** the ledger, as on the customer's History, 10 at a time with **Pokaži
+  več**.
+- **After an action** (credits, a cancel or refund, a rule) the page reloads, and both paged
+  lists start again from their newest 10.
 - **Povabilo:** for an unlinked record, **Ustvari povabilo** calls `create_invite` and shows the
   full link `${location.origin}/invite/<token>` in a read-only field (focus selects it) with
   **Kopiraj** (clipboard; `customerDetail.copied`, or `customerDetail.copyFailed` when the
@@ -294,6 +300,28 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   nothing; **Prekliči** on an edit clears the warning, so the next save counts again.
 - **Obvestila** (tab **Obvestila**): the notifications toggle with the trainer hint
   (`pushToggle.trainerHint`).
+
+## Show more
+
+The four history lists (customer History: **Termini**, **Krediti**; customer detail:
+**Opravljeni termini**, **Zgodovina kreditov**) show 10 rows at a time through `PagedList`
+(`pages/shared/PagedList.tsx`, reads in [data-layer.md](data-layer.md#paged-reads)). Upcoming
+lists (customer Home, **Prihajajoči termini**) are short and show everything.
+
+- **Pokaži več** (`common.showMore`, a secondary button) sits under the list while the last
+  page read said there are more rows; it is gone once the list is complete. A list of 10 or
+  fewer never shows it, and an empty list keeps its empty line.
+- **Loading:** pressing it sets the label to `common.loading` and `aria-disabled="true"` (the
+  disabled look) and ignores further presses until the page arrives. It is not `disabled`, so
+  focus stays on it.
+- **Loaded:** the next rows are added under the ones already shown (earlier rows stay, in the
+  same order; a row that is already shown is not added twice) and focus moves to the first new
+  row (rows take focus only from script, `tabindex="-1"`), so a keyboard or screen-reader user
+  carries on reading there, also when the button disappears.
+- **Failed:** an error line `common.loadFailed` (`role="alert"`) appears above the button,
+  the rows shown stay, and the button is usable again for a retry; a successful retry removes
+  the line.
+- A reload of the screen (after an action) replaces the list with its first page.
 
 ## Forms on demand
 

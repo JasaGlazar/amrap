@@ -23,6 +23,12 @@ import {
   postgrestTime,
   resetFake,
 } from '../../test/fakeSupabase';
+import {
+  expectEveryPage,
+  expectLoadingThenRows,
+  expectRetryAfterFailure,
+  PAGED_TOTAL,
+} from '../../test/paging';
 
 vi.mock('../../lib/supabase', async () => ({
   supabase: (await import('../../test/fakeSupabase')).fakeSupabase,
@@ -436,4 +442,60 @@ describe('history', () => {
       if (row.note !== null) expect(items[index]).toHaveTextContent(row.note);
     });
   });
+});
+
+describe('history pages', () => {
+  const day = 86_400_000;
+  const starts = Array.from(
+    { length: PAGED_TOTAL },
+    (_, index) => new Date(now.getTime() - (index + 1) * day - index * 60_000),
+  );
+  const appointmentLabels = starts.map((startsAt) =>
+    fill(t.slot.when, { day: formatDate(startsAt, tz), time: formatTime(startsAt, tz) }),
+  );
+  const notes = starts.map((_, index) => `Vnos ${String(index).padStart(2, '0')}`);
+
+  beforeEach(() => {
+    db.tables.appointments = starts.map((startsAt, index) => ({
+      id: `a-${index}`,
+      customer_id: me.id,
+      slot_template_id: null,
+      starts_at: postgrestTime(startsAt),
+      ends_at: postgrestTime(startsAt),
+      status: 'cancelled',
+    }));
+    db.tables.credit_transactions = starts.map((createdAt, index) => ({
+      id: `t-${index}`,
+      customer_id: me.id,
+      amount: 1,
+      type: 'topup',
+      note: notes[index],
+      created_at: createdAt.toISOString(),
+    }));
+  });
+
+  const lists = [
+    { region: t.history.appointmentsTitle, table: 'appointments', expected: appointmentLabels },
+    { region: t.history.ledgerTitle, table: 'credit_transactions', expected: notes },
+  ];
+
+  it.each(lists)('shows $region a page at a time, newest first', async ({ region, expected }) => {
+    renderAt('/c/zgodovina');
+    await expectEveryPage(await screen.findByRole('region', { name: region }), expected);
+  });
+
+  it.each(lists)('marks Pokaži več as loading in $region', async ({ region, table, expected }) => {
+    renderAt('/c/zgodovina');
+    const section = await screen.findByRole('region', { name: region });
+    await expectLoadingThenRows(section, table, expected);
+  });
+
+  it.each(lists)(
+    'keeps the rows of $region when a page fails, and retries',
+    async ({ region, table, expected }) => {
+      renderAt('/c/zgodovina');
+      const section = await screen.findByRole('region', { name: region });
+      await expectRetryAfterFailure(section, table, expected);
+    },
+  );
 });

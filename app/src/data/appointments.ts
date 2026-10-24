@@ -1,4 +1,5 @@
 import { runAction, type ActionResult, type AppointmentStatus, type Client } from './client';
+import { pageRange, toPage, type Page } from './page';
 
 export type Appointment = {
   id: string;
@@ -51,15 +52,18 @@ export async function pastAppointments(
   client: Client,
   customerId: string,
   now: Date,
-): Promise<Appointment[]> {
+  from = 0,
+): Promise<Page<Appointment>> {
   const { data, error } = await client
     .from('appointments')
     .select(columns)
     .eq('customer_id', customerId)
     .or(`status.neq.booked,starts_at.lte.${now.toISOString()}`)
-    .order('starts_at', { ascending: false });
+    .order('starts_at', { ascending: false })
+    .order('id')
+    .range(...pageRange(from));
   if (error) throw error;
-  return data.map(toAppointment);
+  return toPage(data.map(toAppointment));
 }
 
 export async function liveAppointmentsBetween(
@@ -146,14 +150,17 @@ export async function chargedSince(
   client: Client,
   customerId: string,
   since: Date,
-): Promise<Appointment[]> {
+  from = 0,
+): Promise<Page<Appointment>> {
   const { data, error } = await client
     .from('appointments')
     .select(columns)
     .eq('customer_id', customerId)
     .eq('status', 'charged')
     .gte('starts_at', since.toISOString())
-    .order('starts_at', { ascending: false });
+    .order('starts_at', { ascending: false })
+    .order('id')
+    .range(...pageRange(from));
   if (error) throw error;
-  return data.map(toAppointment);
+  return toPage(data.map(toAppointment));
 }

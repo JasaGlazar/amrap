@@ -102,6 +102,7 @@ is a question below.
 | `app.name` | AMRAP |  |
 | `common.loading` | Nalaganje … | V redu, ali raje »Nalagam …«? |
 | `common.loadFailed` | Podatkov ni mogoče naložiti. |  |
+| `common.showMore` | Pokaži več | Novo (Stage 8). Pod dolgimi seznami (Zgodovina; pri stranki opravljeni termini in zgodovina kreditov): naloži naslednjih 10 vrstic. Med nalaganjem gumb kaže `common.loading`, ob napaki se nad njim pokaže `common.loadFailed`. |
 | `common.signOut` | Odjava |  |
 | `common.continue` | Nadaljuj |  |
 | `common.cancel` | Prekliči | Zapre odprt obrazec brez shranjevanja (nova stranka, termin po dogovoru, stalni termin, podatki, dodajanje stranke v termin). |

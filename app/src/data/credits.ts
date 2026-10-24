@@ -1,4 +1,5 @@
 import { runAction, type ActionResult, type Client, type TransactionType } from './client';
+import { pageRange, toPage, type Page } from './page';
 
 export type LedgerEntry = {
   id: string;
@@ -18,20 +19,27 @@ export async function balanceOf(client: Client, customerId: string): Promise<num
   return data?.balance ?? 0;
 }
 
-export async function ledgerOf(client: Client, customerId: string): Promise<LedgerEntry[]> {
+export async function ledgerOf(
+  client: Client,
+  customerId: string,
+  from = 0,
+): Promise<Page<LedgerEntry>> {
   const { data, error } = await client
     .from('credit_transactions')
     .select('id, amount, type, note, created_at')
     .eq('customer_id', customerId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .order('id')
+    .range(...pageRange(from));
   if (error) throw error;
-  return data.map((row) => ({
+  const entries = data.map((row) => ({
     id: row.id,
     amount: row.amount,
     type: row.type,
     note: row.note,
     createdAt: new Date(row.created_at),
   }));
+  return toPage(entries);
 }
 
 export async function allBalances(client: Client): Promise<Map<string, number>> {

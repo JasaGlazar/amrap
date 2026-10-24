@@ -4,12 +4,14 @@ import { db, fakeSupabase, makeCustomer, postgrestTime, resetFake } from '../tes
 import {
   book,
   cancel,
+  chargedSince,
   liveAppointmentsBetween,
   pastAppointments,
   upcomingAppointments,
 } from './appointments';
 import type { Client } from './client';
 import { balanceOf, ledgerOf } from './credits';
+import { PAGE_SIZE, type Page } from './page';
 import { getSettings } from './settings';
 import { activeTemplates, blockedBetween, occupancyBetween } from './slots';
 
@@ -66,7 +68,8 @@ describe('appointments', () => {
       .sort((a, b) => Date.parse(b.starts_at) - Date.parse(a.starts_at))
       .map((row) => row.id);
     const result = await pastAppointments(client, me, now);
-    expect(result.map((a) => a.id)).toEqual(expected);
+    expect(result.rows.map((a) => a.id)).toEqual(expected);
+    expect(result.more).toBe(false);
   });
 
   it('returns dates as Date objects', async () => {
@@ -155,7 +158,7 @@ describe('credits and settings', () => {
         created_at: at(-5),
       },
     ];
-    expect((await ledgerOf(client, me)).map((row) => row.id)).toEqual(['t2', 't1']);
+    expect((await ledgerOf(client, me)).rows.map((row) => row.id)).toEqual(['t2', 't1']);
   });
 
   it('reads the cutoff hours and timezone', async () => {
@@ -186,5 +189,76 @@ describe('actions', () => {
       ok: false,
       message: errorMessages.AMRAP_CAPACITY_FULL,
     });
+  });
+});
+
+describe('paged history', () => {
+  const total = PAGE_SIZE * 2 + Math.ceil(PAGE_SIZE / 2);
+  const hours = Array.from({ length: total }, (_, index) => -(index + 1) * 24);
+
+  async function allPages<T extends { id: string }>(read: (from: number) => Promise<Page<T>>) {
+    const pages: Page<T>[] = [];
+    let from = 0;
+    for (;;) {
+      const page = await read(from);
+      pages.push(page);
+      if (!page.more) return pages;
+      from += page.rows.length;
+    }
+  }
+
+  function expectPaged<T extends { id: string }>(pages: Page<T>[], expected: string[]) {
+    const sizes = Array.from({ length: Math.ceil(expected.length / PAGE_SIZE) }, (_, index) =>
+      Math.min(PAGE_SIZE, expected.length - index * PAGE_SIZE),
+    );
+    expect(pages.map((page) => page.rows.length)).toEqual(sizes);
+    expect(pages.map((page) => page.more)).toEqual(
+      sizes.map((_, index) => index < sizes.length - 1),
+    );
+    expect(pages.flatMap((page) => page.rows.map((row) => row.id))).toEqual(expected);
+  }
+
+  it('reads past appointments a page at a time, newest first', async () => {
+    db.tables.appointments = [
+      ...hours.map((h, index) => appointment(`past-${index}`, me, h, 'cancelled')),
+      appointment('other', 'customer-2', -12, 'charged'),
+    ];
+    const expected = hours.map((_, index) => `past-${index}`);
+    expectPaged(await allPages((from) => pastAppointments(client, me, now, from)), expected);
+  });
+
+  it('reads charged appointments since a date a page at a time, newest first', async () => {
+    db.tables.appointments = hours.map((h, index) => appointment(`c-${index}`, me, h, 'charged'));
+    const since = new Date(at(hours[hours.length - 1]));
+    const expected = hours.map((_, index) => `c-${index}`);
+    expectPaged(await allPages((from) => chargedSince(client, me, since, from)), expected);
+  });
+
+  it('reads the ledger a page at a time, newest first', async () => {
+    db.tables.credit_transactions = hours.map((h, index) => ({
+      id: `t-${String(index).padStart(2, '0')}`,
+      customer_id: me,
+      amount: -1,
+      type: 'session',
+      note: null,
+      created_at: at(h),
+    }));
+    const expected = db.tables.credit_transactions.map((row) => String(row.id));
+    expectPaged(await allPages((from) => ledgerOf(client, me, from)), expected);
+  });
+
+  it('keeps rows with the same time in one order across pages', async () => {
+    db.tables.credit_transactions = hours
+      .map((_, index) => ({
+        id: `same-${String(index).padStart(2, '0')}`,
+        customer_id: me,
+        amount: -1,
+        type: 'session',
+        note: null,
+        created_at: at(-1),
+      }))
+      .reverse();
+    const expected = db.tables.credit_transactions.map((row) => String(row.id)).sort();
+    expectPaged(await allPages((from) => ledgerOf(client, me, from)), expected);
   });
 });

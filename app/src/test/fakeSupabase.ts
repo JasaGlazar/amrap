@@ -23,6 +23,7 @@ type Query = PromiseLike<Result> & {
   or: (filters: string) => Query;
   order: (column: string, options?: { ascending?: boolean }) => Query;
   limit: (count: number) => Query;
+  range: (from: number, to: number) => Query;
   maybeSingle: () => Promise<Result>;
 };
 
@@ -193,6 +194,7 @@ function orPredicate(filters: string): Predicate {
 function makeQuery(table: string): Query {
   const predicates: Predicate[] = [];
   const orders: { column: string; ascending: boolean }[] = [];
+  let offset = 0;
   let limit: number | undefined;
   let write:
     { kind: 'insert'; rows: Row[] } | { kind: 'update'; values: Row } | { kind: 'delete' } | null =
@@ -232,7 +234,10 @@ function makeQuery(table: string): Query {
       }
       return 0;
     });
-    return { data: matched.slice(0, limit), error: null };
+    return {
+      data: matched.slice(offset, limit === undefined ? undefined : offset + limit),
+      error: null,
+    };
   }
 
   function where(operator: string) {
@@ -287,6 +292,11 @@ function makeQuery(table: string): Query {
     },
     limit: (count) => {
       limit = count;
+      return query;
+    },
+    range: (from, to) => {
+      offset = from;
+      limit = to - from + 1;
       return query;
     },
     maybeSingle: async () => {
