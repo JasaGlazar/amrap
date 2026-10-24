@@ -202,9 +202,10 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Prihajajoči termini:** the customer's upcoming booked appointments, each with **Odpovej**
   (trainer cancel dialog).
 - **Opravljeni termini (zadnjih 30 dni):** the customer's charged appointments that started in
-  the last 30 days (`RECENT_DAYS`), newest first, each with **Odpovej**; the trainer cancel
-  dialog says the credit is refunded (`cancelDialog.refund`), and `cancel()` adds the +1
-  refund. Older charges are corrected with an adjustment.
+  the last 30 days (`RECENT_DAYS`), newest first, each with **Vrni kredit**
+  (`customerDetail.refund`; the action is a cancel with a refund, so it is not labelled
+  **Odpovej**); the trainer cancel dialog says the credit is refunded (`cancelDialog.refund`),
+  and `cancel()` adds the +1 refund. Older charges are corrected with an adjustment.
 - **Podatki:** name, phone, email; **Shrani** updates the record through RLS.
 - **Zgodovina kreditov:** the ledger, as on the customer's History.
 

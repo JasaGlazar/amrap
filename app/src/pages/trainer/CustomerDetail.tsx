@@ -141,6 +141,7 @@ export function TrainerCustomerDetail() {
     title: string,
     appointments: Appointment[],
     empty: string,
+    actionLabel: string,
   ) => (
     <section aria-label={title}>
       <h2>{title}</h2>
@@ -162,7 +163,7 @@ export function TrainerCustomerDetail() {
                 className="button secondary small"
                 onClick={() => setCancelling({ appointment, section })}
               >
-                {t.slot.cancel}
+                {actionLabel}
               </button>
             </li>
           ))}
@@ -366,12 +367,14 @@ export function TrainerCustomerDetail() {
         t.customerDetail.upcomingTitle,
         upcoming,
         t.customer.noUpcoming,
+        t.slot.cancel,
       )}
       {appointmentSection(
         'recent',
         fill(t.customerDetail.recentTitle, { days: RECENT_DAYS }),
         recent,
         t.customerDetail.noRecent,
+        t.customerDetail.refund,
       )}
 
       <CustomerFieldsForm

@@ -47,6 +47,7 @@ is a question below.
 | `pushToggle.needsInstall` | … tapnite Deli, nato Dodaj na začetni zaslon, in aplikacijo odprite … | … tapnite »Deli« in nato »Dodaj na začetni zaslon«, potem pa aplikacijo odprite … | No comma before "in"; quoted names, as in the install card |
 | `errors.AMRAP_ALREADY_BOOKED` | Za ta termin ste že rezervirani. | Rezervacija za ta termin že obstaja. | Calque ("rezervirani" are slots, not people), and the trainer sees it too when adding a customer |
 | `errors.AMRAP_CAPACITY_FULL` | Ta termin je že zaseden. | Ta termin je že poln. | Same word as the calendar's "Polno" |
+| `customerDetail.refund` (new) | Odpovej (`slot.cancel`) | Vrni kredit | Stage 5: on a charged session the action cancels with a refund; "Odpovej" hid that |
 
 ## Open questions for the trainer
 
@@ -304,6 +305,7 @@ is a question below.
 | `customerDetail.upcomingTitle` | Prihajajoči termini |  |
 | `customerDetail.recentTitle` | Opravljeni termini (zadnjih {days} dni) |  |
 | `customerDetail.noRecent` | V tem obdobju ni opravljenih terminov. |  |
+| `customerDetail.refund` | Vrni kredit | Gumb pri opravljenem terminu: odpove termin in stranki vrne kredit. Novo (prej »Odpovej«, kot pri prihajajočih). V redu? |
 | `customerDetail.ledgerTitle` | Zgodovina kreditov |  |
 
 ### Trener: Nastavitve

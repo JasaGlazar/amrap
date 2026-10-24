@@ -299,7 +299,7 @@ describe('customer detail', () => {
     expect(within(invite).queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('lists recently charged appointments and offers a refunding cancel', async () => {
+  it('lists recently charged appointments with a refund action, not a plain cancel', async () => {
     const day = 86_400_000;
     const charged = (id: string, daysAgo: number) => {
       const startsAt = new Date(Date.now() - daysAgo * day).toISOString();
@@ -321,7 +321,8 @@ describe('customer detail', () => {
     expect(within(recent).getAllByRole('listitem')).toHaveLength(
       Object.values(ages).filter((daysAgo) => daysAgo < RECENT_DAYS).length,
     );
-    await userEvent.click(within(recent).getByRole('button', { name: t.slot.cancel }));
+    expect(within(recent).queryByRole('button', { name: t.slot.cancel })).toBeNull();
+    await userEvent.click(within(recent).getByRole('button', { name: t.customerDetail.refund }));
     const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
     expect(dialog).toHaveTextContent(t.cancelDialog.refund);
     await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));

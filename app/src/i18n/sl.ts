@@ -158,6 +158,7 @@ export const sl = {
     upcomingTitle: 'Prihajajoči termini',
     recentTitle: 'Opravljeni termini (zadnjih {days} dni)',
     noRecent: 'V tem obdobju ni opravljenih terminov.',
+    refund: 'Vrni kredit',
     ledgerTitle: 'Zgodovina kreditov',
   },
   settings: {
