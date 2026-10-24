@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
 import type { CustomerFields } from '../../data/customers';
 import { t } from '../../i18n';
 
@@ -33,13 +33,15 @@ export function CustomerFieldsForm({
   const [email, setEmail] = useState(initial.email ?? '');
   const [starting, setStarting] = useState('');
   const startingHintId = useId();
+  const startingInput = useRef<HTMLInputElement>(null);
   const [invalid, setInvalid] = useState<string | null>(null);
 
   function submit(event: FormEvent) {
     event.preventDefault();
     if (name.trim() === '') return setInvalid(t.customers.nameRequired);
     const startingBalance = starting.trim() === '' ? null : Number(starting);
-    if (startingBalance !== null && !Number.isInteger(startingBalance)) {
+    const unreadable = startingInput.current?.validity.badInput === true;
+    if (unreadable || (startingBalance !== null && !Number.isInteger(startingBalance))) {
       return setInvalid(t.customers.startingInvalid);
     }
     setInvalid(null);
@@ -79,6 +81,7 @@ export function CustomerFieldsForm({
               type="number"
               step="1"
               autoComplete="off"
+              ref={startingInput}
               aria-describedby={startingHintId}
               value={starting}
               onChange={(e) => setStarting(e.target.value)}

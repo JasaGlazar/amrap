@@ -118,6 +118,17 @@ describe('customer list', () => {
     expect(db.tables.customers.some((row) => row.name === 'Dora')).toBe(false);
   });
 
+  it('rejects a starting balance the browser could not read as a number', async () => {
+    renderAt('/t/stranke');
+    const form = await screen.findByRole('form', { name: t.customers.newTitle });
+    await userEvent.type(within(form).getByLabelText(t.customers.name), 'Dora');
+    const starting = within(form).getByLabelText(t.customers.startingBalance);
+    Object.defineProperty(starting, 'validity', { value: { badInput: true }, configurable: true });
+    await userEvent.click(within(form).getByRole('button', { name: t.customers.create }));
+    expect(within(form).getByRole('alert')).toHaveTextContent(t.customers.startingInvalid);
+    expect(db.tables.customers.some((row) => row.name === 'Dora')).toBe(false);
+  });
+
   it('opens the new customer once and explains a failed starting balance there', async () => {
     fakeSupabase.rpc.mockResolvedValueOnce({
       data: null,

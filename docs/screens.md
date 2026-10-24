@@ -158,6 +158,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Nova stranka:** name (required, `customers.nameRequired`), phone and email (empty becomes
   null), and an optional starting balance from the paper sheet (`customers.startingBalance`, a
   whole number that may be negative, else `customers.startingInvalid`; nothing is created then).
+  A value the browser cannot read as a number (`validity.badInput`, for example `2,5` or `3-`
+  typed on a phone keyboard, which reaches the app as an empty value) is rejected the same way
+  instead of being taken as "no starting balance".
   Submit inserts the record through RLS (`createCustomer`). A positive starting balance is then
   recorded with `top_up`, a negative one with `adjust`, both with the note
   `customerDetail.startingNote`; empty or 0 records nothing. Then the detail page opens. If the
