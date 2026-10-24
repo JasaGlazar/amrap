@@ -43,6 +43,7 @@ the customer's subscription appears while the cutoff is in the window.
 | `booking_cancelled` | the trainer | trigger on a customer's cancel | `appointment_id`, `customer_name`, `starts_at`, `late` (true for `cancelled_late`), `timezone` |
 | `credit_topup` | the customer | trigger on a `topup` row | `transaction_id`, `amount`, `note` (or null), `balance` (after the row) |
 | `credit_adjustment` | the customer | trigger on an `adjustment` row | `transaction_id`, `amount` (signed), `note` (or null), `balance` (after the row) |
+| `appointment_cancelled_by_trainer` | the appointment's customer | trigger on a trainer cancel (`cancel()` by the trainer, `deactivate_rule()`) | `appointment_id`, `starts_at`, `timezone`, `refunded` (true when the appointment was `charged`, so a refund was written), `reason` (the trimmed reason, or null) |
 
 Appointment kinds set `notifications.appointment_id`; credit kinds set `transaction_id` and
 leave `appointment_id` null.
@@ -122,19 +123,29 @@ and registered by the plugin's `registerSW.js`:
 
 ## Event notifications
 
-Three triggers ([schema.md](schema.md#triggers)) call `enqueue_notification()`; no RPC body
+Four triggers ([schema.md](schema.md#triggers)) call `enqueue_notification()`; no RPC body
 knows about push:
 
 | Event | Trigger condition | Notifies |
 |---|---|---|
 | A customer books (`book()` by a customer) | `after insert on appointments`, `source = 'self_booked'` | the trainer, `booking_created` |
 | A customer cancels (`cancel()` by a customer) | `after update of status`, `booked` → `cancelled` or `cancelled_late` | the trainer, `booking_cancelled` |
+| The trainer cancels (`cancel()` by the trainer, `deactivate_rule()`) | `after update of status`, `booked` or `charged` → `cancelled_by_trainer` | the customer, `appointment_cancelled_by_trainer` |
 | The trainer tops up or adjusts | `after insert on credit_transactions`, `type in ('topup', 'adjustment')` | the customer, `credit_topup` / `credit_adjustment` |
 
 Nothing else notifies: trainer bookings (`source = 'trainer'`), materialization
-(`source = 'recurring'`, so the nightly run sends nothing), trainer cancels
-(`cancelled_by_trainer`, including `deactivate_rule`), the charge job (`booked` → `charged`),
-charges and refunds. A trainer cancel does not tell the customer (not in PLAN.md).
+(`source = 'recurring'`, so the nightly run sends nothing), the charge job (`booked` →
+`charged`), charges and refunds (a refund is part of the trainer cancel's notification,
+`refunded`). The trainer is not notified of their own cancels.
+
+A trainer cancel tells the customer (issue #18, [ADR 0015](adr/0015-trainer-cancel-notifies-customer.md)).
+`refunded` comes from the old status (`charged`), because `cancel()` inserts the refund after
+the status update, when the row trigger has already run. `deactivate_rule()` cancels a rule's
+future booked instances in one statement and the trigger sends one notification per instance,
+without a reason; materialization keeps four weeks, so that is at most about five. A customer
+without push still sees the cancel and its reason in **Zgodovina**
+([screens.md](screens.md#history-czgodovina)), which reads `appointments.cancel_reason`, not
+this log.
 
 The domain has one trainer. The booking triggers pick a single recipient, matching the
 `(kind, appointment_id)` key: the earliest-created `role = 'trainer'` record with a push
@@ -144,7 +155,7 @@ subscription (ties by id). The credit trigger reads the balance after the row fr
 `enqueue_notification()` records nothing without push config or when the recipient has no linked
 user or no subscription, inserts the row and dispatches its id. It and each trigger function
 catch every error (`raise warning`), so a failing notification never fails `book`, `cancel`,
-`top_up` or `adjust`.
+`deactivate_rule`, `top_up` or `adjust`.
 
 ## Subscriptions
 
@@ -213,8 +224,9 @@ Setting them on the hosted project is in [runbook.md](runbook.md#turn-on-push-no
   notification and subscription.
 - `supabase/tests/031_reminders.sql`: the reminder job, see
   [jobs.md](jobs.md#send_cutoff_reminders-every-15-minutes).
-- `supabase/tests/032_event_notifications.sql`: which actions notify whom and with what data,
-  which do not (trainer booking, materialization, trainer cancel, charge, refund, no device, no
+- `supabase/tests/032_event_notifications.sql`: which actions notify whom and with what data
+  (a trainer cancel with and without a refund and a reason, `deactivate_rule` once per
+  instance), which do not (trainer booking, materialization, charge, refund, no device, no
   account, no config), actions succeeding when the notification fails,
   `save_push_subscription`.
 - `supabase/functions/send-push/*_test.ts` (Deno): payload per kind (URL, TTL, urgency,

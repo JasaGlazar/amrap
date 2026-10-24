@@ -31,8 +31,8 @@ app relies on.
 
 | Token | Meaning | Raised by |
 |---|---|---|
-| `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record, or (`accept_invite`) there is no signed-in user | all except `charge_due_appointments`, `send_cutoff_reminders`, `prune_cron_history` and `claim_notifications` |
-| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record) | `book`, `top_up`, `adjust`, `create_invite`, `materialize_recurring`, `save_push_subscription` |
+| `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record or gives a cancel reason (`cancel`), or (`accept_invite`) there is no signed-in user | all except `charge_due_appointments`, `send_cutoff_reminders`, `prune_cron_history` and `claim_notifications` |
+| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record; for `cancel`: a reason over 200 characters) | `book`, `cancel`, `top_up`, `adjust`, `create_invite`, `materialize_recurring`, `save_push_subscription` |
 | `AMRAP_NOT_FOUND` | The referenced customer, slot template, appointment or recurring rule does not exist | `book`, `cancel`, `top_up`, `adjust`, `create_invite`, `activate_rule`, `deactivate_rule` |
 | `AMRAP_SLOT_INACTIVE` | The slot template is deactivated | `book` |
 | `AMRAP_IN_PAST` | A customer tried to book a start that is not in the future | `book` |
@@ -95,10 +95,13 @@ public.book(p_customer_id uuid, p_starts_at timestamptz,
 ## cancel
 
 ```sql
-public.cancel(p_appointment_id uuid) returns void
+public.cancel(p_appointment_id uuid, p_reason text default null) returns void
 ```
 
-- **Who may call:** a customer for their own appointment, or the trainer for any.
+- **Who may call:** a customer for their own appointment, or the trainer for any. One
+  function with a default, so a call with only `p_appointment_id` (the customer's) resolves to
+  it. Before `20261024221416_trainer_cancel_reason.sql` it was `cancel(uuid)`; that migration
+  dropped it and created this one with the same grants.
 - **Locking:** reads the appointment with `select ... for update` before looking at its
   status, so a cancel and `charge_due_appointments()` on the same row are serialized: exactly
   one of them wins (ADR 0002). The partial unique index on `credit_transactions` is the final
@@ -106,6 +109,10 @@ public.cancel(p_appointment_id uuid) returns void
 - **Rules:**
   - The appointment must exist (`AMRAP_NOT_FOUND`); an auth user without a customer record is
     rejected first (`AMRAP_FORBIDDEN`).
+  - **Reason** (ADR 0015): only the trainer may pass `p_reason`; a customer who passes one,
+    even an empty string, is rejected with `AMRAP_FORBIDDEN` before the appointment is read.
+    The trainer's reason is trimmed (spaces, tabs, line breaks); a blank one is stored as null;
+    longer than 200 characters after trimming is `AMRAP_INVALID_ARGUMENT`.
   - **Customer:** must own it (`AMRAP_FORBIDDEN`). Status must be `booked` and `starts_at`
     must still be in the future, else `AMRAP_NOT_CANCELLABLE` (covers charged, started but not
     yet charged, and every cancelled status). With `cutoff = settings.late_cancel_hours`
@@ -116,12 +123,17 @@ public.cancel(p_appointment_id uuid) returns void
       `created_by = auth.uid()`). The balance may go negative; that is allowed and shown.
   - **Trainer:** status `booked` → `cancelled_by_trainer`, no transaction. Status `charged` →
     `cancelled_by_trainer` plus one `refund` transaction (+1, `appointment_id` set,
-    `created_by = auth.uid()`), so the appointment nets to zero. Any cancelled status
+    `created_by = auth.uid()`), so the appointment nets to zero. Both set `cancel_reason` in
+    the same update as the status. Any cancelled status
     (`cancelled`, `cancelled_late`, `cancelled_by_trainer`) → `AMRAP_NOT_CANCELLABLE`. To waive
     a late-cancel charge the trainer calls `adjust(customer, 1, note)` instead.
-- **Side effects:** updates the appointment's `status` and sets `cancelled_at = now()`;
-  inserts at most one transaction as described. A cancelled appointment no longer counts
-  toward the slot's capacity, so `book()` can fill its place.
+- **Side effects:** updates the appointment's `status` and sets `cancelled_at = now()` (and
+  `cancel_reason` for the trainer); inserts at most one transaction as described. A cancelled
+  appointment no longer counts toward the slot's capacity, so `book()` can fill its place. A
+  customer's cancel notifies the trainer (`booking_cancelled`), a trainer's cancel notifies the
+  customer (`appointment_cancelled_by_trainer`, with `refunded` and the reason), both by
+  trigger and best effort ([notifications.md](notifications.md#event-notifications)); the
+  trainer is never notified of their own cancel.
 - **Diagrams:** [architecture/appointment-states.md](architecture/appointment-states.md),
   [architecture/charging-sequence.md](architecture/charging-sequence.md).
 
@@ -244,8 +256,10 @@ public.deactivate_rule(p_rule_id uuid) returns int
 - **Rules:** the rule must exist (`AMRAP_NOT_FOUND`). Sets `active = false`, so later
   materialization skips it, and cancels the rule's instances with `status = 'booked'` and
   `starts_at > now()`.
-- **Side effects:** those instances become `cancelled_by_trainer` with `cancelled_at = now()`;
-  no credit transaction (a booked appointment has no charge to refund). Past instances
+- **Side effects:** those instances become `cancelled_by_trainer` with `cancelled_at = now()`
+  and no reason; no credit transaction (a booked appointment has no charge to refund). Each one
+  notifies the customer (`appointment_cancelled_by_trainer`, one per instance; materialization
+  keeps at most about five future instances per rule, ADR 0015). Past instances
   (`charged`, or `booked` but started and not yet charged) and instances already cancelled are
   untouched. Returns the number cancelled.
 - **Diagram:** [architecture/appointment-states.md](architecture/appointment-states.md).
@@ -438,7 +452,14 @@ grant for the role that fires it). See [notifications.md](notifications.md#event
   `credit_transactions_notify_credit_change` (`after insert`, `type in ('topup',
   'adjustment')`): enqueues `credit_topup` or `credit_adjustment` for the customer with the
   balance after the row, read from `customer_balances`.
+- `public.notify_cancelled_by_trainer() returns trigger` — trigger
+  `appointments_notify_cancelled_by_trainer` (`after update of status`, `booked` or `charged` →
+  `cancelled_by_trainer`), defined in `20261024221416_trainer_cancel_reason.sql`: enqueues
+  `appointment_cancelled_by_trainer` for the appointment's customer with `starts_at`,
+  `timezone`, `refunded` and `reason` (`cancel_reason`). `refunded` is `old.status =
+  'charged'`: the refund row is inserted after the status update, when this row trigger has
+  already run, and every trainer cancel of a charged appointment refunds it.
 
 Each trigger function, like `enqueue_notification` itself, catches every error and reports it
-with `raise warning`, so a notification problem never fails `book`, `cancel`, `top_up` or
-`adjust`.
+with `raise warning`, so a notification problem never fails `book`, `cancel`,
+`deactivate_rule`, `top_up` or `adjust`.

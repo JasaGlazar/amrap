@@ -1,9 +1,10 @@
 -- Event notifications and save_push_subscription(). A customer's own booking notifies the
 -- trainer (booking_created), a customer's cancel notifies the trainer (booking_cancelled, with
 -- late), a top-up or adjustment notifies the customer (credit_topup / credit_adjustment, with
--- the new balance). Trainer bookings, materialization, trainer cancels, charges and refunds
--- notify nobody; nor does anything for a recipient without a subscription or account, or
--- without push config. With two trainers only one (the earliest with a device) is notified. A
+-- the new balance), a trainer cancel notifies the customer (appointment_cancelled_by_trainer,
+-- with refunded and the reason; deactivate_rule too, once per instance). Trainer bookings,
+-- materialization, charges and refunds notify nobody; nor does anything for a recipient
+-- without a subscription or account, or without push config. With two trainers only one (the earliest with a device) is notified. A
 -- failing notification never fails the action. save_push_subscription
 -- moves a device's endpoint to whoever saved it last.
 --
@@ -11,7 +12,7 @@
 -- derived from the fixtures and the ledger.
 begin;
 
-select plan(39);
+select plan(46);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
@@ -57,6 +58,9 @@ create temp view trainer_recipient as
   order by c.created_at, c.id
   limit 1;
 
+-- Blocked periods in a dev database would skip fixture occurrences; this is rolled back.
+delete from public.blocked_periods;
+
 create temp table gym as
   select s.timezone as tz, (now() at time zone s.timezone)::date as today
   from public.settings s where s.id = 1;
@@ -66,6 +70,11 @@ with t as (
   select extract(isodow from today + 1)::smallint - 1, '09:00' from gym
   returning id
 ) insert into fx select 't', id from t;
+with t as (
+  insert into public.slot_templates (weekday, start_time)
+  select extract(isodow from today + 2)::smallint - 1, '10:00' from gym
+  returning id
+) insert into fx select 't2', id from t;
 
 create temp table times (key text primary key, ts timestamptz not null) on commit drop;
 insert into times
@@ -88,6 +97,17 @@ insert into appts
               when starts_at = now() + interval '4 days' then 'by_trainer'
               else 'due' end, id
   from ins;
+with ins as (
+  insert into public.appointments (customer_id, starts_at, ends_at, status, source)
+  select fx.id, v.starts_at, v.starts_at + interval '1 hour', 'booked', 'trainer'
+  from (values ('b_by_trainer', 'cust_b', now() + interval '5 days'),
+               ('c_by_trainer', 'cust_c', now() + interval '6 days')) v(key, customer, starts_at)
+  join fx on fx.key = v.customer
+  returning id, starts_at
+)
+insert into appts
+  select case when starts_at = now() + interval '5 days' then 'b_by_trainer' else 'c_by_trainer' end, id
+  from ins;
 
 delete from vault.secrets where name in ('amrap_functions_url', 'amrap_push_secret');
 select vault.create_secret('http://event-test.invalid/functions/v1', 'amrap_functions_url');
@@ -107,15 +127,15 @@ select set_eq(
   $$select p.proname::text, p.prosecdef, array_to_string(p.proconfig, ',')
     from pg_proc p where p.pronamespace = 'public'::regnamespace
       and p.proname in ('enqueue_notification', 'notify_booking_created', 'notify_booking_cancelled',
-                        'notify_credit_change', 'save_push_subscription')$$,
+                        'notify_cancelled_by_trainer', 'notify_credit_change', 'save_push_subscription')$$,
   $$select f, true as secdef, 'search_path=""' as config from unnest(array['enqueue_notification', 'notify_booking_created',
-    'notify_booking_cancelled', 'notify_credit_change', 'save_push_subscription']) f$$,
+    'notify_booking_cancelled', 'notify_cancelled_by_trainer', 'notify_credit_change', 'save_push_subscription']) f$$,
   'the event functions are security definer with an empty search_path');
 select is_empty(
   $$select r, f from unnest(array['anon', 'authenticated', 'service_role']) r,
                      unnest(array['public.enqueue_notification(uuid, public.notification_kind, jsonb, uuid, uuid)',
                                   'public.notify_booking_created()', 'public.notify_booking_cancelled()',
-                                  'public.notify_credit_change()']) f
+                                  'public.notify_cancelled_by_trainer()', 'public.notify_credit_change()']) f
     where has_function_privilege(r, f, 'EXECUTE')$$,
   'enqueue_notification and the trigger functions are executable by nobody but their owner');
 select results_eq(
@@ -128,8 +148,9 @@ select set_eq(
     where not tgisinternal and tgrelid in ('public.appointments'::regclass, 'public.credit_transactions'::regclass)$$,
   $$values ('appointments', 'appointments_notify_booking_created'),
            ('appointments', 'appointments_notify_booking_cancelled'),
+           ('appointments', 'appointments_notify_cancelled_by_trainer'),
            ('credit_transactions', 'credit_transactions_notify_credit_change')$$,
-  'the three notification triggers exist');
+  'the four notification triggers exist');
 
 -- Bookings ---------------------------------------------------------------------------------
 
@@ -167,6 +188,11 @@ select is_empty($$select 1 from mine where appointment_id = (select id from appt
 
 insert into public.recurring_rules (customer_id, slot_template_id)
   select (select id from fx where key = 'cust_b'), id from fx where key = 't';
+with r as (
+  insert into public.recurring_rules (customer_id, slot_template_id)
+  select (select id from fx where key = 'cust_a'), id from fx where key = 't2'
+  returning id
+) insert into fx select 'rule_a', id from r;
 select ok(public.materialize_recurring() > 0, 'materialization created instances');
 select is_empty(
   $$select 1 from mine n join public.appointments a on a.id = n.appointment_id where a.source = 'recurring'$$,
@@ -189,11 +215,22 @@ select set_eq(
   'a customer cancel notifies the trainer, late only after the cutoff');
 
 select tests.authenticate_as((select id from fx where key = 'trainer_user'));
-select public.cancel((select id from appts where key = 'by_trainer'));
+select public.cancel((select id from appts where key = 'by_trainer'), 'Bolezen');
+select public.cancel((select id from appts where key = 'b_by_trainer'));
+select public.cancel((select id from appts where key = 'c_by_trainer'));
 select tests.clear_authentication();
 
-select is_empty($$select 1 from mine where appointment_id = (select id from appts where key = 'by_trainer')$$,
-  'a trainer cancel notifies nobody');
+select set_eq(
+  $$select n.customer_id, n.kind::text, n.data from mine n
+    where n.appointment_id = (select id from appts where key = 'by_trainer')$$,
+  $$select ap.customer_id, 'appointment_cancelled_by_trainer',
+           jsonb_build_object('appointment_id', ap.id, 'starts_at', ap.starts_at, 'timezone', (select tz from gym),
+                              'refunded', false, 'reason', 'Bolezen')
+    from public.appointments ap where ap.id = (select id from appts where key = 'by_trainer')$$,
+  'a trainer cancel notifies the customer (not the trainer) with the start, timezone, no refund and the reason');
+select is_empty(
+  $$select 1 from mine where appointment_id in (select id from appts where key in ('b_by_trainer', 'c_by_trainer'))$$,
+  'a trainer cancel for a customer without a device or without an account records nothing');
 
 select tests.authenticate_as_service_role();
 select public.charge_due_appointments();
@@ -205,12 +242,39 @@ select tests.authenticate_as((select id from fx where key = 'trainer_user'));
 select public.cancel((select id from appts where key = 'due'));
 select tests.clear_authentication();
 
-select is_empty(
-  $$select 1 from mine n
+select ok(exists (select 1 from public.credit_transactions
+                  where appointment_id = (select id from appts where key = 'due') and type = 'refund'),
+  'the trainer cancel of the charged appointment wrote its refund');
+select set_eq(
+  $$select n.kind::text, n.data from mine n
     where n.appointment_id = (select id from appts where key = 'due')
        or n.transaction_id in (select id from public.credit_transactions
                                where appointment_id = (select id from appts where key = 'due'))$$,
-  'the charge, the trainer cancel and its refund notify nobody');
+  $$select 'appointment_cancelled_by_trainer',
+           jsonb_build_object('appointment_id', ap.id, 'starts_at', ap.starts_at, 'timezone', (select tz from gym),
+                              'refunded', true, 'reason', null)
+    from public.appointments ap where ap.id = (select id from appts where key = 'due')$$,
+  'a trainer cancel of a charged appointment notifies once with refunded; the charge and the refund notify nobody');
+
+create temp table deactivated (n int not null) on commit drop;
+grant select, insert on deactivated to authenticated;
+select tests.authenticate_as((select id from fx where key = 'trainer_user'));
+insert into deactivated select public.deactivate_rule((select id from fx where key = 'rule_a'));
+select tests.clear_authentication();
+
+select ok((select n from deactivated) > 0, 'deactivating the rule cancelled its future instances');
+select set_eq(
+  $$select n.appointment_id, n.customer_id, n.data -> 'refunded' as refunded, n.data -> 'reason' as reason from mine n
+    where n.kind = 'appointment_cancelled_by_trainer'
+      and n.appointment_id in (select id from public.appointments where rule_id = (select id from fx where key = 'rule_a'))$$,
+  $$select a.id, a.customer_id, 'false'::jsonb as refunded, 'null'::jsonb as reason from public.appointments a
+    where a.rule_id = (select id from fx where key = 'rule_a') and a.status = 'cancelled_by_trainer'$$,
+  'deactivate_rule notifies the customer once per cancelled instance, without a reason');
+select is(
+  (select count(*)::int from mine n
+   where n.kind = 'appointment_cancelled_by_trainer'
+     and n.appointment_id in (select id from public.appointments where rule_id = (select id from fx where key = 'rule_a'))),
+  (select n from deactivated), 'as many notifications as deactivate_rule reports cancelled');
 
 -- Credits ----------------------------------------------------------------------------------
 
@@ -306,12 +370,20 @@ create temp table balance_before_failing as
 select tests.authenticate_as((select id from fx where key = 'trainer_user'));
 select lives_ok($$select public.top_up((select id from fx where key = 'cust_a'), 1)$$,
   'a top-up succeeds when its notification fails');
+insert into appts select 'trainer_cancel_failing',
+  public.book((select id from fx where key = 'cust_a'), (select ts from times where key = 'next_week') + interval '21 days',
+              (select id from fx where key = 't'));
+select lives_ok($$select public.cancel((select id from appts where key = 'trainer_cancel_failing'), 'Bolezen')$$,
+  'a trainer cancel succeeds when its notification fails');
 select tests.clear_authentication();
 reset client_min_messages;
 select is((select status::text from public.appointments where id = (select id from appts where key = 'booked_while_failing')),
   'cancelled', 'the booking and the cancel took effect');
 select is((select balance from public.customer_balances where customer_id = (select id from fx where key = 'cust_a')),
   (select balance + 1 from balance_before_failing), 'the top-up took effect');
+select results_eq(
+  $$select status::text, cancel_reason from public.appointments where id = (select id from appts where key = 'trainer_cancel_failing')$$,
+  $$values ('cancelled_by_trainer', 'Bolezen')$$, 'the trainer cancel took effect with its reason');
 
 -- save_push_subscription -------------------------------------------------------------------
 

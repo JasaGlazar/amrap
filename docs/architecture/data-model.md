@@ -54,6 +54,7 @@ erDiagram
         appointment_source source "recurring, self_booked, trainer"
         uuid rule_id FK "nullable, unique with starts_at"
         timestamptz cancelled_at "nullable"
+        text cancel_reason "nullable, trainer cancels only, 1-200 characters"
         timestamptz created_at
     }
     credit_transactions {
@@ -89,7 +90,7 @@ erDiagram
     notifications {
         uuid id PK
         uuid customer_id FK "recipient"
-        notification_kind kind "cutoff_reminder, booking_created, booking_cancelled, credit_topup, credit_adjustment"
+        notification_kind kind "cutoff_reminder, booking_created, booking_cancelled, credit_topup, credit_adjustment, appointment_cancelled_by_trainer"
         uuid appointment_id FK "nullable, unique with kind"
         uuid transaction_id FK "nullable"
         jsonb data

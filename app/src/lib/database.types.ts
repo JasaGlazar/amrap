@@ -36,6 +36,7 @@ export type Database = {
     Tables: {
       appointments: {
         Row: {
+          cancel_reason: string | null
           cancelled_at: string | null
           created_at: string
           customer_id: string
@@ -48,6 +49,7 @@ export type Database = {
           status: Database["public"]["Enums"]["appointment_status"]
         }
         Insert: {
+          cancel_reason?: string | null
           cancelled_at?: string | null
           created_at?: string
           customer_id: string
@@ -60,6 +62,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["appointment_status"]
         }
         Update: {
+          cancel_reason?: string | null
           cancelled_at?: string | null
           created_at?: string
           customer_id?: string
@@ -442,7 +445,10 @@ export type Database = {
         }
         Returns: string
       }
-      cancel: { Args: { p_appointment_id: string }; Returns: undefined }
+      cancel: {
+        Args: { p_appointment_id: string; p_reason?: string }
+        Returns: undefined
+      }
       charge_due_appointments: { Args: never; Returns: number }
       claim_notifications: {
         Args: { p_ids: string[] }
@@ -508,6 +514,7 @@ export type Database = {
         | "booking_cancelled"
         | "credit_topup"
         | "credit_adjustment"
+        | "appointment_cancelled_by_trainer"
       transaction_type:
         | "topup"
         | "session"
@@ -659,6 +666,7 @@ export const Constants = {
         "booking_cancelled",
         "credit_topup",
         "credit_adjustment",
+        "appointment_cancelled_by_trainer",
       ],
       transaction_type: [
         "topup",

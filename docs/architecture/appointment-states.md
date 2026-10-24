@@ -5,8 +5,9 @@ job `charge_due_appointments()` moves it to `charged` at start time (ADR 0002). 
 `cancel()` before the cutoff is free (`cancelled`); after the cutoff and before the start it is
 `cancelled_late` and charged at cancel time. Once the appointment has started the customer can
 no longer cancel it. The trainer
-can cancel from `booked` or `charged` without charge (`cancelled_by_trainer`); from `charged` a
-`refund` transaction is inserted. A customer cannot cancel a `charged` appointment, and a
+can cancel from `booked` or `charged` without charge (`cancelled_by_trainer`), with an optional
+reason (`cancel_reason`); from `charged` a `refund` transaction is inserted. Every move into
+`cancelled_by_trainer` notifies the customer (ADR 0015). A customer cannot cancel a `charged` appointment, and a
 `cancelled_late` appointment cannot be cancelled again (the trainer waives the charge with
 `adjust(+1, note)`). A new appointment can also come from `materialize_recurring()` or
 `activate_rule()` (an instance of a recurring rule); deactivating the rule
@@ -19,8 +20,8 @@ stateDiagram-v2
     booked --> charged : charge_due_appointments() after start time (session -1)
     booked --> cancelled : customer cancel before cutoff (free)
     booked --> cancelled_late : customer cancel after cutoff, before start (late_cancel -1)
-    booked --> cancelled_by_trainer : trainer cancel or deactivate_rule() for future instances (no charge)
-    charged --> cancelled_by_trainer : trainer cancel (refund +1)
+    booked --> cancelled_by_trainer : trainer cancel or deactivate_rule() for future instances (no charge, customer notified)
+    charged --> cancelled_by_trainer : trainer cancel (refund +1, customer notified)
     cancelled --> [*]
     cancelled_late --> [*]
     cancelled_by_trainer --> [*]

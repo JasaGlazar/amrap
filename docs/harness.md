@@ -161,7 +161,7 @@ run, so test files do not create it.
 | `001_schema.sql` | tables, enums, keys, indexes, check constraints, the one-charge index, default privileges, `customer_balances` |
 | `002_rls.sql` | what a customer, the trainer, an unlinked auth user, `anon` and `service_role` can read and write directly |
 | `010_book.sql` | `book`: own-only for customers, template/weekday/time/future rules, blocked periods (start inside, overlap, adjacent end), capacity at the boundary, duplicates, trainer and ad-hoc bookings |
-| `011_cancel.sql` | `cancel`: the cutoff boundary ±1 min, started/charged/cancelled rejections, negative balance, trainer cancel and refund, a cancel freeing a full slot |
+| `011_cancel.sql` | `cancel`: the one signature with its optional reason, the cutoff boundary ±1 min, started/charged/cancelled rejections, negative balance, trainer cancel and refund, the reason (trimmed, blank, 200 and 201 characters, refused for a customer, the table's check), a cancel freeing a full slot |
 | `012_credits.sql` | `top_up` and `adjust`: trainer only, amount rules, ledger rows and balances |
 | `013_charge_job.sql` | `charge_due_appointments`: due rows charged once, idempotent second run, grants, charge vs late cancel |
 | `014_invites.sql` | `create_invite` and `accept_invite`: token format and expiry, single use, expired/superseded/unknown tokens, already linked users and records |
@@ -169,7 +169,7 @@ run, so test files do not create it.
 | `021_rules_and_jobs.sql` | `activate_rule` / `deactivate_rule`: trainer only, unknown rule, future booked instances cancelled and the rest untouched, immediate materialization, no recreation after reactivating, the any-status rule index; `slot_occupancy`: columns, owner-run, grants, counts for customer and trainer, nothing for an unlinked user or anon; pg_cron: both jobs in `cron.job`, materialization without a JWT |
 | `030_notifications.sql` | pg_net in `extensions`, the `notifications` table (unique per kind and appointment, closed to the API), push function grants, `push_config`, the queued `send-push` request, no request without ids or config, a failing pg_net call caught, `claim_notifications` once per notification and subscription |
 | `031_reminders.sql` | `send_cutoff_reminders`: the 45/75-minute window boundaries, statuses, unlinked and unsubscribed customers, one row per appointment, the request and its ids, second and overlapping runs, a late subscriber, a 0-hour cutoff, pruning, no config, no settings, grants, the schedule |
-| `032_event_notifications.sql` | the notification triggers: a customer booking and cancel notify the trainer (with `late`), top-up and adjustment notify the customer (with the balance); trainer bookings, materialization, trainer cancels, charges and refunds do not; one recipient with two trainers; no device, no account or no config records nothing; actions succeed and take effect when the notification fails (a failing `enqueue_notification`, a failed pg_net call that keeps the row undispatched, a direct failure inside `enqueue_notification`); `save_push_subscription` (move between accounts, forbidden, invalid, non-https, anon), the https-only endpoint constraint; function grants and the triggers |
+| `032_event_notifications.sql` | the notification triggers: a customer booking and cancel notify the trainer (with `late`), a trainer cancel notifies the customer (with `refunded` and the reason, and `deactivate_rule` once per instance), top-up and adjustment notify the customer (with the balance); trainer bookings, materialization, charges and refunds do not; one recipient with two trainers; no device, no account or no config records nothing; actions succeed and take effect when the notification fails (a failing `enqueue_notification`, a failed pg_net call that keeps the row undispatched, a direct failure inside `enqueue_notification`); `save_push_subscription` (move between accounts, forbidden, invalid, non-https, anon), the https-only endpoint constraint; function grants and the triggers |
 | `033_retention.sql` | `prune_cron_history`: the daily schedule, grants, cron runs 13 and 15 days old, one exactly 14 days old (kept), runs that never ended (by start), the returned count, a second run |
 
 Helpers in `supabase/seeds/test_helpers.sql` (schema `tests`, local only):
@@ -194,7 +194,9 @@ How to write a test:
 3. Compute expected rows, counts and balances from the fixtures before switching roles (for
    example into a temp table, `grant select` on it to `authenticated`), then switch with
    `tests.authenticate_as(...)` and compare (`set_eq`, `is`, `results_eq`). Never hardcode a
-   total: the dev seed data is present in the database while tests run.
+   total: the dev seed data is present in the database while tests run. A test whose
+   fixture slots must be bookable deletes `blocked_periods` first (`021`, `032`): a dev
+   database's blocked periods would block them, and the rollback restores them.
 4. Assert failures by SQLSTATE: `throws_ok(sql, '42501', null, ...)` for privilege and RLS
    insert violations, `'23505'` for unique, `'23514'` for check constraints. An update or
    delete blocked by RLS affects zero rows instead of failing: assert it with

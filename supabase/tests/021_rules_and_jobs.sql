@@ -34,6 +34,9 @@ with c as (
   insert into public.customers (name) values ('Rules C (no account)') returning id
 ) insert into fx select 'cust_c', id from c;
 
+-- Blocked periods in a dev database would skip fixture occurrences; this is rolled back.
+delete from public.blocked_periods;
+
 create temp table gym as
   select s.timezone as tz, (now() at time zone s.timezone)::date as today
   from public.settings s where s.id = 1;

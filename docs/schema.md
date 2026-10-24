@@ -19,6 +19,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `20261023214654_notifications_and_reminders.sql` | The `pg_net` extension (schema `extensions`); `notification_kind` enum; `notifications` table; `push_config()`, `dispatch_notifications()`, `claim_notifications()`, `send_cutoff_reminders()` and their grants; the `send_cutoff_reminders` schedule ([jobs.md](jobs.md), [notifications.md](notifications.md)). |
 | `20261023215339_event_notifications.sql` | `enqueue_notification()`, the trigger functions `notify_booking_created()`, `notify_booking_cancelled()`, `notify_credit_change()` and their triggers on `appointments` and `credit_transactions`; the https-only check on `push_subscriptions.endpoint`; `save_push_subscription()`; grants ([notifications.md](notifications.md#event-notifications)). |
 | `20261024193349_data_retention.sql` | `prune_cron_history()` and its grants; the `prune_cron_history` schedule that keeps the pg_cron run log to 14 days ([jobs.md](jobs.md), [ADR 0013](adr/0013-data-retention.md)). |
+| `20261024221416_trainer_cancel_reason.sql` | `appointments.cancel_reason` and its check; the `appointment_cancelled_by_trainer` notification kind; `cancel(uuid)` dropped and recreated as `cancel(uuid, text default null)` with the same grants; `notify_cancelled_by_trainer()` and its trigger ([rpcs.md](rpcs.md#cancel), [notifications.md](notifications.md#event-notifications), [ADR 0015](adr/0015-trainer-cancel-notifies-customer.md)). |
 
 ## Enums
 
@@ -28,7 +29,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `appointment_status` | `booked`, `charged`, `cancelled`, `cancelled_late`, `cancelled_by_trainer` |
 | `appointment_source` | `recurring`, `self_booked`, `trainer` |
 | `transaction_type` | `topup`, `session`, `late_cancel`, `refund`, `adjustment` |
-| `notification_kind` | `cutoff_reminder`, `booking_created`, `booking_cancelled`, `credit_topup`, `credit_adjustment` |
+| `notification_kind` | `cutoff_reminder`, `booking_created`, `booking_cancelled`, `credit_topup`, `credit_adjustment`, `appointment_cancelled_by_trainer` |
 
 ## Tables
 
@@ -97,6 +98,7 @@ One customer's reservation of a slot or an ad-hoc time.
 | `source` | appointment_source | not null |
 | `rule_id` | uuid | references `recurring_rules`; set for materialized appointments |
 | `cancelled_at` | timestamptz | |
+| `cancel_reason` | text | the trainer's reason for a `cancelled_by_trainer` appointment, else null; check: null or 1-200 characters with no leading or trailing whitespace (`cancel()` trims and turns blank into null) |
 | `created_at` | timestamptz | |
 
 Indexes:
@@ -221,6 +223,7 @@ Notification triggers (ADR 0009, [notifications.md](notifications.md#event-notif
 |---|---|---|---|
 | `appointments_notify_booking_created` | `appointments` | `after insert` when `new.source = 'self_booked'` | `notify_booking_created()` |
 | `appointments_notify_booking_cancelled` | `appointments` | `after update of status` when `old.status = 'booked'` and `new.status in ('cancelled', 'cancelled_late')` | `notify_booking_cancelled()` |
+| `appointments_notify_cancelled_by_trainer` | `appointments` | `after update of status` when `old.status in ('booked', 'charged')` and `new.status = 'cancelled_by_trainer'` | `notify_cancelled_by_trainer()` |
 | `credit_transactions_notify_credit_change` | `credit_transactions` | `after insert` when `new.type in ('topup', 'adjustment')` | `notify_credit_change()` |
 
 ## Views
