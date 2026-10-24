@@ -304,6 +304,32 @@ describe('trainer calendar', () => {
     expect(within(row).queryByRole('combobox')).not.toBeInTheDocument();
   });
 
+  it('disables the add button when every customer is already booked there', async () => {
+    db.tables.slot_templates = [{ ...todayTemplate, capacity: customers.length + 1 }];
+    db.tables.appointments = customers.map((customer) =>
+      appointment(`a-${customer.id}`, customer.id, 'booked'),
+    );
+    db.tables.slot_occupancy = [
+      {
+        slot_template_id: todayTemplate.id,
+        starts_at: postgrestTime(startsAt),
+        booked_count: customers.length,
+      },
+    ];
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    expect(within(row).getByRole('button', { name: t.trainer.noneToAdd })).toBeDisabled();
+  });
+
+  it('disables the add button while there are no customers at all', async () => {
+    db.tables.customers = [];
+    db.tables.appointments = [];
+    db.tables.slot_occupancy = [];
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    expect(within(row).getByRole('button', { name: t.trainer.noneToAdd })).toBeDisabled();
+  });
+
   it('disables the add button with Zaprto when the occurrence is blocked', async () => {
     db.tables.blocked_periods = [
       {

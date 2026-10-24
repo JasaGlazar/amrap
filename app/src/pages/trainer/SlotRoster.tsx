@@ -57,6 +57,7 @@ function AddControl({ add, choices }: { add: Add; choices: Customer[] }) {
 export function SlotRoster({ appointments, names, onCancel, add }: Props) {
   const bookedIds = new Set(appointments.map((appointment) => appointment.customerId));
   const choices = add?.customers.filter((customer) => !bookedIds.has(customer.id)) ?? [];
+  const reason = add?.unavailable ?? (choices.length === 0 ? t.trainer.noneToAdd : null);
 
   return (
     <div className="roster">
@@ -85,11 +86,11 @@ export function SlotRoster({ appointments, names, onCancel, add }: Props) {
       )}
       {add !== undefined && (
         <OnDemand
-          label={add.unavailable ?? t.trainer.addCustomer}
+          label={reason ?? t.trainer.addCustomer}
           className="button secondary small"
-          add={add.unavailable === null}
-          disabled={add.unavailable !== null || add.pending}
-          open={add.open && add.unavailable === null}
+          add={reason === null}
+          disabled={reason !== null || add.pending}
+          open={add.open && reason === null}
           onOpen={add.onOpen}
         >
           <AddControl add={add} choices={choices} />

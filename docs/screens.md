@@ -152,8 +152,10 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   reload shows the occurrence full or blocked now: then the control closes into the disabled
   button). When the
   occurrence cannot take anyone, the button is disabled and says why instead: **Zaprto**
-  (`calendar.blocked`, it overlaps a blocked period) or **Polno** (`calendar.full`, no free
-  place). Past occurrences keep the button (the trainer records a session after the fact).
+  (`calendar.blocked`, it overlaps a blocked period), **Polno** (`calendar.full`, no free
+  place) or **Ni strank za dodajanje** (`trainer.noneToAdd`: every customer is already booked
+  there, or there are no customers yet, as on the first day before Stranke is filled in). A
+  reload that leaves any of these closes an open control. Past occurrences keep the button (the trainer records a session after the fact).
 - **Termini zunaj urnika:** the week's live appointments that match no shown occurrence
   (`appointmentsOutsideSlots`): ad-hoc ones (`po dogovoru`) and bookings left behind by a
   deactivated or moved template (`ni več v urniku`), with day, time range and name, each with

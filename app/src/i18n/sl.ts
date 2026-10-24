@@ -250,6 +250,7 @@ export const sl = {
     nobodyBooked: 'Ni prijavljenih strank.',
     chargedTag: 'opravljeno',
     addCustomer: 'Dodaj stranko',
+    noneToAdd: 'Ni strank za dodajanje',
     addTo: 'Stranka za termin {when}',
     chooseCustomer: 'Izberi stranko',
     add: 'Dodaj',
