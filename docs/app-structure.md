@@ -15,6 +15,7 @@ screens are in [screens.md](screens.md), sign-in and role gating in [auth.md](au
 | `src/pages/` | One component per screen or state page. The shells (`CustomerPages.tsx`, `TrainerPages.tsx`) use `AppShell`: a top bar with the app name and a sign-out link, the install card, the page, and a fixed bottom navigation bar. Customer screens are in `pages/customer/`, trainer screens in `pages/trainer/`; the pieces several screens use (`WeekNav`, `WeekSlots`, `CancelDialog`, `LedgerList`, `Amount`, `NoticeLine`, `PushToggle`, `InstallCard`) are in `pages/shared/` ([screens.md](screens.md#customer-screens)). |
 | `src/i18n/` | `sl.ts` (all copy), `errors.ts` (`fromError`), `fill.ts` (`fill` for `{name}` placeholders, `formatTimeUntil`, `plural`, the signed numbers `formatAmount` and `formatBalance`), `index.ts` (exports `t` and the helpers). |
 | `src/install/` | Install onboarding: the `beforeinstallprompt` capture and store, the install mode, the per-device dismissal ([Install onboarding](#install-onboarding)). |
+| `src/theme/` | The per-device theme preference and applying it to the page ([Theme](#theme)). |
 | `src/push/` | Web push in the browser: `render.ts` (notification copy, used by the service worker), `support.ts`, `browser.ts`, `subscribe.ts` ([notifications.md](notifications.md#subscribing-in-the-app)). |
 | `src/sw.ts` | The service worker: precache, outdated-cache cleanup, `index.html` for navigations, self-update, push and notification click ([notifications.md](notifications.md#service-worker)). Type-checked by `tsconfig.sw.json` with the `WebWorker` lib and left out of `tsconfig.app.json` and `tsconfig.test.json`. |
 | `src/lib/` | `supabase.ts` (the one client; retries a `PGRST303` answer once, [auth.md](auth.md#token-refused-as-issued-in-the-future)), `database.types.ts` (generated), `keepAlive.ts`, `time.ts` ([time.md](time.md)), `useLoad.ts`, `device.ts` (`deviceEnvironment()`: iOS, Android, standalone; used by push support and the install card). |
@@ -46,6 +47,23 @@ What the install card shows is in [screens.md](screens.md#install-card). The cod
   `window.localStorage`) and `InstallContext`, whose default is `installPlatform`.
 - `useInstall.ts`: `useInstall()` → `{ mode, cardShown, install, dismiss }`, used by
   `InstallCard` and by `PushToggle` (the iOS hint depends on whether the card is shown).
+
+## Theme
+
+Colours, the two themes and their contrast are in
+[screens.md](screens.md#behaviour-shared-by-all-screens) and
+[ADR 0010](adr/0010-visual-identity-and-themes.md). The preference is per device:
+
+- `src/theme/theme.ts`: `readTheme(storage)` / `saveTheme(storage, theme)` over
+  `amrap.theme` in `localStorage` (`system | light | dark`; anything else reads as `system`),
+  every access in try/catch like the install flags, so a browser that blocks storage simply
+  follows the system. `applyTheme(document, theme)` sets `<html data-theme>` for `light` and
+  `dark`, removes it for `system`, and sets both `<meta name="theme-color">` tags to the
+  chosen theme's paper (for `system`, each tag gets the paper of its own
+  `prefers-color-scheme` media query).
+- `index.html` has a small inline script that does the same from storage before the first
+  paint, so a stored dark theme never flashes white. `theme.test.ts` runs that script in jsdom,
+  so the two copies cannot drift apart.
 
 ## i18n rule
 
