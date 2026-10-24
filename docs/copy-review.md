@@ -211,6 +211,7 @@ is a question below.
 | `cancelDialog.done` | Termin je odpovedan. |  |
 | `cancelDialog.noCharge` | Stranki se kredit ne zaračuna. |  |
 | `cancelDialog.refund` | Odpoved z vračilom: stranki se vrne 1 kredit. |  |
+| `cancelDialog.reason` | Razlog (neobvezno) | Novo (Stage 11): polje le v trenerjevem oknu za odpoved; razlog dobi stranka v obvestilu in ga vidi v zgodovini. |
 
 ### Stranka: Zgodovina
 
@@ -220,6 +221,7 @@ is a question below.
 | `history.noAppointments` | Ni preteklih terminov. |  |
 | `history.ledgerTitle` | Krediti |  |
 | `history.noTransactions` | Ni transakcij. | »Ni transakcij« je tehnično. Predlog: »Ni sprememb kreditov.« |
+| `history.reason` | Razlog: {reason} | Novo (Stage 11): pod datumom termina, ki ga je trener odpovedal z razlogom (stranka v Zgodovini, trener pri stranki). |
 | `appointmentStatus.booked` | Rezervirano |  |
 | `appointmentStatus.charged` | Opravljeno | Termin, ki je bil zaračunan, je označen »Opravljeno«, tudi če stranka ni prišla. Raje »Zaračunano«? |
 | `appointmentStatus.cancelled` | Odpovedano |  |
@@ -344,6 +346,7 @@ is a question below.
 | `customerDetail.recentTitle` | Opravljeni termini (zadnjih {days} dni) |  |
 | `customerDetail.noRecent` | V tem obdobju ni opravljenih terminov. |  |
 | `customerDetail.refund` | Vrni kredit | Gumb pri opravljenem terminu: odpove termin in stranki vrne kredit. Novo (prej »Odpovej«, kot pri prihajajočih). V redu? |
+| `customerDetail.historyTitle` | Zgodovina terminov | Novo (Stage 11): vsi pretekli in odpovedani termini stranke s stanjem in razlogom odpovedi, kot jih vidi stranka. |
 | `customerDetail.ledgerTitle` | Zgodovina kreditov |  |
 
 ### Trener: Nastavitve

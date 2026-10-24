@@ -16,6 +16,7 @@ import {
   zonedInstant,
   type LocalDate,
 } from '../../lib/time';
+import { CANCEL_REASON_MAX } from '../../data/appointments';
 import { routes } from '../../routes';
 import {
   db,
@@ -429,6 +430,40 @@ describe('trainer calendar', () => {
     await userEvent.click(within(row).getByRole('button', { name: t.slot.cancel }));
     const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
     expect(dialog).toHaveTextContent(t.cancelDialog.noCharge);
+    await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', { p_appointment_id: 'a-ana' });
+  });
+
+  it('offers an optional reason that phones do not autofill, as long as the database allows', async () => {
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await userEvent.click(within(row).getByRole('button', { name: t.slot.cancel }));
+    const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
+    const reason = within(dialog).getByLabelText(t.cancelDialog.reason);
+    expect(reason).toHaveAttribute('autocomplete', 'off');
+    expect(reason).toHaveAttribute('maxlength', String(CANCEL_REASON_MAX));
+    expect(reason).toHaveValue('');
+  });
+
+  it('passes the trimmed reason to cancel', async () => {
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await userEvent.click(within(row).getByRole('button', { name: t.slot.cancel }));
+    const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
+    await userEvent.type(within(dialog).getByLabelText(t.cancelDialog.reason), '  Bolezen  ');
+    await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', {
+      p_appointment_id: 'a-ana',
+      p_reason: 'Bolezen',
+    });
+  });
+
+  it('sends no reason when the field holds only spaces', async () => {
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await userEvent.click(within(row).getByRole('button', { name: t.slot.cancel }));
+    const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
+    await userEvent.type(within(dialog).getByLabelText(t.cancelDialog.reason), '   ');
     await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', { p_appointment_id: 'a-ana' });
   });

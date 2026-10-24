@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react';
-import { cancel, type Appointment } from '../../data/appointments';
+import { cancel, CANCEL_REASON_MAX, type Appointment } from '../../data/appointments';
 import type { GymSettings } from '../../data/settings';
 import { fill, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
@@ -30,6 +30,7 @@ export function CancelDialog({
   const [free, setFree] = useState(() => isFreeCancel(startsAt, lateCancelHours, new Date()));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [reason, setReason] = useState('');
   const cutoff = cutoffOf(startsAt, lateCancelHours);
 
   useModal(dialogRef, onClose);
@@ -41,7 +42,7 @@ export function CancelDialog({
       return;
     }
     setBusy(true);
-    const result = await cancel(supabase, appointment.id);
+    const result = await cancel(supabase, appointment.id, reason);
     setBusy(false);
     if (result.ok) onCancelled();
     else setError(result.message);
@@ -66,9 +67,20 @@ export function CancelDialog({
         </p>
         {customerName !== undefined && <p className="dialog-name">{customerName}</p>}
         {asTrainer ? (
-          <p className={appointment.status === 'charged' ? 'notice late' : 'notice'}>
-            {appointment.status === 'charged' ? t.cancelDialog.refund : t.cancelDialog.noCharge}
-          </p>
+          <>
+            <p className={appointment.status === 'charged' ? 'notice late' : 'notice'}>
+              {appointment.status === 'charged' ? t.cancelDialog.refund : t.cancelDialog.noCharge}
+            </p>
+            <label className="dialog-field">
+              {t.cancelDialog.reason}
+              <input
+                autoComplete="off"
+                maxLength={CANCEL_REASON_MAX}
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+              />
+            </label>
+          </>
         ) : (
           <>
             <p>

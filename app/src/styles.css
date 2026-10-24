@@ -741,7 +741,8 @@ input[type='checkbox'] {
   line-height: 1;
 }
 
-.ledger-main {
+.ledger-main,
+.row-stack {
   display: flex;
   flex-direction: column;
 }
@@ -902,6 +903,14 @@ select {
 
 .dialog-name {
   font-weight: 700;
+}
+
+.dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-3);
+  font-weight: 600;
 }
 
 .row-link {

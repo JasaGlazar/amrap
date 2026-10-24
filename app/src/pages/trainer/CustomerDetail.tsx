@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
-import { chargedSince, upcomingAppointments, type Appointment } from '../../data/appointments';
+import {
+  chargedSince,
+  pastAppointments,
+  upcomingAppointments,
+  type Appointment,
+} from '../../data/appointments';
 import type { ActionResult } from '../../data/client';
 import { adjust, balanceOf, ledgerOf, topUp } from '../../data/credits';
 import { createInvite, getCustomer, inviteStatus, updateCustomer } from '../../data/customers';
@@ -11,6 +16,7 @@ import { fill, formatBalance, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { formatLongDay, formatTime, weekdayName } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
+import { AppointmentHistory } from '../shared/AppointmentHistory';
 import { CancelDialog } from '../shared/CancelDialog';
 import { LedgerList } from '../shared/LedgerList';
 import { NoticeLine, type Notice } from '../shared/NoticeLine';
@@ -26,7 +32,7 @@ export function TrainerCustomerDetail() {
   const load = useCallback(async () => {
     const now = new Date();
     const since = new Date(now.getTime() - RECENT_DAYS * 86_400_000);
-    const [customer, settings, balance, ledger, upcoming, recent, rules, templates] =
+    const [customer, settings, balance, ledger, upcoming, recent, past, rules, templates] =
       await Promise.all([
         getCustomer(supabase, id),
         getSettings(supabase),
@@ -34,10 +40,23 @@ export function TrainerCustomerDetail() {
         ledgerOf(supabase, id),
         upcomingAppointments(supabase, id, now),
         chargedSince(supabase, id, since),
+        pastAppointments(supabase, id, now),
         rulesOf(supabase, id),
         allTemplates(supabase),
       ]);
-    return { now, since, customer, settings, balance, ledger, upcoming, recent, rules, templates };
+    return {
+      now,
+      since,
+      customer,
+      settings,
+      balance,
+      ledger,
+      upcoming,
+      recent,
+      past,
+      rules,
+      templates,
+    };
   }, [id]);
   const [state, reload] = useLoad(load);
   const location = useLocation();
@@ -114,8 +133,19 @@ export function TrainerCustomerDetail() {
     );
   }
 
-  const { now, since, customer, settings, balance, ledger, upcoming, recent, rules, templates } =
-    state.data;
+  const {
+    now,
+    since,
+    customer,
+    settings,
+    balance,
+    ledger,
+    upcoming,
+    recent,
+    past,
+    rules,
+    templates,
+  } = state.data;
   const { timeZone } = settings;
   const status = inviteStatus(customer, now);
   const shownToken = inviteToken ?? (status === 'pending' ? customer.inviteToken : null);
@@ -357,6 +387,14 @@ export function TrainerCustomerDetail() {
           }
         </PagedList>,
       )}
+      <section aria-label={t.customerDetail.historyTitle}>
+        <h2>{t.customerDetail.historyTitle}</h2>
+        <PagedList first={past} fetchPage={(from) => pastAppointments(supabase, id, now, from)}>
+          {(rows, rowRef) => (
+            <AppointmentHistory appointments={rows} timeZone={timeZone} rowRef={rowRef} />
+          )}
+        </PagedList>
+      </section>
       <section aria-label={t.customerDetail.ledgerTitle}>
         <h2>{t.customerDetail.ledgerTitle}</h2>
         <PagedList first={ledger} fetchPage={(from) => ledgerOf(supabase, id, from)}>

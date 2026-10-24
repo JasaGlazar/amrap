@@ -47,8 +47,11 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 `inviteStatus(customer, now)` derives a customer's invite status: `linked` (an auth user is
 linked), `pending` (an invite token that has not expired) or `none`.
 
-Appointments carry `customerId`, `slotTemplateId` (null for ad hoc), `startsAt`, `endsAt` and
-`status`.
+Appointments carry `customerId`, `slotTemplateId` (null for ad hoc), `startsAt`, `endsAt`,
+`status` and `cancelReason` (the trainer's reason, or null).
+
+`CANCEL_REASON_MAX` (200) is the longest reason `cancel()` and the table accept; the reason
+fields use it as `maxLength`.
 
 ## Paged reads
 
@@ -92,7 +95,7 @@ already history.
 |---|---|---|
 | `book(client, { customerId, startsAt, slotTemplateId })` | `book` | `p_customer_id`, `p_starts_at` (`startsAt.toISOString()`), `p_slot_template_id` |
 | `book(client, { customerId, startsAt, endsAt })` | `book` | ad hoc (trainer): `p_customer_id`, `p_starts_at`, `p_ends_at`, no template |
-| `cancel(client, appointmentId)` | `cancel` | `p_appointment_id` |
+| `cancel(client, appointmentId, reason?)` | `cancel` | `p_appointment_id`, plus `p_reason` (trimmed) only when the reason is not blank, so a customer's call never carries one |
 | `topUp(client, customerId, amount, note)` | `top_up` | `p_customer_id`, `p_amount`, `p_note` (omitted when null) |
 | `adjust(client, customerId, amount, note)` | `adjust` | same as `topUp` |
 | `createInvite(client, customerId)` | `create_invite` | `p_customer_id`; `data` is the token |

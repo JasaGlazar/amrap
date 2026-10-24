@@ -1,6 +1,8 @@
 import { runAction, type ActionResult, type AppointmentStatus, type Client } from './client';
 import { pageRange, toPage, type Page } from './page';
 
+export const CANCEL_REASON_MAX = 200;
+
 export type Appointment = {
   id: string;
   customerId: string;
@@ -8,9 +10,10 @@ export type Appointment = {
   startsAt: Date;
   endsAt: Date;
   status: AppointmentStatus;
+  cancelReason: string | null;
 };
 
-const columns = 'id, customer_id, slot_template_id, starts_at, ends_at, status';
+const columns = 'id, customer_id, slot_template_id, starts_at, ends_at, status, cancel_reason';
 
 type Row = {
   id: string;
@@ -19,6 +22,7 @@ type Row = {
   starts_at: string;
   ends_at: string;
   status: AppointmentStatus;
+  cancel_reason: string | null;
 };
 
 function toAppointment(row: Row): Appointment {
@@ -29,6 +33,7 @@ function toAppointment(row: Row): Appointment {
     startsAt: new Date(row.starts_at),
     endsAt: new Date(row.ends_at),
     status: row.status,
+    cancelReason: row.cancel_reason ?? null,
   };
 }
 
@@ -107,9 +112,15 @@ export function book(client: Client, booking: Booking): Promise<ActionResult<str
   );
 }
 
-export function cancel(client: Client, appointmentId: string): Promise<ActionResult> {
+export function cancel(client: Client, appointmentId: string, reason = ''): Promise<ActionResult> {
+  const trimmed = reason.trim();
   return runAction(async () => {
-    const { error } = await client.rpc('cancel', { p_appointment_id: appointmentId });
+    const { error } = await client.rpc(
+      'cancel',
+      trimmed === ''
+        ? { p_appointment_id: appointmentId }
+        : { p_appointment_id: appointmentId, p_reason: trimmed },
+    );
     return { data: undefined, error };
   });
 }

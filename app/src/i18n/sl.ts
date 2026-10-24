@@ -102,12 +102,14 @@ export const sl = {
     done: 'Termin je odpovedan.',
     noCharge: 'Stranki se kredit ne zaračuna.',
     refund: 'Odpoved z vračilom: stranki se vrne 1 kredit.',
+    reason: 'Razlog (neobvezno)',
   },
   history: {
     appointmentsTitle: 'Termini',
     noAppointments: 'Ni preteklih terminov.',
     ledgerTitle: 'Krediti',
     noTransactions: 'Ni transakcij.',
+    reason: 'Razlog: {reason}',
   },
   customers: {
     newTitle: 'Nova stranka',
@@ -195,6 +197,7 @@ export const sl = {
     recentTitle: 'Opravljeni termini (zadnjih {days} dni)',
     noRecent: 'V tem obdobju ni opravljenih terminov.',
     refund: 'Vrni kredit',
+    historyTitle: 'Zgodovina terminov',
     ledgerTitle: 'Zgodovina kreditov',
   },
   settings: {
