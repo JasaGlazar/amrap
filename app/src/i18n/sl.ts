@@ -22,11 +22,11 @@ export const sl = {
     title: 'Prijava',
     email: 'E-poštni naslov',
     password: 'Geslo',
-    submit: 'Prijava',
+    submit: 'Prijavi se',
     submitting: 'Prijavljanje …',
   },
   invite: {
-    title: 'Ustvari račun',
+    title: 'Nov račun',
     intro: 'Z računom boste lahko rezervirali termine in spremljali svoje kredite.',
     email: 'E-poštni naslov',
     password: 'Geslo',

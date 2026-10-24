@@ -47,6 +47,8 @@ is a question below.
 | `pushToggle.needsInstall` | … tapnite Deli, nato Dodaj na začetni zaslon, in aplikacijo odprite … | … tapnite »Deli« in nato »Dodaj na začetni zaslon«, potem pa aplikacijo odprite … | No comma before "in"; quoted names, as in the install card |
 | `errors.AMRAP_ALREADY_BOOKED` | Za ta termin ste že rezervirani. | Rezervacija za ta termin že obstaja. | Calque ("rezervirani" are slots, not people), and the trainer sees it too when adding a customer |
 | `errors.AMRAP_CAPACITY_FULL` | Ta termin je že zaseden. | Ta termin je že poln. | Same word as the calendar's "Polno" |
+| `login.submit` | Prijava | Prijavi se | Stage 5: the page said "Prijava" twice (heading and button); the button names the action |
+| `invite.title` | Ustvari račun | Nov račun | Stage 5: heading and button were the same; the heading names the page, the button keeps the action |
 | `customerDetail.refund` (new) | Odpovej (`slot.cancel`) | Vrni kredit | Stage 5: on a charged session the action cancels with a refund; "Odpovej" hid that |
 
 ## Open questions for the trainer
@@ -69,7 +71,7 @@ is a question below.
 | `login.title` | Prijava |  |
 | `login.email` | E-poštni naslov |  |
 | `login.password` | Geslo |  |
-| `login.submit` | Prijava | Gumb »Prijava« ali »Prijavi se«? |
+| `login.submit` | Prijavi se | Spremenjeno (prej »Prijava«, enako kot naslov). V redu? |
 | `login.submitting` | Prijavljanje … |  |
 | `authErrors.invalid_credentials` | Napačen e-poštni naslov ali geslo. |  |
 | `authErrors.user_already_exists` | Račun s tem e-poštnim naslovom že obstaja. |  |
@@ -81,7 +83,7 @@ is a question below.
 
 | Ključ | Besedilo | Vprašanje |
 |---|---|---|
-| `invite.title` | Ustvari račun | Naslov »Ustvari račun« ali vljudno »Ustvarite račun«? |
+| `invite.title` | Nov račun | Spremenjeno (prej »Ustvari račun«, enako kot gumb). V redu? |
 | `invite.intro` | Z računom boste lahko rezervirali termine in spremljali svoje kredite. |  |
 | `invite.email` | E-poštni naslov |  |
 | `invite.password` | Geslo |  |

@@ -9,8 +9,8 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 
 | Route | Who | Purpose | Strings | Status |
 |---|---|---|---|---|
-| `/login` | anyone; a signed-in user is sent to `/` | Email and password sign-in. A failed sign-in shows `authErrors` copy. | `login`, `authErrors` | Stage 1 |
-| `/invite/:token` | anyone | Sign-up from an invite link: email, password, confirm password. Creates the auth user (or signs in when that account already exists but is unlinked), calls `accept_invite(token)`, reloads the customer record and goes to `/`. A rejected invite shows its `errors.AMRAP_*` copy. | `invite`, `errors`, `authErrors` | Stage 1 |
+| `/login` | anyone; a signed-in user is sent to `/` | Email and password sign-in: heading **Prijava**, button **Prijavi se** (a heading and its button never say the same thing). A failed sign-in shows `authErrors` copy. | `login`, `authErrors` | Stage 1 |
+| `/invite/:token` | anyone | Sign-up from an invite link (heading **Nov račun**, button **Ustvari račun**): email, password, confirm password. Creates the auth user (or signs in when that account already exists but is unlinked), calls `accept_invite(token)`, reloads the customer record and goes to `/`. A rejected invite shows its `errors.AMRAP_*` copy. | `invite`, `errors`, `authErrors` | Stage 1 |
 | `/logout` | anyone | Removes this device's push subscription (best effort), signs out and redirects to `/login` (a route loader). If signing out fails it stays and shows the error with a continue link. | `logoutFailed`, `common.continue`, `genericError` | Stage 1, push Stage 3 |
 | `/` | signed in | Redirects to `/t` for the trainer or `/c` for a customer. | none | Stage 1 |
 | (any route below `/`) | signed in, customer lookup failed | Error page with a retry button and a sign-out link to `/logout`. | `lookupFailed`, `common.signOut` | Stage 1 |

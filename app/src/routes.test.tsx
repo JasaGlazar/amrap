@@ -53,6 +53,16 @@ describe('unauthenticated visitor', () => {
     await screen.findByRole('heading', { name: t.invite.title });
     expect(router.state.location.pathname).toBe('/invite/abc');
   });
+
+  it.each([
+    ['/login', t.login.title, t.login.submit],
+    ['/invite/abc', t.invite.title, t.invite.submit],
+  ])('does not repeat the heading of %s on its submit button', async (path, title, submit) => {
+    renderAt(path);
+    const heading = await screen.findByRole('heading', { name: title });
+    const button = screen.getByRole('button', { name: submit });
+    expect(button.textContent).not.toBe(heading.textContent);
+  });
 });
 
 describe('role gating', () => {
