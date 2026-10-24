@@ -6,7 +6,14 @@ import { fill, formatBalance, t } from '../../i18n';
 import { weekdayName } from '../../lib/time';
 import { routes } from '../../routes';
 import { RECENT_DAYS } from './CustomerDetail';
-import { db, fakeSupabase, makeCustomer, makeSession, resetFake } from '../../test/fakeSupabase';
+import {
+  db,
+  fakeSupabase,
+  holdTable,
+  makeCustomer,
+  makeSession,
+  resetFake,
+} from '../../test/fakeSupabase';
 
 vi.mock('../../lib/supabase', async () => ({
   supabase: (await import('../../test/fakeSupabase')).fakeSupabase,
@@ -55,6 +62,17 @@ beforeEach(() => {
 });
 
 describe('customer list', () => {
+  it('keeps Prekliči disabled while the new customer is being saved', async () => {
+    renderAt('/t/stranke');
+    const form = await openNewCustomer();
+    await userEvent.type(within(form).getByLabelText(t.customers.name), 'Dora');
+    const release = holdTable('customers');
+    await userEvent.click(within(form).getByRole('button', { name: t.customers.create }));
+    expect(within(form).getByRole('button', { name: t.common.cancel })).toBeDisabled();
+    release();
+    expect(await screen.findByRole('heading', { name: 'Dora' })).toBeVisible();
+  });
+
   it('lists customers by name with invite status and balance, negative in red', async () => {
     renderAt('/t/stranke');
     const list = await screen.findByRole('region', { name: t.customers.listTitle });
@@ -210,6 +228,36 @@ describe('customer list', () => {
 });
 
 describe('customer detail', () => {
+  it('keeps Prekliči disabled while the details are being saved', async () => {
+    renderAt(`/t/stranke/${cvet.id}`);
+    const section = await screen.findByRole('region', { name: t.customerDetail.detailsTitle });
+    await userEvent.click(
+      within(section).getByRole('button', { name: t.customerDetail.editDetails }),
+    );
+    const form = within(section).getByRole('form', { name: t.customerDetail.editDetails });
+    const release = holdTable('customers');
+    await userEvent.click(within(form).getByRole('button', { name: t.customerDetail.save }));
+    expect(within(form).getByRole('button', { name: t.common.cancel })).toBeDisabled();
+    release();
+    await waitFor(() => expect(form).not.toBeInTheDocument());
+  });
+
+  it('keeps Prekliči disabled while a recurring rule is being added', async () => {
+    renderAt(`/t/stranke/${ana.id}`);
+    const rules = await screen.findByRole('region', { name: t.customerDetail.rulesTitle });
+    await userEvent.click(within(rules).getByRole('button', { name: t.customerDetail.addRule }));
+    const form = within(rules).getByRole('form', { name: t.customerDetail.addRuleLabel });
+    await userEvent.selectOptions(
+      within(form).getByLabelText(t.customerDetail.ruleTemplate),
+      template.id,
+    );
+    const release = holdTable('recurring_rules');
+    await userEvent.click(within(form).getByRole('button', { name: t.customerDetail.addRule }));
+    expect(within(form).getByRole('button', { name: t.common.cancel })).toBeDisabled();
+    release();
+    await waitFor(() => expect(form).not.toBeInTheDocument());
+  });
+
   beforeEach(() => {
     db.tables.credit_transactions = [
       {

@@ -177,6 +177,9 @@ vi.mock('./lib/supabase', async () => ({
   future booked appointments) and `save_push_subscription` (upserts the signed-in user's row by
   endpoint). Any other RPC throws unless a test mocks it. Tests mock a rejection with
   `mockResolvedValueOnce({ data: null, error: { message: 'AMRAP_…: detail' } })`.
+- `holdTable(table)` holds every read and write of that table (`then`, `single`,
+  `maybeSingle`) until the returned function is called, to test what a screen shows while a
+  request runs; `resetFake` drops any hold.
 - `resetFake({ session?, customer? })` in `beforeEach` clears the state (tables empty, default
   settings) and the mocks and optionally starts signed in. `onAuthStateChange` delivers
   `INITIAL_SESSION` on a microtask, like the real client.

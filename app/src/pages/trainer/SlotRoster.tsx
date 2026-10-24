@@ -42,7 +42,12 @@ function AddControl({ add, choices }: { add: Add; choices: Customer[] }) {
       >
         {t.trainer.add}
       </button>
-      <button type="button" className="button secondary small" onClick={add.onClose}>
+      <button
+        type="button"
+        className="button secondary small"
+        disabled={add.pending}
+        onClick={add.onClose}
+      >
         {t.common.cancel}
       </button>
     </div>

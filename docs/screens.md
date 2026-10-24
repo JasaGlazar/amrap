@@ -310,7 +310,9 @@ occurrence of the trainer calendar (a small secondary button at the right of the
   above the list; focus moves to the form's first field. The form has **Prekliči** next to
   its submit button (`settings.cancelEdit` in Nastavitve, `common.cancel` elsewhere).
 - **Prekliči** closes it, drops what was typed (the next open starts empty) and returns focus
-  to the button.
+  to the button. It is disabled, like the submit button, while a save or the count before one
+  (stranded or overlapping bookings) runs, so a late answer never lands on a closed or
+  reopened form.
 - **A successful save** closes it, returns focus to the button and shows the screen's usual
   result notice (`settings.saved`, `trainer.added`, …); **Nova stranka** opens the new
   customer's page instead. A rejected save or a warning that asks for a second

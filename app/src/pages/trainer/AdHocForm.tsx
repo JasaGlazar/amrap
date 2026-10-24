@@ -74,7 +74,7 @@ export function AdHocForm({
         <button type="submit" className="button" disabled={disabled}>
           {t.trainer.adHocSubmit}
         </button>
-        <button type="button" className="button secondary" onClick={onCancel}>
+        <button type="button" className="button secondary" disabled={disabled} onClick={onCancel}>
           {t.common.cancel}
         </button>
       </div>

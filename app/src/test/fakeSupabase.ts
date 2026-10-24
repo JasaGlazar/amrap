@@ -46,6 +46,7 @@ export const db: {
   settingsError: { message: string } | null;
   customersError: { message: string } | null;
   readErrors: Record<string, { message: string }>;
+  held: Record<string, Promise<void>>;
   tables: Tables;
 } = {
   session: null,
@@ -55,8 +56,20 @@ export const db: {
   settingsError: null,
   customersError: null,
   readErrors: {},
+  held: {},
   tables: emptyTables(),
 };
+
+export function holdTable(table: string): () => void {
+  let release = () => {};
+  db.held[table] = new Promise((resolve) => {
+    release = resolve;
+  });
+  return () => {
+    delete db.held[table];
+    release();
+  };
+}
 
 function defaultSettings() {
   return { id: 1, late_cancel_hours: 5, timezone: 'Europe/Ljubljana' };
@@ -246,14 +259,13 @@ function makeQuery(table: string): Query {
       write = { kind: 'delete' };
       return query;
     },
-    single: () => {
+    single: async () => {
+      await db.held[table];
       const result = rows();
       const first = Array.isArray(result.data) ? result.data[0] : result.data;
-      return Promise.resolve(
-        first === undefined || first === null
-          ? { data: null, error: { message: 'fakeSupabase: no row for single()' } }
-          : { data: first, error: result.error },
-      );
+      return first === undefined || first === null
+        ? { data: null, error: { message: 'fakeSupabase: no row for single()' } }
+        : { data: first, error: result.error };
     },
     eq: where('eq'),
     neq: where('neq'),
@@ -277,12 +289,14 @@ function makeQuery(table: string): Query {
       limit = count;
       return query;
     },
-    maybeSingle: () => {
+    maybeSingle: async () => {
+      await db.held[table];
       const result = rows();
       const data = Array.isArray(result.data) ? (result.data[0] ?? null) : result.data;
-      return Promise.resolve({ data, error: result.error });
+      return { data, error: result.error };
     },
-    then: (onFulfilled, onRejected) => Promise.resolve(rows()).then(onFulfilled, onRejected),
+    then: (onFulfilled, onRejected) =>
+      (db.held[table] ?? Promise.resolve()).then(rows).then(onFulfilled, onRejected),
   };
   return query;
 }
@@ -430,6 +444,7 @@ export function resetFake(initial: { session?: Session; customer?: CustomerRow |
   db.settingsError = null;
   db.customersError = null;
   db.readErrors = {};
+  db.held = {};
   listeners.clear();
 
   fakeSupabase.auth.onAuthStateChange.mockReset().mockImplementation((listener: AuthListener) => {

@@ -34,7 +34,7 @@ export function RuleForm({ options, busy, onSubmit, onCancel }: Props) {
         <button type="submit" className="button" disabled={busy || chosen === ''}>
           {t.customerDetail.addRule}
         </button>
-        <button type="button" className="button secondary" onClick={onCancel}>
+        <button type="button" className="button secondary" disabled={busy} onClick={onCancel}>
           {t.common.cancel}
         </button>
       </div>

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fill, plural, t } from '../../i18n';
 import { weekdayName } from '../../lib/time';
 import { routes } from '../../routes';
-import { db, makeCustomer, makeSession, resetFake } from '../../test/fakeSupabase';
+import { db, holdTable, makeCustomer, makeSession, resetFake } from '../../test/fakeSupabase';
 
 vi.mock('../../lib/supabase', async () => ({
   supabase: (await import('../../test/fakeSupabase')).fakeSupabase,
@@ -54,6 +54,16 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('slot templates', () => {
+  it('keeps Prekliči disabled while a new template is being saved', async () => {
+    const form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '18:00' });
+    const release = holdTable('slot_templates');
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+    expect(within(form).getByRole('button', { name: t.settings.cancelEdit })).toBeDisabled();
+    release();
+    await waitFor(() => expect(form).not.toBeInTheDocument());
+  });
+
   it('shows Nov termin as a button until it is pressed, then the form with focus in it', async () => {
     renderSettings('urnik');
     const button = await screen.findByRole('button', { name: t.settings.newTemplate });
@@ -247,6 +257,21 @@ describe('cutoff', () => {
 });
 
 describe('blocked periods', () => {
+  it('keeps Prekliči disabled while the overlapping bookings are counted', async () => {
+    const form = await newBlockedForm();
+    await fillTemplate(form, {
+      [t.settings.fromDate]: '2026-12-24',
+      [t.settings.fromTime]: '00:00',
+      [t.settings.toDate]: '2026-12-27',
+      [t.settings.toTime]: '00:00',
+    });
+    const release = holdTable('appointments');
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+    expect(within(form).getByRole('button', { name: t.settings.cancelEdit })).toBeDisabled();
+    release();
+    await waitFor(() => expect(form).not.toBeInTheDocument());
+  });
+
   it('shows Novo zaprto obdobje as a button until it is pressed, then the form with focus in it', async () => {
     renderSettings('zaprto');
     const button = await screen.findByRole('button', { name: t.settings.newBlocked });

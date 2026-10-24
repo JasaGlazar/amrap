@@ -94,7 +94,7 @@ export function BlockedForm({
           {t.settings.save}
         </button>
         {onCancel !== undefined && (
-          <button type="button" className="button secondary" onClick={onCancel}>
+          <button type="button" className="button secondary" disabled={busy} onClick={onCancel}>
             {t.settings.cancelEdit}
           </button>
         )}

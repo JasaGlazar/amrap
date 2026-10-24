@@ -102,7 +102,7 @@ export function TemplateForm({ title, initial, busy, warning, onSave, onCancel }
           {t.settings.save}
         </button>
         {onCancel !== undefined && (
-          <button type="button" className="button secondary" onClick={onCancel}>
+          <button type="button" className="button secondary" disabled={busy} onClick={onCancel}>
             {t.settings.cancelEdit}
           </button>
         )}

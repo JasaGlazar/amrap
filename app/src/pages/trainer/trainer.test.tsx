@@ -174,6 +174,43 @@ describe('appointments outside the slot grid', () => {
 });
 
 describe('trainer calendar', () => {
+  function holdBook() {
+    let release = () => {};
+    const original = fakeSupabase.rpc.getMockImplementation();
+    fakeSupabase.rpc.mockImplementationOnce(
+      (name: string, args: Record<string, unknown>) =>
+        new Promise((resolve) => {
+          release = () => resolve(original?.(name, args));
+        }),
+    );
+    return () => release();
+  }
+
+  it('keeps Prekliči disabled while an ad-hoc appointment is being booked', async () => {
+    renderAt('/t/koledar');
+    const form = await openAdHoc();
+    await userEvent.selectOptions(within(form).getByLabelText(t.trainer.customer), 'c-cvet');
+    await userEvent.type(within(form).getByLabelText(t.trainer.start), '16:00');
+    await userEvent.type(within(form).getByLabelText(t.trainer.end), '17:00');
+    const release = holdBook();
+    await userEvent.click(within(form).getByRole('button', { name: t.trainer.adHocSubmit }));
+    expect(within(form).getByRole('button', { name: t.common.cancel })).toBeDisabled();
+    release();
+    await waitFor(() => expect(form).not.toBeInTheDocument());
+  });
+
+  it('keeps Prekliči disabled while a customer is being added to an occurrence', async () => {
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await userEvent.click(within(row).getByRole('button', { name: t.trainer.addCustomer }));
+    await userEvent.selectOptions(within(row).getByRole('combobox'), 'c-bor');
+    const release = holdBook();
+    await userEvent.click(within(row).getByRole('button', { name: t.trainer.add }));
+    expect(within(row).getByRole('button', { name: t.common.cancel })).toBeDisabled();
+    release();
+    await waitFor(() => expect(within(row).queryByRole('combobox')).not.toBeInTheDocument());
+  });
+
   it('shows one Dodaj stranko button per occurrence and no customer select', async () => {
     renderAt('/t/koledar');
     const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });

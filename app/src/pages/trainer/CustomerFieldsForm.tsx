@@ -109,7 +109,7 @@ export function CustomerFieldsForm({
           {submitLabel}
         </button>
         {onCancel !== undefined && (
-          <button type="button" className="button secondary" onClick={onCancel}>
+          <button type="button" className="button secondary" disabled={busy} onClick={onCancel}>
             {t.common.cancel}
           </button>
         )}
