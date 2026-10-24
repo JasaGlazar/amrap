@@ -22,7 +22,7 @@ function fold(text: string): string {
 function phoneDigits(text: string): string {
   const digits = text.replace(/\D/g, '');
   if (digits.startsWith('00386')) return `0${digits.slice(5)}`;
-  if (digits.startsWith('386')) return `0${digits.slice(3)}`;
+  if (text.trim().startsWith('+') && digits.startsWith('386')) return `0${digits.slice(3)}`;
   return digits;
 }
 

@@ -163,7 +163,8 @@ vi.mock('./lib/supabase', async () => ({
 
 - `db` holds the state: the session, the signed-in user's customer row and balance
   (`db.customer`, `db.balance`), the `settings` row, injected errors (`customersError`,
-  `settingsError`, and `readErrors` keyed by table for any other read), and `db.tables` with
+  `settingsError`, and `readErrors` keyed by table for any other read; `writeErrors` keyed by
+  table makes every insert, update and delete on it return that error), and `db.tables` with
   rows for `customers` and `customer_balances` (added to the signed-in row, for the trainer's
   lists), `recurring_rules`, `slot_templates`, `slot_occupancy`, `appointments`,
   `credit_transactions`, `blocked_periods` and `push_subscriptions`. The query fake supports

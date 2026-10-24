@@ -47,6 +47,7 @@ export const db: {
   settingsError: { message: string } | null;
   customersError: { message: string } | null;
   readErrors: Record<string, { message: string }>;
+  writeErrors: Record<string, { message: string }>;
   held: Record<string, Promise<void>>;
   tables: Tables;
 } = {
@@ -57,6 +58,7 @@ export const db: {
   settingsError: null,
   customersError: null,
   readErrors: {},
+  writeErrors: {},
   held: {},
   tables: emptyTables(),
 };
@@ -223,7 +225,10 @@ function makeQuery(table: string): Query {
   }
 
   function rows(): Result {
-    if (write !== null) return { data: applyWrite(), error: null };
+    if (write !== null) {
+      if (table in db.writeErrors) return { data: null, error: db.writeErrors[table] };
+      return { data: applyWrite(), error: null };
+    }
     const source = rowsOf(table);
     if (!Array.isArray(source)) return source;
     const matched = source.filter((row) => predicates.every((predicate) => predicate(row)));
@@ -454,6 +459,7 @@ export function resetFake(initial: { session?: Session; customer?: CustomerRow |
   db.settingsError = null;
   db.customersError = null;
   db.readErrors = {};
+  db.writeErrors = {};
   db.held = {};
   listeners.clear();
 

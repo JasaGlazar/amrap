@@ -62,7 +62,11 @@ is a question below.
    kreditih »Vadba«. Raje »Zaračunano« in »Termin«?
 5. **»Odpovedal trener«** je v moški obliki; nevtralno »Odpoved trenerja«?
 6. **»Dolžniki«** na zaslonu Danes: v redu ali raje »Negativno stanje«?
-7. Vsa ostala vprašanja so v tabelah spodaj (stolpec »Vprašanje«).
+7. **Stranke, prazen seznam:** ko seznam izprazni samo filter (npr. »Dolžniki«, ko nihče nima
+   dolga, iskanje pa je prazno), piše »Ni strank, ki bi ustrezale iskanju.« in gumb
+   »Počisti iskanje« (ki ponastavi tudi filter). Je to v redu, ali raje npr. »Ni strank za ta
+   prikaz.« in »Pokaži vse«?
+8. Vsa ostala vprašanja so v tabelah spodaj (stolpec »Vprašanje«).
 
 ## All copy by screen
 

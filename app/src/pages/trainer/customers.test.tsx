@@ -299,6 +299,18 @@ describe('customer search and filters', () => {
     return fill(plural(t.customers.shown, count), { total: crowd.length });
   }
 
+  it('shows the search only once the list has loaded', async () => {
+    const release = holdTable('customer_balances');
+    renderAt('/t/stranke');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: t.trainer.customersTitle }),
+    ).toBeVisible();
+    expect(screen.getByText(t.common.loading)).toBeVisible();
+    expect(screen.queryByRole('searchbox', { name: t.customers.search })).toBeNull();
+    release();
+    expect(await screen.findByRole('searchbox', { name: t.customers.search })).toBeVisible();
+  });
+
   it('labels a search field that phones do not autofill or zoom', async () => {
     renderAt('/t/stranke');
     const search = await screen.findByRole('searchbox', { name: t.customers.search });

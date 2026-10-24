@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -264,6 +264,26 @@ describe('day groups below 768 px', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('moves focus into the form on Uredi and back to Uredi on Prekliči or save', async () => {
+    renderSettings('urnik');
+    const monday = await screen.findByRole('region', { name: weekdayHeading(0) });
+    const target = week.find((template) => template.id === existing.id) as Template;
+    await userEvent.click(within(monday).getByRole('button', { name: blockName(target) }));
+    let form = within(monday).getByRole('form', { name: t.settings.editTemplate });
+    expect(within(form).getByLabelText(t.settings.weekday)).toHaveFocus();
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.cancelEdit }));
+    expect(within(monday).getByRole('button', { name: blockName(target) })).toHaveFocus();
+    await userEvent.click(within(monday).getByRole('button', { name: blockName(target) }));
+    form = within(monday).getByRole('form', { name: t.settings.editTemplate });
+    await fillTemplate(form, { [t.settings.capacity]: String(target.capacity + 1) });
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    const saved = { ...target, capacity: target.capacity + 1 };
+    await waitFor(() =>
+      expect(within(monday).getByRole('button', { name: blockName(saved) })).toHaveFocus(),
+    );
+  });
+
   it('marks an inactive template next to its text', async () => {
     renderSettings('urnik');
     const sunday = await screen.findByRole('region', { name: weekdayHeading(6) });
@@ -335,6 +355,45 @@ describe('week grid from 768 px', () => {
     expect(screen.getByText(t.settings.inactiveLegend)).toBeVisible();
   });
 
+  it('sizes the day columns for the most slots side by side on any day', async () => {
+    renderSettings('urnik');
+    const monday = await screen.findByRole('region', { name: weekdayHeading(0) });
+    const sideBySide = (template: Template) =>
+      week.filter(
+        (other) =>
+          other.weekday === template.weekday &&
+          minutes(other.start_time) < minutes(template.start_time) + template.duration_minutes &&
+          minutes(template.start_time) < minutes(other.start_time) + other.duration_minutes,
+      ).length;
+    const mostSideBySide = Math.max(...week.map(sideBySide));
+    const grid = monday.parentElement as HTMLElement;
+    expect(grid.style.getPropertyValue('--max-lanes')).toBe(String(mostSideBySide));
+  });
+
+  it('returns focus to the block when the browser did not focus it on click', async () => {
+    renderSettings('urnik');
+    const block = await screen.findByRole('button', { name: blockName(existing) });
+    (document.activeElement as HTMLElement | null)?.blur();
+    act(() => block.click());
+    const dialog = screen.getByRole('dialog', { name: t.settings.editTemplate });
+    await userEvent.keyboard('{Escape}');
+    expect(dialog).not.toBeInTheDocument();
+    expect(block).toHaveFocus();
+  });
+
+  it("drops a failed save's error from the page when the dialog is cancelled", async () => {
+    renderSettings('urnik');
+    await userEvent.click(await screen.findByRole('button', { name: blockName(existing) }));
+    const dialog = screen.getByRole('dialog', { name: t.settings.editTemplate });
+    db.writeErrors.slot_templates = { message: 'FetchError: network down' };
+    await fillTemplate(dialog, { [t.settings.capacity]: String(existing.capacity + 1) });
+    await userEvent.click(within(dialog).getByRole('button', { name: t.settings.save }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(t.genericError);
+    await userEvent.click(within(dialog).getByRole('button', { name: t.settings.cancelEdit }));
+    expect(dialog).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('opens the edit form for a block in a dialog, focus in its first field', async () => {
     renderSettings('urnik');
     const target = week.find((template) => template.id === 'tpl-wed') as Template;
@@ -369,9 +428,11 @@ describe('week grid from 768 px', () => {
     await fillTemplate(dialog, { [t.settings.capacity]: String(existing.capacity + 2) });
     await userEvent.click(within(dialog).getByRole('button', { name: t.settings.save }));
     expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
-    expect(dialog).not.toBeInTheDocument();
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
     const saved = { ...existing, capacity: existing.capacity + 2 };
-    expect(screen.getByRole('button', { name: blockName(saved) })).toHaveFocus();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: blockName(saved) })).toHaveFocus(),
+    );
     expect(db.tables.slot_templates[0]).toMatchObject({
       id: existing.id,
       capacity: saved.capacity,
@@ -387,7 +448,9 @@ describe('week grid from 768 px', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
     const moved = { ...existing, weekday: 4 };
     const friday = screen.getByRole('region', { name: weekdayHeading(4) });
-    expect(within(friday).getByRole('button', { name: blockName(moved) })).toHaveFocus();
+    await waitFor(() =>
+      expect(within(friday).getByRole('button', { name: blockName(moved) })).toHaveFocus(),
+    );
   });
 
   it('keeps Nov termin as the section action', async () => {

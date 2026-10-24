@@ -131,43 +131,45 @@ export function TrainerCustomers() {
           {t.common.loadFailed}
         </p>
       )}
-      <div role="search" className="customer-search">
-        <label htmlFor={searchId}>{t.customers.search}</label>
-        <input
-          ref={searchField}
-          id={searchId}
-          type="search"
-          autoComplete="off"
-          enterKeyHint="search"
-          placeholder={t.customers.searchPlaceholder}
-          value={query}
-          onChange={(event) => show({ q: event.target.value })}
-        />
-        <div className="segmented" role="group" aria-label={t.customers.filterLabel}>
-          {customerFilters.map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={filter === option}
-              onClick={() => show({ f: option })}
-            >
-              {t.customers.filters[option]}
-            </button>
-          ))}
-        </div>
-      </div>
       {state.status === 'ok' && (
-        <CustomerList
-          customers={state.data.customers.map((customer) => ({
-            ...customer,
-            balance: state.data.balances.get(customer.id) ?? 0,
-          }))}
-          query={query}
-          filter={filter}
-          now={state.data.now}
-          listSearch={location.search}
-          onClear={clearSearch}
-        />
+        <>
+          <div role="search" className="customer-search">
+            <label htmlFor={searchId}>{t.customers.search}</label>
+            <input
+              ref={searchField}
+              id={searchId}
+              type="search"
+              autoComplete="off"
+              enterKeyHint="search"
+              placeholder={t.customers.searchPlaceholder}
+              value={query}
+              onChange={(event) => show({ q: event.target.value })}
+            />
+            <div className="segmented" role="group" aria-label={t.customers.filterLabel}>
+              {customerFilters.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={filter === option}
+                  onClick={() => show({ f: option })}
+                >
+                  {t.customers.filters[option]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <CustomerList
+            customers={state.data.customers.map((customer) => ({
+              ...customer,
+              balance: state.data.balances.get(customer.id) ?? 0,
+            }))}
+            query={query}
+            filter={filter}
+            now={state.data.now}
+            listSearch={location.search}
+            onClear={clearSearch}
+          />
+        </>
       )}
     </>
   );

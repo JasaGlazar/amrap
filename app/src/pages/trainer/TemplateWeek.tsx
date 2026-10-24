@@ -1,4 +1,4 @@
-import { useId, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type CSSProperties, type ReactNode } from 'react';
 import type { SlotTemplate } from '../../data/slots';
 import { fill, plural, t } from '../../i18n';
 import { axisRange, clock, dayLanes, endOf, minutesOf, overlappingIds } from '../../lib/schedule';
@@ -52,6 +52,14 @@ export function WeekGrid({ templates, onEdit }: Props) {
   ];
   const hours: number[] = [];
   for (let hour = from; hour < to; hour += 60) hours.push(hour);
+  const days = weekdays.map((weekday) => {
+    const day = templates.filter((template) => template.weekday === weekday).sort(byStart);
+    return { weekday, day, lanes: dayLanes(day) };
+  });
+  const maxLanes = Math.max(
+    1,
+    ...days.flatMap(({ lanes }) => [...lanes.values()].map((place) => place.lanes)),
+  );
   return (
     <>
       {legend.length > 0 && (
@@ -61,31 +69,32 @@ export function WeekGrid({ templates, onEdit }: Props) {
           ))}
         </p>
       )}
-      <div className="week wide">
-        <div className="week-grid" style={{ '--span': to - from } as CSSProperties}>
-          <div className="week-axis" aria-hidden="true">
+      <div className="wide">
+        <div
+          className="template-grid"
+          style={{ '--span': to - from, '--max-lanes': maxLanes } as CSSProperties}
+        >
+          <div className="template-axis" aria-hidden="true">
             {[...hours, to].map((hour) => (
               <span key={hour} style={{ '--at': hour - from } as CSSProperties}>
                 {clock(hour)}
               </span>
             ))}
           </div>
-          {weekdays.map((weekday) => {
-            const day = templates.filter((template) => template.weekday === weekday).sort(byStart);
-            const lanes = dayLanes(day);
+          {days.map(({ weekday, day, lanes }) => {
             return (
-              <section key={weekday} className="week-day" aria-labelledby={`${id}-${weekday}`}>
+              <section key={weekday} className="template-day" aria-labelledby={`${id}-${weekday}`}>
                 <h3 id={`${id}-${weekday}`}>{weekdayHeading(weekday)}</h3>
-                <div className="week-day-body">
+                <div className="template-day-body">
                   {hours.map((hour) => (
                     <span
                       key={hour}
-                      className="week-hour"
+                      className="template-hour"
                       style={{ '--at': hour - from } as CSSProperties}
                     />
                   ))}
                   {day.length > 0 && (
-                    <ul className="week-blocks">
+                    <ul className="template-blocks">
                       {day.map((template) => {
                         const start = minutesOf(template.start_time);
                         const place = lanes.get(template.id) ?? { lane: 0, lanes: 1 };
@@ -101,22 +110,22 @@ export function WeekGrid({ templates, onEdit }: Props) {
                               type="button"
                               className={
                                 !template.active
-                                  ? 'week-block inactive'
+                                  ? 'template-block inactive'
                                   : overlapping.has(template.id)
-                                    ? 'week-block overlap'
-                                    : 'week-block'
+                                    ? 'template-block overlap'
+                                    : 'template-block'
                               }
                               data-template-id={template.id}
                               aria-label={blockLabel(template, overlapping)}
                               onClick={() => onEdit(template.id)}
                             >
-                              <span className="week-block-time">
+                              <span className="template-block-time">
                                 {fill(t.settings.timeRange, {
                                   start: clock(start),
                                   end: clock(endOf(template)),
                                 })}
                               </span>
-                              <span className="week-block-places">
+                              <span className="template-block-places">
                                 {plural(t.settings.places, template.capacity)}
                               </span>
                               <Tags template={template} overlapping={overlapping} />
@@ -144,6 +153,21 @@ export function DayGroups({
 }: Props & { editing: string | null; editForm: (template: WeekTemplate) => ReactNode }) {
   const id = useId();
   const overlapping = overlappingIds(templates);
+  const shown = useRef(editing);
+
+  useEffect(() => {
+    const closed = shown.current;
+    shown.current = editing;
+    if (editing !== null) {
+      document
+        .querySelector(`[data-editing="${editing}"]`)
+        ?.querySelector<HTMLElement>('input, select, textarea')
+        ?.focus();
+    } else if (closed !== null && document.activeElement === document.body) {
+      document.querySelector<HTMLElement>(`[data-template-id="${closed}"]`)?.focus();
+    }
+  }, [editing]);
+
   return weekdays.map((weekday) => {
     const day = templates.filter((template) => template.weekday === weekday).sort(byStart);
     if (day.length === 0) return null;
@@ -153,7 +177,9 @@ export function DayGroups({
         <ul className="list">
           {day.map((template) =>
             editing === template.id ? (
-              <li key={template.id}>{editForm(template)}</li>
+              <li key={template.id} data-editing={template.id}>
+                {editForm(template)}
+              </li>
             ) : (
               <li key={template.id} className={template.active ? 'row' : 'row muted'}>
                 <span className="row-text">

@@ -54,6 +54,14 @@ describe('matchesCustomer', () => {
     expect(matchesCustomer(dorde, '0038641222')).toBe(true);
   });
 
+  it('reads 386 as the country code only after + or 00', () => {
+    const local = customer({ name: 'Lan', phone: '040 386 111' });
+    expect(matchesCustomer(local, '386 111')).toBe(true);
+    expect(matchesCustomer(ana, '386')).toBe(false);
+    expect(matchesCustomer(ana, '+386')).toBe(true);
+    expect(matchesCustomer(local, '+386 40 386')).toBe(true);
+  });
+
   it('does not match a number against a customer without a phone', () => {
     expect(matchesCustomer(customer({ name: 'Eva Kos' }), '040')).toBe(false);
   });

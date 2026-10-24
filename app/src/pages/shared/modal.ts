@@ -38,7 +38,8 @@ export function useModal(
     (first ?? dialog.current)?.focus();
     return () => {
       root.style.overflow = overflow;
-      const target = opener?.isConnected ? opener : (returnTo?.() ?? null);
+      const usable = opener !== null && opener !== document.body && opener.isConnected;
+      const target = usable ? opener : (returnTo?.() ?? null);
       target?.focus();
     };
   }, [dialog]);

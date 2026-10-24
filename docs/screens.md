@@ -191,7 +191,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   combining marks, and đ as d), so "zupancic" finds "Zupančič". A query of words matches when
   every word is in the name or the email ("novak ana" finds "Ana Novak"). A query of digits
   (spaces, `+`, `-`, `/`, `.` and brackets allowed) matches the phone instead, ignoring spaces,
-  with `+386` and `00386` read as a leading 0, so "040111" finds "+386 40 111 111".
+  with `+386` and `00386` read as a leading 0 (only after `+` or `00`, so "386 111" still
+  finds "040 386 111" and "386" alone is not every number), so "040111" finds
+  "+386 40 111 111".
 - **Filters:** a segmented control (`customers.filterLabel`, buttons with `aria-pressed`):
   **Vsi**, **Dolžniki** (balance below 0) and **Brez računa** (no account; a customer with
   a pending invite is in it too and keeps the **Povabilo čaka** tag, so there is no separate
@@ -319,18 +321,18 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     themes and not by colour. A line above the grid explains the edges that are in it:
     `settings.overlapLegend` while any slots overlap, `settings.inactiveLegend` while any
     template is inactive. The block's tags are set in the condensed cut; a lane too
-    narrow for them (under 4.75 rem, for example two or three overlapping slots at
-    768-1023 px) hides its tags by a container query, and the dashed or dotted edge and the
+    narrow for them (under 4.75 rem, which slots side by side usually are) hides its tags
+    by a container query, and the dashed or dotted edge and the
     button's name still carry them.
-  - **Tap size:** a block is at least 44 px tall (`--tap`), so a 30-minute slot is taller
-    than its time and may cover the top of a slot right after it; the focused block is drawn
-    above its neighbours. Three or more overlapping slots at 768-1023 px make lanes narrower
-    than 44 px: an accepted exception for a rare case on a laptop or tablet view, where each
-    block's name still carries everything and the day groups on a phone have full-width
-    rows. From 1024 px the grid is a [wide view](#behaviour-shared-by-all-screens);
-    below that (768-1023 px) its columns keep at least 7 rem and the grid scrolls sideways
-    inside its own box, the hours column staying in place, so the page itself never scrolls
-    sideways.
+  - **Tap size:** every block is at least 44 × 44 px (`--tap`). Height: a block shorter
+    than that (a 15- or 30-minute slot) is drawn 44 px tall and may cover the top of a slot
+    right after it; the focused block is drawn above its neighbours. Width: the grid passes
+    the most slots side by side on any day (`--max-lanes`) and every day column is at least
+    that many lanes of 44 px plus their 4 px gaps (and never under 7 rem), so a lane is never
+    narrower than a tap target. The grid is a [wide view](#behaviour-shared-by-all-screens):
+    from 1024 px it starts at the title's left edge and grows to the right; when its columns
+    need more room than it has (768-1023 px, or many lanes), it scrolls sideways inside its
+    own box, the hours column staying in place, and the page itself never scrolls sideways.
   - **Clicking a block** opens the edit form (`settings.editTemplate`) in a dialog
     (`TemplateDialog.tsx`, the cancel dialog's overlay and focus rules through
     `pages/shared/modal.ts`): focus moves to its first field (**Dan**), Tab stays inside,
@@ -346,7 +348,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     the start in the display type, `settings.slotDetails` ("60 min · 5 mest", capacity in its
     plural form: 1 mesto, 2 mesti, 3 mesta, 5 mest), the `neaktiven` or `prekrivanje` tag next
     to the text, and
-    **Uredi** (named like the grid's block), which opens the form in place of the row.
+    **Uredi** (named like the grid's block), which opens the form in place of the row with
+    focus in its first field (**Dan**); **Prekliči** or a successful save puts focus back on
+    that row's **Uredi** (found by its template id, as the form replaced it).
 - **Nov termin** at the right of the section heading opens the same form empty
   ([on demand](#forms-on-demand)): weekday, start time, duration in minutes, capacity and
   an active checkbox. Validation: start time required, duration and capacity positive whole
@@ -593,11 +597,13 @@ How the guards and the auth state work is in [auth.md](auth.md).
 
 - **Wide views.** Pages keep the 46 rem column (`--content`) at every width, and the top bar
   lines up with it. A week view that needs more room (the Urnik week grid, Stage 9) carries
-  the class `wide`: from 1024 px it grows to `--content-wide` (80 rem) or the window minus
-  the page gutters, whichever is smaller, centred on the column, while the title, tabs and
-  section heading above it stay on the column ([ADR 0014](adr/0014-wide-week-views.md)).
-  Below 1024 px it stays in the column and scrolls sideways inside its own box when it needs
-  more width.
+  the class `wide`: from 1024 px it starts at the column's left edge, in line with the title,
+  and grows to the right only, to `--content-wide` (80 rem) or up to one page gutter from the
+  window's right edge, whichever is smaller; the title, tabs and section heading above it stay
+  on the column ([ADR 0014](adr/0014-wide-week-views.md)). At any width, when its content
+  needs more room than that, it scrolls sideways inside its own box (`.wide` carries the
+  `overflow-x`), so the page itself never does. `wide` assumes its parent is the content
+  column.
 
 - **Brand mark.** The framed AMRAP wordmark (`public/brand-mark.png`, alt `app.name`) replaces
   the plain "AMRAP" text: at the left of the top bar in both shells, and as the `h1` above the

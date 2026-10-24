@@ -124,6 +124,7 @@ export function SettingsTemplates() {
 
   function closeEdit() {
     setWarnings(null);
+    setNotice(null);
     setEditing(null);
   }
 
