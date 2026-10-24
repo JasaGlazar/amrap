@@ -9,8 +9,8 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 
 | Route | Who | Purpose | Strings | Status |
 |---|---|---|---|---|
-| `/login` | anyone; a signed-in user is sent to `/` | Email and password sign-in. A failed sign-in shows `authErrors` copy. | `login`, `authErrors` | Stage 1 |
-| `/invite/:token` | anyone | Sign-up from an invite link: email, password, confirm password. Creates the auth user (or signs in when that account already exists but is unlinked), calls `accept_invite(token)`, reloads the customer record and goes to `/`. A rejected invite shows its `errors.AMRAP_*` copy. | `invite`, `errors`, `authErrors` | Stage 1 |
+| `/login` | anyone; a signed-in user is sent to `/` | Email and password sign-in: heading **Prijava**, button **Prijavi se** (a heading and its button never say the same thing). A failed sign-in shows `authErrors` copy. | `login`, `authErrors` | Stage 1 |
+| `/invite/:token` | anyone | Sign-up from an invite link (heading **Nov račun**, button **Ustvari račun**): email, password, confirm password. Creates the auth user (or signs in when that account already exists but is unlinked), calls `accept_invite(token)`, reloads the customer record and goes to `/`. A rejected invite shows its `errors.AMRAP_*` copy. | `invite`, `errors`, `authErrors` | Stage 1 |
 | `/logout` | anyone | Removes this device's push subscription (best effort), signs out and redirects to `/login` (a route loader). If signing out fails it stays and shows the error with a continue link. | `logoutFailed`, `common.continue`, `genericError` | Stage 1, push Stage 3 |
 | `/` | signed in | Redirects to `/t` for the trainer or `/c` for a customer. | none | Stage 1 |
 | (any route below `/`) | signed in, customer lookup failed | Error page with a retry button and a sign-out link to `/logout`. | `lookupFailed`, `common.signOut` | Stage 1 |
@@ -20,7 +20,7 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
 | `/t` | trainer | Trainer shell: the same top bar with sign-out, the [install card](#install-card), bottom navigation (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
-| `/t/stranke` | trainer | Customer list with balance and invite status; create a customer. | `trainer`, `customers` | Stage 2 |
+| `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; create a customer. | `trainer`, `customers` | Stage 2 |
 | `/t/stranke/:id` | trainer | One customer: credits, invite link, recurring rules, upcoming appointments, details, ledger. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType` | Stage 2 |
 | `/t/nastavitve` | trainer | Slot templates, cutoff hours, blocked periods, notifications toggle. | `settings`, `trainer`, `pushToggle` | Stage 2, push Stage 3 |
 | anything else | anyone | Redirects to `/`. | none | Stage 1 |
@@ -35,8 +35,8 @@ data.
 ### Home (`/c`)
 
 - **Data:** `getSettings`, `balanceOf`, `upcomingAppointments` (mine, `booked`, in the future).
-- **Balance:** the number from `customer_balances`; when negative it is red with a `dolg` tag
-  (`customer.debt`).
+- **Balance:** the number from `customer_balances` (a [signed number](#behaviour-shared-by-all-screens),
+  `−3`); when negative it is red with a `dolg` tag (`customer.debt`).
 - **Next appointment:** the soonest upcoming one, `slot.when` (`ponedeljek, 26. oktober ob
   07:00`) and the time left (`čez 2 d 9 h`, computed when the page loaded). Hidden when there is
   none.
@@ -57,7 +57,9 @@ data.
   are left out; a week without any shows `calendar.noSlots`). A start time in the spring-forward
   gap has no occurrence that week. Each row shows the start time, duration and
   `Prosta mesta: {free} od {capacity}` with `free = capacity − booked_count` (an occurrence
-  without a `slot_occupancy` row has `booked_count` 0).
+  without a `slot_occupancy` row has `booked_count` 0). The duration, the places and `Zaprto`
+  are unbreakable parts and each `·` separator ends the part before it: a narrow row wraps
+  between parts, never inside one, and a wrapped line never starts with `·`.
 - **States of a row:**
 
   | State | Shown |
@@ -75,6 +77,8 @@ data.
 
 ### Cancel dialog
 
+- Below 768 px it is a bottom sheet (top corners rounded, safe-area padding at the bottom);
+  from 768 px it is centred, with all corners rounded and a margin from the window edges.
 - Shows the appointment (`slot.when`), the cutoff (`Brezplačna odpoved do {day} ob {time}`,
   `starts_at − settings.late_cancel_hours`) and either `cancelDialog.free` (now before the
   cutoff) or `cancelDialog.late` (`zaračunan bo 1 kredit`, from the cutoff on), like `cancel()`.
@@ -113,7 +117,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 
 - **Data:** `loadWeek` for the current week (all customers), `listCustomers`, `allBalances`.
 - **Debtors:** every customer with a negative balance, most negative first, each a link to
-  their detail page with the balance in red. None: `trainer.noDebtors`.
+  their detail page with the balance in red (`−3`, the same minus as the ledger). None:
+  `trainer.noDebtors`.
 - **Today's occurrences:** the week's occurrences on today's local date, each with remaining
   capacity (as in the customer calendar) and the names of the customers booked (`booked` or
   `charged`, the latter tagged `opravljeno`). Nothing today: `trainer.noSlotsToday`.
@@ -132,9 +137,10 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Occurrence row:** start, duration, remaining capacity, blocked state, then the booked
   customers (names, `opravljeno` for charged), each with **Odpovej**, and an add control: a
   customer select (named `Stranka za termin {when}`; customers already booked there are left
-  out) with **Dodaj**, disabled while the occurrence is full or blocked or another booking is in
-  flight. **Dodaj** calls `book(customer, startsAt, template)`; success shows `trainer.added`,
-  a rejection its `errors.AMRAP_*` copy.
+  out) with **Dodaj**, disabled (neutral grey) until a customer is chosen and while the
+  occurrence is full or blocked or another booking is in flight. **Dodaj** calls
+  `book(customer, startsAt, template)`; success shows `trainer.added`, a rejection its
+  `errors.AMRAP_*` copy.
 - **Termini zunaj urnika:** the week's live appointments that match no shown occurrence
   (`appointmentsOutsideSlots`): ad-hoc ones (`po dogovoru`) and bookings left behind by a
   deactivated or moved template (`ni več v urniku`), with day, time range and name, each with
@@ -153,9 +159,10 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 
 - **Data:** `listCustomers` (customer records only, not the trainer's own row) and
   `allBalances`.
-- **List:** by name; each row links to the detail page and shows the invite status
-  (`customers.inviteStatus`: linked, pending = an unexpired token, none) and the balance (red
-  when negative).
+- **List:** by name; each row links to the detail page and shows the balance (red when
+  negative, accent when positive, neutral at 0). A tag shows the invite status only while the
+  customer has no account (`customers.inviteStatus`: pending = an unexpired token, none); a
+  linked account is the normal end state and has no tag.
 - **Nova stranka:** name (required, `customers.nameRequired`), phone and email (empty becomes
   null), and an optional starting balance from the paper sheet (`customers.startingBalance`, a
   whole number that may be negative, else `customers.startingInvalid`; nothing is created then).
@@ -175,7 +182,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Data:** `getCustomer`, `getSettings`, `balanceOf`, `ledgerOf`, `upcomingAppointments`,
   `rulesOf`, `allTemplates`. A missing record (or the trainer's own id) shows the load error
   with the back link.
-- **Header:** name, balance (red with `dolg` when negative) and invite status.
+- **Header:** name, then a card with the label `Stanje kreditov` and the invite status tag on
+  one line and the balance below (red with `dolg` when negative).
 - **Krediti:** one amount field and a note. **Dodaj kredite** calls `top_up` (a positive whole
   number, else `customerDetail.topUpInvalid`); **Popravi stanje** calls `adjust` (any non-zero
   whole number, negative subtracts; else `customerDetail.adjustInvalid`). Waiving a late
@@ -191,7 +199,7 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   loses access, the app administrator removes the old account, then the trainer creates a new
   invite on this page. The procedure is runbook "Re-link a customer" (ADR 0007).
 - **Stalni termini:** the customer's recurring rules (`{weekday} ob {time}`, stopped ones
-  greyed with `ustavljen`). **Ustavi** calls `deactivate_rule` (future booked instances are
+  greyed with a `ustavljen` tag next to the text). **Ustavi** calls `deactivate_rule` (future booked instances are
   cancelled; the message shows how many); **Ponovno vključi** calls `activate_rule` (shows how
   many instances were created; cancelled dates stay cancelled, ADR 0008). The add control
   lists active templates that have no rule for this customer yet (a stopped rule is restarted
@@ -200,9 +208,10 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Prihajajoči termini:** the customer's upcoming booked appointments, each with **Odpovej**
   (trainer cancel dialog).
 - **Opravljeni termini (zadnjih 30 dni):** the customer's charged appointments that started in
-  the last 30 days (`RECENT_DAYS`), newest first, each with **Odpovej**; the trainer cancel
-  dialog says the credit is refunded (`cancelDialog.refund`), and `cancel()` adds the +1
-  refund. Older charges are corrected with an adjustment.
+  the last 30 days (`RECENT_DAYS`), newest first, each with **Vrni kredit**
+  (`customerDetail.refund`; the action is a cancel with a refund, so it is not labelled
+  **Odpovej**); the trainer cancel dialog says the credit is refunded (`cancelDialog.refund`),
+  and `cancel()` adds the +1 refund. Older charges are corrected with an adjustment.
 - **Podatki:** name, phone, email; **Shrani** updates the record through RLS.
 - **Zgodovina kreditov:** the ledger, as on the customer's History.
 
@@ -212,7 +221,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   that have not ended). Every write goes through RLS and shows `settings.saved` or the error.
 - **Termini v tednu:** each template as `{weekday} ob {time} · {minutes} min · {places}`, the
   capacity in its Slovenian plural form (`settings.places`: 1 mesto, 2 mesti, 3 mesta, 5 mest),
-  inactive ones greyed with `neaktiven`, each with **Uredi** (the form inline). The form
+  inactive ones greyed with a `neaktiven` tag right after the text, each with **Uredi** (the
+  form inline). The form
   (also **Nov termin** below the list): weekday, start time, duration in minutes, capacity and
   an active checkbox. Validation: start time required, duration and capacity positive whole
   numbers (`settings.durationInvalid`, `settings.capacityInvalid`). There is no delete: a
@@ -230,9 +240,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   more (`settings.cutoffInvalid`). It applies to every later cancel and to the customers'
   cancel dialog.
 - **Zaprta obdobja:** upcoming blocked periods with their range and reason, each with
-  **Uredi** and **Izbriši** (deletes at once). The form (also **Novo zaprto obdobje**): from
-  date and time, to date and time (in the gym timezone, via `zonedInstant`) and an optional
-  reason; a time that does not exist that day or an end not after the start is rejected
+  **Uredi** and **Izbriši** (deletes at once) on one line at the right; the text wraps. The
+  form (also **Novo zaprto obdobje**): from date and time, to date and time (in the gym
+  timezone, via `zonedInstant`) and an optional reason; a time that does not exist that day or an end not after the start is rejected
   (`trainer.invalidTime`, `trainer.invalidRange`). A new block does not cancel appointments
   already booked in it; `book()` and materialization reject or skip later ones. So saving a new
   or edited period first counts the live appointments that overlap it and have not ended yet
@@ -328,9 +338,36 @@ How the guards and the auth state work is in [auth.md](auth.md).
     fields the trainer fills in about someone else (customer name, phone, email, credit note,
     blocked-period reason) have `autoComplete="off"`, best effort: some browsers and password
     managers ignore it;
-  - in a row, text wraps anywhere but buttons and amounts never wrap or shrink;
+  - in a row, text wraps anywhere but buttons and amounts never wrap or shrink; a row's
+    buttons stay on one line together, and a tag sits next to the text it describes;
+  - links are the accent colour (never the browser's default blue);
+  - a disabled button is neutral, whatever its kind: surface background, muted text, no
+    outline and no opacity; on a card it keeps a 1 px `--border` outline so it still reads as a
+    button. An enabled secondary button has a 1 px `--control-border` outline, so an enabled
+    and a disabled one are told apart (for example the week arrows);
   - safe-area insets on the top bar, the page sides, the bottom navigation and the dialog;
   - errors are `role="alert"`, results `role="status"`.
+
+- **Spacing.** One scale in `styles.css`, `--space-1` to `--space-7` (4, 8, 12, 16, 24, 32,
+  48 px). Components carry no outer margins; the context sets the gap:
+  - on a page: blocks `--space-6` apart, the back link `--space-2` above the title, the title
+    `--space-5` above the first block, the week navigation `--space-5` above the next block, a
+    page-level heading `--space-3` above its content;
+  - in a section: the heading `--space-3` above its content, blocks `--space-4` apart; a list
+    is shown only when it has items (otherwise the empty line); a form opened inside a list
+    row (**Uredi**) sits `--space-3` from the rows around it;
+  - in a form card: the heading, fields, notices and buttons are all `--space-4` apart (the
+    form gap, so also heading to first field);
+  - in a card that is not a form: text lines stay together, and a form, a notice or a button
+    sits `--space-3` below the text above it.
+
+  A form's submit button (or its row of buttons) is full width below 480 px and its natural
+  width from 480 px.
+
+- **Signed numbers.** Balances and ledger amounts are formatted with `Intl.NumberFormat('sl-SI')`,
+  which writes the minus as U+2212 (`−3`), never a hyphen: `formatBalance` for a balance (`4`,
+  `0`, `−3`) and `formatAmount` for a change (`+8`, `−1`), both in `i18n/fill.ts`. The shared
+  `Amount` span colours them: negative red, positive accent, zero neutral.
 
 - **Keep-alive.** Once per signed-in user per page load, `AuthProvider` runs
   `select id from settings limit 1` (ADR 0005). A failure is logged with `console.warn` and

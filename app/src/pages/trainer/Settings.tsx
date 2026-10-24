@@ -169,49 +169,54 @@ export function TrainerSettings() {
       <section aria-label={t.settings.templatesTitle}>
         <h2>{t.settings.templatesTitle}</h2>
         <NoticeLine notice={notice.templates} />
-        {templates.length === 0 && <p>{t.settings.noTemplates}</p>}
-        <ul className="list">
-          {templates.map((template) =>
-            editingTemplate === template.id ? (
-              <li key={template.id}>
-                <TemplateForm
-                  title={t.settings.editTemplate}
-                  initial={template}
-                  busy={busy}
-                  warning={
-                    stranded?.id === template.id
-                      ? fill(t.settings.strandedWarning, { count: stranded.count })
-                      : null
-                  }
-                  onSave={(fields) => void storeTemplate(template.id, fields)}
-                  onCancel={() => {
-                    setStranded(null);
-                    setEditingTemplate(null);
-                  }}
-                />
-              </li>
-            ) : (
-              <li key={template.id} className={template.active ? 'row' : 'row muted'}>
-                <span>
-                  {fill(t.settings.templateLine, {
-                    weekday: weekdayName(template.weekday),
-                    time: template.start_time.slice(0, 5),
-                    minutes: template.duration_minutes,
-                    places: plural(t.settings.places, template.capacity),
-                  })}
-                </span>
-                {!template.active && <span className="tag">{t.settings.inactive}</span>}
-                <button
-                  type="button"
-                  className="button secondary small"
-                  onClick={() => setEditingTemplate(template.id)}
-                >
-                  {t.settings.edit}
-                </button>
-              </li>
-            ),
-          )}
-        </ul>
+        {templates.length === 0 ? (
+          <p>{t.settings.noTemplates}</p>
+        ) : (
+          <ul className="list">
+            {templates.map((template) =>
+              editingTemplate === template.id ? (
+                <li key={template.id}>
+                  <TemplateForm
+                    title={t.settings.editTemplate}
+                    initial={template}
+                    busy={busy}
+                    warning={
+                      stranded?.id === template.id
+                        ? fill(t.settings.strandedWarning, { count: stranded.count })
+                        : null
+                    }
+                    onSave={(fields) => void storeTemplate(template.id, fields)}
+                    onCancel={() => {
+                      setStranded(null);
+                      setEditingTemplate(null);
+                    }}
+                  />
+                </li>
+              ) : (
+                <li key={template.id} className={template.active ? 'row' : 'row muted'}>
+                  <span className="row-text">
+                    <span>
+                      {fill(t.settings.templateLine, {
+                        weekday: weekdayName(template.weekday),
+                        time: template.start_time.slice(0, 5),
+                        minutes: template.duration_minutes,
+                        places: plural(t.settings.places, template.capacity),
+                      })}
+                    </span>
+                    {!template.active && <span className="tag">{t.settings.inactive}</span>}
+                  </span>
+                  <button
+                    type="button"
+                    className="button secondary small"
+                    onClick={() => setEditingTemplate(template.id)}
+                  >
+                    {t.settings.edit}
+                  </button>
+                </li>
+              ),
+            )}
+          </ul>
+        )}
         <TemplateForm
           key={`new-template-${formVersion}`}
           title={t.settings.newTemplate}
@@ -245,57 +250,60 @@ export function TrainerSettings() {
       <section aria-label={t.settings.blockedTitle}>
         <h2>{t.settings.blockedTitle}</h2>
         <NoticeLine notice={notice.blocked} />
-        {blocked.length === 0 && <p>{t.settings.noBlocked}</p>}
-        <ul className="list">
-          {blocked.map((period) =>
-            editingBlocked === period.id ? (
-              <li key={period.id}>
-                <BlockedForm
-                  title={t.settings.editBlocked}
-                  initial={period}
-                  defaultDate={localDateOf(now, timeZone)}
-                  timeZone={timeZone}
-                  busy={busy}
-                  onSave={(next) => void storeBlocked(period.id, next)}
-                  onCancel={() => {
-                    setOverlapKey(null);
-                    setNotice((current) => ({ ...current, blocked: null }));
-                    setEditingBlocked(null);
-                  }}
-                />
-              </li>
-            ) : (
-              <li key={period.id} className="row">
-                <span className="ledger-main">
-                  <span>
-                    {fill(t.settings.blockedLine, {
-                      from: when(period.startsAt),
-                      to: when(period.endsAt),
-                    })}
+        {blocked.length === 0 ? (
+          <p>{t.settings.noBlocked}</p>
+        ) : (
+          <ul className="list">
+            {blocked.map((period) =>
+              editingBlocked === period.id ? (
+                <li key={period.id}>
+                  <BlockedForm
+                    title={t.settings.editBlocked}
+                    initial={period}
+                    defaultDate={localDateOf(now, timeZone)}
+                    timeZone={timeZone}
+                    busy={busy}
+                    onSave={(next) => void storeBlocked(period.id, next)}
+                    onCancel={() => {
+                      setOverlapKey(null);
+                      setNotice((current) => ({ ...current, blocked: null }));
+                      setEditingBlocked(null);
+                    }}
+                  />
+                </li>
+              ) : (
+                <li key={period.id} className="row">
+                  <span className="ledger-main">
+                    <span>
+                      {fill(t.settings.blockedLine, {
+                        from: when(period.startsAt),
+                        to: when(period.endsAt),
+                      })}
+                    </span>
+                    {period.reason !== null && <span className="detail">{period.reason}</span>}
                   </span>
-                  {period.reason !== null && <span className="detail">{period.reason}</span>}
-                </span>
-                <span className="actions">
-                  <button
-                    type="button"
-                    className="button secondary small"
-                    onClick={() => setEditingBlocked(period.id)}
-                  >
-                    {t.settings.edit}
-                  </button>
-                  <button
-                    type="button"
-                    className="button danger small"
-                    disabled={busy}
-                    onClick={() => void run('blocked', () => deleteBlocked(supabase, period.id))}
-                  >
-                    {t.settings.delete}
-                  </button>
-                </span>
-              </li>
-            ),
-          )}
-        </ul>
+                  <span className="actions">
+                    <button
+                      type="button"
+                      className="button secondary small"
+                      onClick={() => setEditingBlocked(period.id)}
+                    >
+                      {t.settings.edit}
+                    </button>
+                    <button
+                      type="button"
+                      className="button danger small"
+                      disabled={busy}
+                      onClick={() => void run('blocked', () => deleteBlocked(supabase, period.id))}
+                    >
+                      {t.settings.delete}
+                    </button>
+                  </span>
+                </li>
+              ),
+            )}
+          </ul>
+        )}
         <BlockedForm
           key={`new-blocked-${formVersion}`}
           title={t.settings.newBlocked}

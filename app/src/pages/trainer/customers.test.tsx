@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fill, t } from '../../i18n';
+import { fill, formatBalance, t } from '../../i18n';
 import { weekdayName } from '../../lib/time';
 import { routes } from '../../routes';
 import { RECENT_DAYS } from './CustomerDetail';
@@ -58,11 +58,34 @@ describe('customer list', () => {
     expect(items.map((item) => within(item).getByRole('link').textContent)).toEqual(
       expected.map((row) => row.name),
     );
-    expect(items[0]).toHaveTextContent(t.customers.inviteStatus.linked);
     expect(items[1]).toHaveTextContent(t.customers.inviteStatus.pending);
     expect(items[2]).toHaveTextContent(t.customers.inviteStatus.none);
     const borBalance = db.tables.customer_balances.find((row) => row.customer_id === bor.id);
-    expect(within(items[1]).getByText(String(borBalance?.balance))).toHaveClass('negative');
+    expect(within(items[1]).getByText(formatBalance(Number(borBalance?.balance)))).toHaveClass(
+      'negative',
+    );
+  });
+
+  it('shows no status tag for a linked customer, the normal end state', async () => {
+    renderAt('/t/stranke');
+    const list = await screen.findByRole('region', { name: t.customers.listTitle });
+    const linked = within(list).getByRole('link', { name: ana.name }).closest('li');
+    expect(linked).not.toBeNull();
+    expect(linked).not.toHaveTextContent(t.customers.inviteStatus.linked);
+  });
+
+  it('marks positive balances only, leaving zero neutral', async () => {
+    renderAt('/t/stranke');
+    const list = await screen.findByRole('region', { name: t.customers.listTitle });
+    for (const row of db.tables.customer_balances) {
+      const balance = Number(row.balance);
+      const name = db.tables.customers.find((customer) => customer.id === row.customer_id)?.name;
+      if (typeof name !== 'string') throw new Error(`no customer ${String(row.customer_id)}`);
+      const item = within(list).getByRole('link', { name }).closest('li') as HTMLElement;
+      const amount = within(item).getByText(formatBalance(balance));
+      expect(amount.classList.contains('positive')).toBe(balance > 0);
+      expect(amount.classList.contains('negative')).toBe(balance < 0);
+    }
   });
 
   it('creates a customer and opens the detail page', async () => {
@@ -276,7 +299,7 @@ describe('customer detail', () => {
     expect(within(invite).queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('lists recently charged appointments and offers a refunding cancel', async () => {
+  it('lists recently charged appointments with a refund action, not a plain cancel', async () => {
     const day = 86_400_000;
     const charged = (id: string, daysAgo: number) => {
       const startsAt = new Date(Date.now() - daysAgo * day).toISOString();
@@ -298,7 +321,8 @@ describe('customer detail', () => {
     expect(within(recent).getAllByRole('listitem')).toHaveLength(
       Object.values(ages).filter((daysAgo) => daysAgo < RECENT_DAYS).length,
     );
-    await userEvent.click(within(recent).getByRole('button', { name: t.slot.cancel }));
+    expect(within(recent).queryByRole('button', { name: t.slot.cancel })).toBeNull();
+    await userEvent.click(within(recent).getByRole('button', { name: t.customerDetail.refund }));
     const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
     expect(dialog).toHaveTextContent(t.cancelDialog.refund);
     await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));

@@ -22,11 +22,11 @@ export const sl = {
     title: 'Prijava',
     email: 'E-poštni naslov',
     password: 'Geslo',
-    submit: 'Prijava',
+    submit: 'Prijavi se',
     submitting: 'Prijavljanje …',
   },
   invite: {
-    title: 'Ustvari račun',
+    title: 'Nov račun',
     intro: 'Z računom boste lahko rezervirali termine in spremljali svoje kredite.',
     email: 'E-poštni naslov',
     password: 'Geslo',
@@ -158,6 +158,7 @@ export const sl = {
     upcomingTitle: 'Prihajajoči termini',
     recentTitle: 'Opravljeni termini (zadnjih {days} dni)',
     noRecent: 'V tem obdobju ni opravljenih terminov.',
+    refund: 'Vrni kredit',
     ledgerTitle: 'Zgodovina kreditov',
   },
   settings: {

@@ -1,6 +1,7 @@
 import type { LedgerEntry } from '../../data/credits';
-import { fill, formatAmount, t } from '../../i18n';
+import { fill, t } from '../../i18n';
 import { formatDate, formatTime } from '../../lib/time';
+import { Amount } from './Amount';
 
 export function LedgerList({ ledger, timeZone }: { ledger: LedgerEntry[]; timeZone: string }) {
   if (ledger.length === 0) return <p>{t.history.noTransactions}</p>;
@@ -18,9 +19,7 @@ export function LedgerList({ ledger, timeZone }: { ledger: LedgerEntry[]; timeZo
               })}
             </span>
           </span>
-          <span className={entry.amount < 0 ? 'amount negative' : 'amount'}>
-            {formatAmount(entry.amount)}
-          </span>
+          <Amount value={entry.amount} signed />
         </li>
       ))}
     </ul>

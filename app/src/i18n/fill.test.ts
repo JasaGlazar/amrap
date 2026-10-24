@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fill, formatTimeUntil, plural, type Plural } from './fill';
+import { fill, formatAmount, formatBalance, formatTimeUntil, plural, type Plural } from './fill';
 import { sl } from './sl';
 
 describe('fill', () => {
@@ -49,5 +49,17 @@ describe('plural', () => {
       '3 mesta',
       '5 mest',
     ]);
+  });
+});
+
+describe('signed numbers', () => {
+  const minus = '\u2212';
+
+  it('signs an amount always, with the typographic minus', () => {
+    expect([8, -1].map(formatAmount)).toEqual(['+8', `${minus}1`]);
+  });
+
+  it('signs a balance only when negative, with the same minus', () => {
+    expect([4, 0, -3].map(formatBalance)).toEqual(['4', '0', `${minus}3`]);
   });
 });

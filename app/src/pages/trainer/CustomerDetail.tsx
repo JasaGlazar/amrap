@@ -7,7 +7,7 @@ import { createInvite, getCustomer, inviteStatus, updateCustomer } from '../../d
 import { activateRule, addRule, deactivateRule, rulesOf } from '../../data/rules';
 import { getSettings } from '../../data/settings';
 import { allTemplates } from '../../data/slots';
-import { fill, t } from '../../i18n';
+import { fill, formatBalance, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { formatLongDay, formatTime, weekdayName } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
@@ -141,6 +141,7 @@ export function TrainerCustomerDetail() {
     title: string,
     appointments: Appointment[],
     empty: string,
+    actionLabel: string,
   ) => (
     <section aria-label={title}>
       <h2>{title}</h2>
@@ -162,7 +163,7 @@ export function TrainerCustomerDetail() {
                 className="button secondary small"
                 onClick={() => setCancelling({ appointment, section })}
               >
-                {t.slot.cancel}
+                {actionLabel}
               </button>
             </li>
           ))}
@@ -203,11 +204,15 @@ export function TrainerCustomerDetail() {
       </Link>
       <h1>{customer.name}</h1>
       <section className="card">
-        <p className="label">{t.customer.balanceLabel}</p>
-        <p className="balance-row">
-          <span className={balance < 0 ? 'balance negative' : 'balance'}>{balance}</span>
-          {balance < 0 && <span className="tag late">{t.customer.debt}</span>}
+        <p className="label-row">
+          <span className="label">{t.customer.balanceLabel}</span>
           <span className="tag">{t.customers.inviteStatus[status]}</span>
+        </p>
+        <p className="balance-row">
+          <span className={balance < 0 ? 'balance negative' : 'balance'}>
+            {formatBalance(balance)}
+          </span>
+          {balance < 0 && <span className="tag late">{t.customer.debt}</span>}
         </p>
       </section>
 
@@ -301,8 +306,10 @@ export function TrainerCustomerDetail() {
           <ul className="list">
             {rules.map((rule) => (
               <li key={rule.id} className={rule.active ? 'row' : 'row muted'}>
-                <span>{templateLabel(rule.slotTemplateId)}</span>
-                {!rule.active && <span className="tag">{t.customerDetail.ruleInactive}</span>}
+                <span className="row-text">
+                  <span>{templateLabel(rule.slotTemplateId)}</span>
+                  {!rule.active && <span className="tag">{t.customerDetail.ruleInactive}</span>}
+                </span>
                 <button
                   type="button"
                   className="button secondary small"
@@ -364,12 +371,14 @@ export function TrainerCustomerDetail() {
         t.customerDetail.upcomingTitle,
         upcoming,
         t.customer.noUpcoming,
+        t.slot.cancel,
       )}
       {appointmentSection(
         'recent',
         fill(t.customerDetail.recentTitle, { days: RECENT_DAYS }),
         recent,
         t.customerDetail.noRecent,
+        t.customerDetail.refund,
       )}
 
       <CustomerFieldsForm

@@ -7,6 +7,7 @@ import { t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { localDateOf } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
+import { Amount } from '../shared/Amount';
 import { WeekSlots } from '../shared/WeekSlots';
 import { OtherAppointments } from './OtherAppointments';
 import { SlotRoster } from './SlotRoster';
@@ -55,8 +56,7 @@ export function TrainerToday() {
             {debtors.map((customer) => (
               <li key={customer.id}>
                 <Link to={`/t/stranke/${customer.id}`} className="chip">
-                  {customer.name}{' '}
-                  <span className="amount negative">{balances.get(customer.id)}</span>
+                  {customer.name} <Amount value={balances.get(customer.id) ?? 0} />
                 </Link>
               </li>
             ))}
