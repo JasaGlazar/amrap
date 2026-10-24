@@ -375,6 +375,16 @@ describe('trainer calendar', () => {
     expect(within(form).getByLabelText(t.trainer.customer)).toHaveFocus();
   });
 
+  it('closes the ad-hoc form when the week changes', async () => {
+    renderAt('/t/koledar');
+    const form = await openAdHoc();
+    const next = screen.getByRole('button', { name: t.calendar.nextWeek });
+    await userEvent.click(next);
+    expect(form).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: t.trainer.adHocFormTitle })).toBeEnabled();
+    expect(next).toHaveFocus();
+  });
+
   it('drops the ad-hoc input on Prekliči and puts focus back on the button', async () => {
     renderAt('/t/koledar');
     const form = await openAdHoc();

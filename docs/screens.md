@@ -162,8 +162,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   **Odpovej**. None: `trainer.noOther`.
 - **Nov termin po dogovoru:** a button at the right of the title opens, under the title, a
   form ([on demand](#forms-on-demand)) with customer, date (defaults to the shown week's
-  Monday; moving to another week starts the form again for that week), start and end time.
-  The button is disabled while a week loads. The date and times are converted with
+  Monday), start and end time. Moving to another week closes the form (what was typed is
+  dropped) and the button is disabled while that week loads, so the form never shows without
+  the week it belongs to. The date and times are converted with
   `zonedInstant` in the gym timezone ([time.md](time.md)); a time that does not exist that day
   shows `trainer.invalidTime`, an end not after the start `trainer.invalidRange`, no customer
   `trainer.missingCustomer`. **Dodaj termin** calls `book` without a template (`p_ends_at`);

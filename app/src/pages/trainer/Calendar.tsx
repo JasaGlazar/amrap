@@ -46,6 +46,7 @@ export function TrainerCalendar() {
   function goToWeek(offset: number) {
     setMessage(null);
     setAddingTo(null);
+    setAddingAdHoc(false);
     setWeekOffset(offset);
   }
 
