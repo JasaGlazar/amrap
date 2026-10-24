@@ -20,6 +20,7 @@ type Props = {
   names: Map<string, string>;
   onCancel?: (appointment: Appointment) => void;
   add?: Add;
+  onCancelOccurrence?: (opener: HTMLElement) => void;
 };
 
 function AddControl({ add, choices }: { add: Add; choices: Customer[] }) {
@@ -54,7 +55,7 @@ function AddControl({ add, choices }: { add: Add; choices: Customer[] }) {
   );
 }
 
-export function SlotRoster({ appointments, names, onCancel, add }: Props) {
+export function SlotRoster({ appointments, names, onCancel, add, onCancelOccurrence }: Props) {
   const bookedIds = new Set(appointments.map((appointment) => appointment.customerId));
   const choices = add?.customers.filter((customer) => !bookedIds.has(customer.id)) ?? [];
   const reason = add?.unavailable ?? (choices.length === 0 ? t.trainer.noneToAdd : null);
@@ -84,17 +85,30 @@ export function SlotRoster({ appointments, names, onCancel, add }: Props) {
           ))}
         </ul>
       )}
-      {add !== undefined && (
-        <OnDemand
-          label={reason ?? t.trainer.addCustomer}
-          className="button secondary small"
-          add={reason === null}
-          disabled={reason !== null || add.pending}
-          open={add.open && reason === null}
-          onOpen={add.onOpen}
-        >
-          <AddControl add={add} choices={choices} />
-        </OnDemand>
+      {(add !== undefined || onCancelOccurrence !== undefined) && (
+        <div className="roster-actions">
+          {add !== undefined && (
+            <OnDemand
+              label={reason ?? t.trainer.addCustomer}
+              className="button secondary small"
+              add={reason === null}
+              disabled={reason !== null || add.pending}
+              open={add.open && reason === null}
+              onOpen={add.onOpen}
+            >
+              <AddControl add={add} choices={choices} />
+            </OnDemand>
+          )}
+          {onCancelOccurrence !== undefined && (
+            <button
+              type="button"
+              className="button quiet"
+              onClick={(event) => onCancelOccurrence(event.currentTarget)}
+            >
+              {t.trainer.cancelOccurrence}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

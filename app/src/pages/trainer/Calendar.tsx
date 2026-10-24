@@ -32,6 +32,7 @@ import { dayHeadingFormat, SlotRow } from '../shared/WeekSlots';
 import { AdHocForm } from './AdHocForm';
 import { CalendarWeek } from './CalendarWeek';
 import { DayStrip } from './DayStrip';
+import { OccurrenceCancelDialog } from './OccurrenceCancelDialog';
 import { OtherAppointments } from './OtherAppointments';
 import { SlotRoster } from './SlotRoster';
 
@@ -109,6 +110,7 @@ export function TrainerCalendar() {
   const [message, setMessage] = useState<Notice>(null);
   const [pending, setPending] = useState(false);
   const [cancelling, setCancelling] = useState<Appointment | null>(null);
+  const [closing, setClosing] = useState<{ slot: WeekSlot; item: HTMLElement | null } | null>(null);
   const [addingAdHoc, setAddingAdHoc] = useState(false);
   const [addingTo, setAddingTo] = useState<string | null>(null);
 
@@ -181,8 +183,26 @@ export function TrainerCalendar() {
               slotTemplateId: slot.templateId,
             }).then((ok) => ok && setAddingTo(null)),
         }}
+        onCancelOccurrence={
+          slot.blocked
+            ? undefined
+            : (opener) => {
+                setMessage(null);
+                setAddingTo(null);
+                setClosing({ slot, item: opener.closest('li') });
+              }
+        }
       />
     );
+  }
+
+  async function occurrenceCancelled(count: number) {
+    setMessage({
+      error: false,
+      text: count === 0 ? t.occurrenceDialog.doneEmpty : fill(t.occurrenceDialog.done, { count }),
+    });
+    await reload();
+    setClosing(null);
   }
 
   return (
@@ -247,6 +267,17 @@ export function TrainerCalendar() {
             onCancel={setCancelling}
           />
         ))}
+      {closing !== null && data !== null && (
+        <OccurrenceCancelDialog
+          slot={closing.slot}
+          appointments={appointmentsIn(data.week, closing.slot)}
+          names={names}
+          timeZone={timeZone}
+          returnTo={() => closing.item}
+          onClose={() => setClosing(null)}
+          onCancelled={occurrenceCancelled}
+        />
+      )}
       {cancelling !== null && data !== null && (
         <CancelDialog
           appointment={cancelling}

@@ -1,12 +1,14 @@
 -- cancel(): customer cancels are free before the cutoff and charged (late_cancel) after it,
 -- and only while the appointment is booked and not started. Trainer cancels never charge and
 -- refund an existing charge. A cancelled appointment cannot be cancelled again by anyone.
+-- The trainer may give a reason (trimmed, blank means none, at most 200 characters); a customer
+-- may not.
 --
 -- Appointments are inserted directly as the test superuser (book() would refuse past starts),
 -- with start times derived from now() (frozen for the transaction) and the configured cutoff.
 begin;
 
-select plan(38);
+select plan(50);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
@@ -56,7 +58,10 @@ insert into appt_spec
          ('b_future', 'cust_b', now() + interval '3 days', 'booked'),
          ('c_charged', 'cust_c', now() - interval '2 hours', 'charged'),
          ('c_cancelled', 'cust_c', now() + interval '4 days', 'cancelled'),
-         ('settings_probe', 'cust_a', now() + interval '2 days', 'booked')
+         ('settings_probe', 'cust_a', now() + interval '2 days', 'booked'),
+         ('trainer_blank', 'cust_c', now() + interval '5 days', 'booked'),
+         ('trainer_long', 'cust_c', now() + interval '6 days', 'booked'),
+         ('trainer_max', 'cust_c', now() + interval '7 days', 'booked')
        ) v(key, customer, starts_at, status);
 
 with ins as (
@@ -97,9 +102,17 @@ select is(
    from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'cancel'),
   'true:search_path=""',
   'cancel is security definer with an empty search_path');
-select ok(has_function_privilege('authenticated', 'public.cancel(uuid)', 'EXECUTE')
-          and not has_function_privilege('anon', 'public.cancel(uuid)', 'EXECUTE'),
+select ok(has_function_privilege('authenticated', 'public.cancel(uuid, text)', 'EXECUTE')
+          and not has_function_privilege('anon', 'public.cancel(uuid, text)', 'EXECUTE'),
   'authenticated can execute cancel, anon cannot');
+select is(
+  (select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'cancel'),
+  1, 'there is one cancel function, so a call with only p_appointment_id resolves');
+select is(
+  (select pg_get_function_arguments(p.oid) from pg_proc p
+   where p.pronamespace = 'public'::regnamespace and p.proname = 'cancel'),
+  'p_appointment_id uuid, p_reason text DEFAULT NULL::text',
+  'cancel takes an optional reason that defaults to null');
 
 -- Customer A: the cutoff boundary ----------------------------------------------------------
 
@@ -122,12 +135,18 @@ select throws_matching($$select public.cancel((select id from appts where key = 
   '^AMRAP_FORBIDDEN:', 'a customer cannot cancel another customer''s appointment');
 select throws_matching($$select public.cancel(gen_random_uuid())$$,
   '^AMRAP_NOT_FOUND:', 'cancelling an unknown appointment is rejected');
+select throws_matching($$select public.cancel((select id from appts where key = 'settings_probe'), 'Bolezen')$$,
+  '^AMRAP_FORBIDDEN:', 'a customer cannot give a reason');
 
 select tests.clear_authentication();
 
-select results_eq($$select status::text, cancelled_at from pg_temp.appt('free')$$,
-  $$values ('cancelled', now())$$,
-  'one minute after the cutoff: status cancelled, cancelled_at set');
+select results_eq($$select status::text, cancel_reason from pg_temp.appt('settings_probe')$$,
+  $$values ('booked', null::text)$$,
+  'the rejected cancel with a reason left the appointment booked, without a reason');
+
+select results_eq($$select status::text, cancelled_at, cancel_reason from pg_temp.appt('free')$$,
+  $$values ('cancelled', now(), null::text)$$,
+  'one minute after the cutoff: status cancelled, cancelled_at set, no reason');
 select is_empty($$select * from pg_temp.appt_tx('free')$$,
   'one minute after the cutoff: no transaction');
 select results_eq($$select status::text, cancelled_at from pg_temp.appt('late')$$,
@@ -181,8 +200,8 @@ select tests.clear_authentication();
 
 select tests.authenticate_as((select id from fx where key = 'trainer_user'));
 
-select lives_ok($$select public.cancel((select id from appts where key = 'b_future'))$$,
-  'the trainer cancels a booked appointment');
+select lives_ok($$select public.cancel((select id from appts where key = 'b_future'), '  Bolezen trenerja  ')$$,
+  'the trainer cancels a booked appointment with a reason');
 select lives_ok($$select public.cancel((select id from appts where key = 'c_charged'))$$,
   'the trainer cancels a charged appointment');
 select throws_matching($$select public.cancel((select id from appts where key = 'late'))$$,
@@ -193,17 +212,42 @@ select throws_matching($$select public.cancel((select id from appts where key = 
   '^AMRAP_NOT_CANCELLABLE:', 'the trainer cannot cancel a cancelled_by_trainer appointment again');
 select throws_matching($$select public.cancel(gen_random_uuid())$$,
   '^AMRAP_NOT_FOUND:', 'the trainer cancelling an unknown appointment is rejected');
+select lives_ok($$select public.cancel((select id from appts where key = 'trainer_blank'), E' \t ')$$,
+  'the trainer cancels with a blank reason');
+select throws_matching(
+  $$select public.cancel((select id from appts where key = 'trainer_long'), repeat('x', 201))$$,
+  '^AMRAP_INVALID_ARGUMENT:', 'a reason over 200 characters is rejected');
+select lives_ok(
+  $$select public.cancel((select id from appts where key = 'trainer_max'), ' ' || repeat('ž', 200) || ' ')$$,
+  'a reason of 200 characters after trimming is accepted');
 
 select tests.clear_authentication();
 
-select results_eq($$select status::text, cancelled_at from pg_temp.appt('b_future')$$,
-  $$values ('cancelled_by_trainer', now())$$,
-  'trainer cancel of a booked appointment: cancelled_by_trainer, cancelled_at set');
+select results_eq($$select status::text, cancelled_at, cancel_reason from pg_temp.appt('b_future')$$,
+  $$values ('cancelled_by_trainer', now(), 'Bolezen trenerja')$$,
+  'trainer cancel of a booked appointment: cancelled_by_trainer, cancelled_at set, the reason trimmed');
 select is_empty($$select * from pg_temp.appt_tx('b_future')$$,
   'trainer cancel of a booked appointment: no transaction');
-select results_eq($$select status::text, cancelled_at from pg_temp.appt('c_charged')$$,
-  $$values ('cancelled_by_trainer', now())$$,
-  'trainer cancel of a charged appointment: cancelled_by_trainer, cancelled_at set');
+select results_eq($$select status::text, cancelled_at, cancel_reason from pg_temp.appt('c_charged')$$,
+  $$values ('cancelled_by_trainer', now(), null::text)$$,
+  'trainer cancel of a charged appointment: cancelled_by_trainer, cancelled_at set, no reason');
+select results_eq($$select status::text, cancel_reason from pg_temp.appt('trainer_blank')$$,
+  $$values ('cancelled_by_trainer', null::text)$$,
+  'a blank reason is stored as no reason');
+select results_eq($$select status::text, cancel_reason from pg_temp.appt('trainer_long')$$,
+  $$values ('booked', null::text)$$,
+  'the rejected over-long reason left the appointment booked');
+select results_eq($$select status::text, cancel_reason from pg_temp.appt('trainer_max')$$,
+  $$values ('cancelled_by_trainer', repeat('ž', 200))$$,
+  'the 200-character reason is stored without the spaces around it');
+
+select throws_ok(
+  $$update public.appointments set cancel_reason = '' where id = (select id from appts where key = 'trainer_long')$$,
+  '23514', null, 'the table refuses an empty reason');
+select throws_ok(
+  $$update public.appointments set cancel_reason = repeat('x', 201)
+    where id = (select id from appts where key = 'trainer_long')$$,
+  '23514', null, 'the table refuses a reason over 200 characters');
 select results_eq($$select * from pg_temp.appt_tx('c_charged') order by 1$$,
   $$values ('refund', 1, (select id from fx where key = 'trainer_user')), ('session', -1, null::uuid)$$,
   'trainer cancel of a charged appointment: one refund +1 by the trainer next to the session -1');

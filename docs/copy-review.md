@@ -211,6 +211,7 @@ is a question below.
 | `cancelDialog.done` | Termin je odpovedan. |  |
 | `cancelDialog.noCharge` | Stranki se kredit ne zaračuna. |  |
 | `cancelDialog.refund` | Odpoved z vračilom: stranki se vrne 1 kredit. |  |
+| `cancelDialog.reason` | Razlog (neobvezno) | Novo (Stage 11): polje le v trenerjevem oknu za odpoved; razlog dobi stranka v obvestilu in ga vidi v zgodovini. |
 
 ### Stranka: Zgodovina
 
@@ -220,6 +221,7 @@ is a question below.
 | `history.noAppointments` | Ni preteklih terminov. |  |
 | `history.ledgerTitle` | Krediti |  |
 | `history.noTransactions` | Ni transakcij. | »Ni transakcij« je tehnično. Predlog: »Ni sprememb kreditov.« |
+| `history.reason` | Razlog: {reason} | Novo (Stage 11): pod datumom termina, ki ga je trener odpovedal z razlogom (stranka v Zgodovini, trener pri stranki). |
 | `appointmentStatus.booked` | Rezervirano |  |
 | `appointmentStatus.charged` | Opravljeno | Termin, ki je bil zaračunan, je označen »Opravljeno«, tudi če stranka ni prišla. Raje »Zaračunano«? |
 | `appointmentStatus.cancelled` | Odpovedano |  |
@@ -246,6 +248,16 @@ is a question below.
 | `trainer.days` | Dnevi v tednu | Ni vidno: ime vrstice z gumbi za dneve v koledarju na telefonu (bralnik zaslona). |
 | `trainer.noSlotsOnDay` | Ta dan ni terminov. | Koledar na telefonu, izbran dan brez terminov. |
 | `trainer.todayTag` | danes | Oznaka današnjega stolpca v tedenskem koledarju na računalniku. |
+| `trainer.cancelOccurrence` | Odpovej termin | Novo (Stage 11): gumb pod vsakim terminom v Koledarju, ki odpove termin vsem prijavljenim strankam in ga zapre. |
+| `occurrenceDialog.title` | Odpoved celega termina | Novo (Stage 11): naslov okna za odpoved celega termina. |
+| `occurrenceDialog.booked` | Prijavljenih strank: {count} | Novo (Stage 11): nad seznamom imen v oknu. |
+| `occurrenceDialog.refund` | Strankam z oznako »opravljeno« se kredit vrne. | Novo (Stage 11): le ko je kdo termin že plačal. |
+| `occurrenceDialog.notify` | Stranke prejmejo obvestilo o odpovedi; razlog vidijo tudi v svoji zgodovini. | Novo (Stage 11). Obvestilo prejmejo le stranke z vklopljenimi obvestili; je stavek dovolj natančen? |
+| `occurrenceDialog.reopen` | Termin bo zaprt, zato ga nihče ne bo mogel rezervirati. Znova ga odprete tako, da izbrišete njegovo zaprto obdobje v »Nastavitve« → »Zaprta obdobja«; odpovedane rezervacije ostanejo odpovedane. | Novo (Stage 11). |
+| `occurrenceDialog.confirm` | Odpovej termin | Novo (Stage 11): potrditev v oknu (enako kot gumb v Koledarju). |
+| `occurrenceDialog.done` | Termin je odpovedan, obveščenih strank: {count}. | Novo (Stage 11), besedilo lastnika. Število je število odpovedanih rezervacij; obvestilo na napravo dobijo le stranke z vklopljenimi obvestili, ostale odpoved vidijo v zgodovini. Raje »odpovedanih rezervacij: 3«? |
+| `occurrenceDialog.doneEmpty` | Termin je odpovedan in zaprt. | Novo (Stage 11): ko v terminu ni bilo nikogar. |
+| `occurrenceDialog.overlapping` | Ob istem času imajo drugi termini še rezervacije ({count}). Ostanejo rezervirane; odpoveste jih lahko posamično z »Odpovej«. | Novo (Stage 11): ko se s terminom prekriva drug termin z rezervacijami (npr. ponedeljek 07:00 in 07:07). Zaprto obdobje zapre tudi drugi termin, rezervacije v njem pa ostanejo. |
 | `trainer.chargedTag` | opravljeno | Isto vprašanje kot »Opravljeno« zgoraj. |
 | `trainer.addCustomer` | Dodaj stranko | Gumb pri terminu v koledarju; odpre izbiro stranke. Ko je termin poln ali zaprt, gumb namesto tega pokaže »Polno« ali »Zaprto«. Enako besedilo ima gumb, ki ustvari novo stranko (`customers.create`), čeprav gre za drugo dejanje: je to v redu, ali naj bo tukaj »Prijavi stranko« ali »Dodaj v termin«? |
 | `trainer.noneToAdd` | Ni strank za dodajanje | Onemogočen gumb pri terminu, ko ni nobene stranke, ki bi jo lahko dodali (vse so že prijavljene ali pa strank še ni). |
@@ -344,6 +356,7 @@ is a question below.
 | `customerDetail.recentTitle` | Opravljeni termini (zadnjih {days} dni) |  |
 | `customerDetail.noRecent` | V tem obdobju ni opravljenih terminov. |  |
 | `customerDetail.refund` | Vrni kredit | Gumb pri opravljenem terminu: odpove termin in stranki vrne kredit. Novo (prej »Odpovej«, kot pri prihajajočih). V redu? |
+| `customerDetail.historyTitle` | Zgodovina terminov | Novo (Stage 11): vsi pretekli in odpovedani termini stranke s stanjem in razlogom odpovedi, kot jih vidi stranka. |
 | `customerDetail.ledgerTitle` | Zgodovina kreditov |  |
 
 ### Trener: Nastavitve
@@ -419,6 +432,10 @@ is a question below.
 | `push.adjustmentTitle` | Popravek stanja kreditov |  |
 | `push.adjustmentBody` | Popravek: {amount}. Novo stanje: {balance}. |  |
 | `push.withNote` | {body} Opomba: {note} |  |
+| `push.trainerCancelledTitle` | Termin je odpovedan | Novo (Stage 11): naslov obvestila stranki, ko trener odpove njen termin. |
+| `push.trainerCancelledBody` | Trener je odpovedal termin {day} ob {time}. | Novo (Stage 11). Primer: »Trener je odpovedal termin ponedeljek, 26. oktober ob 07:00.« |
+| `push.withRefund` | {body} Kredit je vrnjen. | Novo (Stage 11): doda se, ko je bil termin že zaračunan in je kredit vrnjen. |
+| `push.withReason` | {body} Razlog: {reason} | Novo (Stage 11): doda se na konec, ko je trener vpisal razlog. |
 | `push.genericTitle` | AMRAP |  |
 | `push.genericBody` | Imate novo obvestilo. |  |
 | `pushToggle.title` | Obvestila |  |

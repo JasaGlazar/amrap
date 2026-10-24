@@ -5,6 +5,7 @@ import { fill, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { cutoffOf, formatDay, formatLongDay, formatTime, isFreeCancel } from '../../lib/time';
 import { useModal } from './modal';
+import { ReasonField } from './ReasonField';
 
 type Props = {
   appointment: Pick<Appointment, 'id' | 'startsAt' | 'status'>;
@@ -30,6 +31,7 @@ export function CancelDialog({
   const [free, setFree] = useState(() => isFreeCancel(startsAt, lateCancelHours, new Date()));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [reason, setReason] = useState('');
   const cutoff = cutoffOf(startsAt, lateCancelHours);
 
   useModal(dialogRef, onClose);
@@ -41,7 +43,7 @@ export function CancelDialog({
       return;
     }
     setBusy(true);
-    const result = await cancel(supabase, appointment.id);
+    const result = await cancel(supabase, appointment.id, reason);
     setBusy(false);
     if (result.ok) onCancelled();
     else setError(result.message);
@@ -66,9 +68,12 @@ export function CancelDialog({
         </p>
         {customerName !== undefined && <p className="dialog-name">{customerName}</p>}
         {asTrainer ? (
-          <p className={appointment.status === 'charged' ? 'notice late' : 'notice'}>
-            {appointment.status === 'charged' ? t.cancelDialog.refund : t.cancelDialog.noCharge}
-          </p>
+          <>
+            <p className={appointment.status === 'charged' ? 'notice late' : 'notice'}>
+              {appointment.status === 'charged' ? t.cancelDialog.refund : t.cancelDialog.noCharge}
+            </p>
+            <ReasonField value={reason} onChange={setReason} />
+          </>
         ) : (
           <>
             <p>

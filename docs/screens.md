@@ -87,6 +87,13 @@ data.
 - Shows the appointment (`slot.when`), the cutoff (`Brezplačna odpoved do {day} ob {time}`,
   `starts_at − settings.late_cancel_hours`) and either `cancelDialog.free` (now before the
   cutoff) or `cancelDialog.late` (`zaračunan bo 1 kredit`, from the cutoff on), like `cancel()`.
+- **Trainer mode** (Koledar, Danes, customer detail): the customer's name, `cancelDialog.refund`
+  for a charged appointment or `cancelDialog.noCharge`, and an optional text field
+  **Razlog (neobvezno)** (`autocomplete="off"`, at most 200 characters like
+  `appointments.cancel_reason`, 16 px). The reason is trimmed and sent as `p_reason` only when
+  it is not blank; the customer gets it in the notification and sees it in **Zgodovina**
+  ([ADR 0015](adr/0015-trainer-cancel-notifies-customer.md)). The customer's dialog has no
+  field (`cancel()` refuses a customer's reason).
 - While it is open the page behind it does not scroll (`overflow: hidden` on the root element,
   restored to its previous value on close). iOS Safari has ignored this for touch scrolling in
   some versions; checked on a real iPhone as an owner action.
@@ -111,7 +118,10 @@ data.
   ([below](#show-more)); the empty lines stay as they were.
 - **Termini:** every appointment of mine that is not upcoming (past, or cancelled in any way),
   newest first, with date and time and the status label (`appointmentStatus`: Rezervirano for a
-  started one not charged yet, Opravljeno, Odpovedano, Pozna odpoved, Odpovedal trener).
+  started one not charged yet, Opravljeno, Odpovedano, Pozna odpoved, Odpovedal trener). A
+  trainer cancel with a reason shows `Razlog: …` (`history.reason`, muted) under the date, so a
+  customer without push still learns why (`pages/shared/AppointmentHistory.tsx`, shared with
+  the trainer's customer detail).
 - **Krediti:** the ledger, newest first: type label (`transactionType`), the note if any, the
   date and time, and the amount with its sign (`+8`, `−1`; negative in red).
 
@@ -200,8 +210,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     never wraps.
     The open add control puts the select on its own line and **Dodaj** and **Prekliči** under
     it.
-- **Unchanged in both views:** **Dodaj stranko** and its disabled reasons, the cancel dialog,
-  **Nov termin po dogovoru**, past weeks, `Zaprto` and `Polno`. Occurrences are bucketed by
+- **The same in both views:** **Dodaj stranko** and its disabled reasons, **Odpovej termin**,
+  the cancel dialog, **Nov termin po dogovoru**, past weeks, `Zaprto` and `Polno`. Occurrences are bucketed by
   their local date (`occurrenceInWeek`) and appointments outside the grid by
   `localDateOf(startsAt, settings.timezone)`, never by UTC or the browser's zone, so an
   appointment at 00:30 on the Sunday of the autumn change (22:30 UTC on Saturday) is on
@@ -223,6 +233,36 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   place) or **Ni strank za dodajanje** (`trainer.noneToAdd`: every customer is already booked
   there, or there are no customers yet, as on the first day before Stranke is filled in). A
   reload that leaves any of these closes an open control. Past occurrences keep the button (the trainer records a session after the fact).
+- **Odpovej termin** (`trainer.cancelOccurrence`, issue #19, [ADR
+  0016](adr/0016-cancel-occurrence-closes-it.md)): at the foot of every occurrence that is not
+  `Zaprto`, a quiet text button (`button quiet`: no border or fill, `--muted` text at 0.8125
+  rem, 44 px tall, `--debt` only on hover, press and keyboard focus, which also draws the focus
+  ring), so it never competes with **Dodaj stranko**. In the day view it shares a right-aligned
+  group with **Dodaj stranko** (`.roster-actions`), on the same row when there is room (an
+  occurrence with bookings, or 390 px and wider with **Polno**) and right-aligned under it when
+  not (an empty occurrence at 360-390 px, next to `Ni prijavljenih strank.`, which stays level
+  with **Dodaj stranko**); in a grid card it sits left-aligned at the card's foot under the
+  full-width **Dodaj stranko**, never full width itself. Past and empty occurrences have it too (refunding a missed session that was
+  already charged; closing a session nobody booked). It opens a dialog with the cancel dialog's
+  layout and focus rules (`OccurrenceCancelDialog.tsx`): the title **Odpoved celega termina**,
+  the occurrence (`{day} ob {time}`), `Prijavljenih strank: {count}` and their names
+  (`opravljeno` on charged ones) or `Ni prijavljenih strank.`, the refund line
+  (`occurrenceDialog.refund`) when someone is charged, the notice that customers are told, a
+  warning when live bookings of another slot overlap the period about to be closed
+  (`occurrenceDialog.overlapping`, counted with `liveIdsOverlapping` minus this occurrence's own;
+  they stay booked and are cancelled one by one with **Odpovej**; the demo's Monday 07:00 and
+  07:07 overlap; a failed count only logs a warning and shows no line), the optional
+  **Razlog (neobvezno)** field (shared with the cancel dialog, `ReasonField.tsx`), how
+  to reopen (delete the period in **Nastavitve → Zaprta obdobja**; the bookings stay cancelled)
+  and **Odpovej termin** (danger) with **Nazaj**. Confirming calls `cancel_occurrence(template,
+  start, reason)`; the dialog stays open until the week has reloaded, then closes with
+  `Termin je odpovedan, obveščenih strank: {count}.` (`Termin je odpovedan in zaprt.` when
+  nobody was booked) in the status line, the occurrence `Zaprto` without its action and its
+  customers, and focus on the occurrence (its row or card). A rejection (for example the
+  occurrence was closed meanwhile, `AMRAP_BLOCKED`) shows its copy in the dialog and disables
+  the confirm button, as in the cancel dialog. A `Zaprto` occurrence has no **Odpovej termin**:
+  it is already closed (`cancel_occurrence` refuses it), and bookings a Settings period
+  stranded inside it are cancelled one by one with **Odpovej**.
 - **Termini zunaj urnika:** live appointments that match no shown occurrence
   (`appointmentsOutsideSlots`): ad-hoc ones (`po dogovoru`) and bookings left behind by a
   deactivated or moved template (`ni več v urniku`), with day, time range and name, each with
@@ -296,15 +336,17 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 
 ### Customer detail (`/t/stranke/:id`)
 
-- **Data:** `getCustomer`, `getSettings`, `balanceOf`, `ledgerOf` and `chargedSince` (the
-  first page of each), `upcomingAppointments`, `rulesOf`, `allTemplates`. A missing record (or the trainer's own id) shows the load error
+- **Data:** `getCustomer`, `getSettings`, `balanceOf`, `ledgerOf`, `chargedSince` and
+  `pastAppointments` (the first page of each), `upcomingAppointments`, `rulesOf`,
+  `allTemplates`. A missing record (or the trainer's own id) shows the load error
   with the back link.
 - **Back link:** **Nazaj na stranke** returns to the list with the search and filter it was
   opened from (the list's query string in the navigation state, kept when the page clears its
   starting-balance message).
 - **Order:** the back link and the name, then the balance with **Krediti** beside it, then
-  **Prihajajoči termini**, **Stalni termini**, **Opravljeni termini**, **Zgodovina kreditov**,
-  and lower down **Povabilo** and **Podatki** (set up once, rarely changed).
+  **Prihajajoči termini**, **Stalni termini**, **Opravljeni termini**, **Zgodovina terminov**,
+  **Zgodovina kreditov**, and lower down **Povabilo** and **Podatki** (set up once, rarely
+  changed).
 - **Balance:** the label `Stanje kreditov` and the invite status tag on one line and the framed
   balance below (red with `dolg` when negative), on the page rather than in a card. From 768 px
   the balance and the **Krediti** card sit side by side (a two-column grid: the balance as wide
@@ -333,6 +375,11 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   **Odpovej**); the trainer cancel dialog says the credit is refunded (`cancelDialog.refund`),
   and `cancel()` adds the +1 refund. Older charges are corrected with an adjustment. The newest
   10 and **Pokaži več** ([below](#show-more)).
+- **Zgodovina terminov:** the customer's appointments that are not upcoming, exactly as the
+  customer's **Zgodovina → Termini** shows them (status tag, and `Razlog: …` under a trainer
+  cancel with a reason), 10 at a time with **Pokaži več**. No actions: refunds stay in
+  **Opravljeni termini**. Before Stage 11 the trainer could not see a cancelled appointment
+  anywhere on this page.
 - **Zgodovina kreditov:** the ledger, as on the customer's History, 10 at a time with **Pokaži
   več**.
 - **After an action** (credits, a cancel or refund, a rule) the page reloads, and both paged
@@ -467,8 +514,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 
 ## Show more
 
-The four history lists (customer History: **Termini**, **Krediti**; customer detail:
-**Opravljeni termini**, **Zgodovina kreditov**) show 10 rows at a time through `PagedList`
+The five history lists (customer History: **Termini**, **Krediti**; customer detail:
+**Opravljeni termini**, **Zgodovina terminov**, **Zgodovina kreditov**) show 10 rows at a time through `PagedList`
 (`pages/shared/PagedList.tsx`, reads in [data-layer.md](data-layer.md#paged-reads)). Upcoming
 lists (customer Home, **Prihajajoči termini**) are short and show everything.
 

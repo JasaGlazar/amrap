@@ -246,6 +246,12 @@ describe('cancel dialog', () => {
     expect(await screen.findByText(t.customer.noUpcoming)).toBeInTheDocument();
   });
 
+  it('asks the customer for no reason', async () => {
+    const dialog = await openDialog();
+    expect(within(dialog).queryByLabelText(t.cancelDialog.reason)).toBeNull();
+    expect(within(dialog).queryByRole('textbox')).toBeNull();
+  });
+
   it('switches to the late copy instead of cancelling when the cutoff passed while open', async () => {
     vi.setSystemTime(new Date(cutoff.getTime() - 60_000));
     const dialog = await openDialog();
@@ -424,6 +430,27 @@ describe('history', () => {
         t.appointmentStatus[row.status as keyof typeof t.appointmentStatus],
       );
     });
+  });
+
+  it("shows the trainer's reason under an Odpovedal trener row, and none without one", async () => {
+    db.tables.appointments = [
+      { id: 'r1', starts_at: '2026-10-14T06:00:00Z', reason: 'Bolezen trenerja' },
+      { id: 'r2', starts_at: '2026-10-13T06:00:00Z', reason: null },
+    ].map(({ reason, ...row }) => ({
+      ...row,
+      customer_id: me.id,
+      slot_template_id: null,
+      ends_at: row.starts_at,
+      status: 'cancelled_by_trainer',
+      cancel_reason: reason,
+    }));
+    renderAt('/c/zgodovina');
+    const section = await screen.findByRole('region', { name: t.history.appointmentsTitle });
+    const [withReason, without] = await within(section).findAllByRole('listitem');
+    expect(withReason).toHaveTextContent(t.appointmentStatus.cancelled_by_trainer);
+    expect(withReason).toHaveTextContent(fill(t.history.reason, { reason: 'Bolezen trenerja' }));
+    expect(without).toHaveTextContent(t.appointmentStatus.cancelled_by_trainer);
+    expect(without).not.toHaveTextContent(fill(t.history.reason, { reason: '' }).trim());
   });
 
   it('lists the ledger newest first with type, signed amount and note', async () => {

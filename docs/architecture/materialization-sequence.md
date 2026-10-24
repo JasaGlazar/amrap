@@ -5,9 +5,10 @@ How recurring rules become appointments. `materialize_recurring()` runs nightly 
 `materialize_rule()` for every active rule of an active slot template; `activate_rule()` runs
 the same helper for one rule. For each occurrence date from today through four weeks ahead
 (local dates in `settings.timezone`), the helper builds `starts_at` from the date and the
-template's `start_time` in the gym's timezone (DST-safe), skips past starts, starts that do
-not exist that day and occurrences that overlap a blocked period, then takes the same advisory
-lock as `book()` and skips the occurrence if the rule already has an instance there (any
+template's `start_time` in the gym's timezone (DST-safe), skips past starts and starts that do
+not exist that day, then takes the same advisory lock as `book()` and skips the occurrence if it
+overlaps a blocked period (checked after the lock, so a concurrent `cancel_occurrence()` is
+seen), if the rule already has an instance there (any
 status, so a cancelled one is never recreated), if the customer is already booked at that
 start, or if the slot is full. Otherwise it inserts a `booked` appointment with
 `source = 'recurring'`. A second run inserts nothing. Details in
@@ -31,9 +32,9 @@ sequenceDiagram
         loop each occurrence date, today to today + 28 days
             H->>H: starts_at = (date + start_time) at time zone settings.timezone
             H->>H: skip if starts_at <= now() or start_time does not exist that day
+            H->>H: pg_advisory_xact_lock(template + starts_at), same key as book()
             H->>BP: [starts_at, ends_at) overlaps a blocked period?
             BP-->>H: skip if so
-            H->>H: pg_advisory_xact_lock(template + starts_at), same key as book()
             H->>A: instance of this rule at starts_at (any status)? customer live at starts_at? live count
             A-->>H: skip if instance exists, customer booked, or count >= capacity
             H->>A: insert booked, source recurring, rule_id

@@ -3,7 +3,8 @@ export type NotificationKind =
   | 'booking_created'
   | 'booking_cancelled'
   | 'credit_topup'
-  | 'credit_adjustment';
+  | 'credit_adjustment'
+  | 'appointment_cancelled_by_trainer';
 
 export interface ClaimedRow {
   notification_id: string;

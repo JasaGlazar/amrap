@@ -39,6 +39,7 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 | `rulesOf(client, customerId)` | `recurring_rules` | that customer's rules, oldest first |
 | `allTemplates(client)` | `slot_templates` | active and inactive, by `weekday`, `start_time` |
 | `upcomingBlocked(client, now)` | `blocked_periods` | `ends_at > now`, by start |
+| `liveIdsOverlapping(client, from, to)` | `appointments` | ids of live (`booked` or `charged`) appointments overlapping `[from, to)`: `starts_at < to` and `ends_at > from`, past or not |
 | `chargedSince(client, customerId, since, from?)` | `appointments` | that customer's `charged` appointments with `starts_at >= since`, newest first; [paged](#paged-reads) |
 | `futureBookedCount(client, templateId, now)` | `appointments` | the number of `booked` appointments of that template with `starts_at > now` |
 | `liveCountBetween(client, from, to, now)` | `appointments` | the number of live (`booked` or `charged`) appointments overlapping `[from, to)` that have not ended: `starts_at < to` and `ends_at` after both `from` and `now` |
@@ -47,8 +48,11 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 `inviteStatus(customer, now)` derives a customer's invite status: `linked` (an auth user is
 linked), `pending` (an invite token that has not expired) or `none`.
 
-Appointments carry `customerId`, `slotTemplateId` (null for ad hoc), `startsAt`, `endsAt` and
-`status`.
+Appointments carry `customerId`, `slotTemplateId` (null for ad hoc), `startsAt`, `endsAt`,
+`status` and `cancelReason` (the trainer's reason, or null).
+
+`CANCEL_REASON_MAX` (200) is the longest reason `cancel()` and the table accept; the reason
+fields use it as `maxLength`.
 
 ## Paged reads
 
@@ -92,7 +96,8 @@ already history.
 |---|---|---|
 | `book(client, { customerId, startsAt, slotTemplateId })` | `book` | `p_customer_id`, `p_starts_at` (`startsAt.toISOString()`), `p_slot_template_id` |
 | `book(client, { customerId, startsAt, endsAt })` | `book` | ad hoc (trainer): `p_customer_id`, `p_starts_at`, `p_ends_at`, no template |
-| `cancel(client, appointmentId)` | `cancel` | `p_appointment_id` |
+| `cancel(client, appointmentId, reason?)` | `cancel` | `p_appointment_id`, plus `p_reason` (trimmed) only when the reason is not blank, so a customer's call never carries one |
+| `cancelOccurrence(client, { templateId, startsAt, reason })` | `cancel_occurrence` | `p_template_id`, `p_starts_at`, plus `p_reason` (trimmed) only when not blank; `data` is the number cancelled |
 | `topUp(client, customerId, amount, note)` | `top_up` | `p_customer_id`, `p_amount`, `p_note` (omitted when null) |
 | `adjust(client, customerId, amount, note)` | `adjust` | same as `topUp` |
 | `createInvite(client, customerId)` | `create_invite` | `p_customer_id`; `data` is the token |

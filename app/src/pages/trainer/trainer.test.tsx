@@ -16,6 +16,7 @@ import {
   zonedInstant,
   type LocalDate,
 } from '../../lib/time';
+import { CANCEL_REASON_MAX } from '../../data/appointments';
 import { routes } from '../../routes';
 import {
   db,
@@ -433,6 +434,40 @@ describe('trainer calendar', () => {
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', { p_appointment_id: 'a-ana' });
   });
 
+  it('offers an optional reason that phones do not autofill, as long as the database allows', async () => {
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await userEvent.click(within(row).getByRole('button', { name: t.slot.cancel }));
+    const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
+    const reason = within(dialog).getByLabelText(t.cancelDialog.reason);
+    expect(reason).toHaveAttribute('autocomplete', 'off');
+    expect(reason).toHaveAttribute('maxlength', String(CANCEL_REASON_MAX));
+    expect(reason).toHaveValue('');
+  });
+
+  it('passes the trimmed reason to cancel', async () => {
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await userEvent.click(within(row).getByRole('button', { name: t.slot.cancel }));
+    const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
+    await userEvent.type(within(dialog).getByLabelText(t.cancelDialog.reason), '  Bolezen  ');
+    await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', {
+      p_appointment_id: 'a-ana',
+      p_reason: 'Bolezen',
+    });
+  });
+
+  it('sends no reason when the field holds only spaces', async () => {
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await userEvent.click(within(row).getByRole('button', { name: t.slot.cancel }));
+    const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
+    await userEvent.type(within(dialog).getByLabelText(t.cancelDialog.reason), '   ');
+    await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', { p_appointment_id: 'a-ana' });
+  });
+
   it('shows Nov termin po dogovoru as a button until it is pressed', async () => {
     renderAt('/t/koledar');
     const button = await screen.findByRole('button', { name: t.trainer.adHocFormTitle });
@@ -809,6 +844,167 @@ describe.each<View>(['day', 'week'])('trainer calendar actions in the %s view', 
     const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
     await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', { p_appointment_id: 'a-adhoc' });
+  });
+});
+
+describe.each<View>(['day', 'week'])('cancelling a whole occurrence in the %s view', (view) => {
+  beforeEach(() => {
+    showView(view);
+    db.tables.appointments = [
+      appointment('a-ana', 'c-ana', 'booked'),
+      appointment('a-bor', 'c-bor', 'charged'),
+    ];
+    db.tables.slot_occupancy = [
+      { slot_template_id: todayTemplate.id, starts_at: postgrestTime(startsAt), booked_count: 2 },
+    ];
+  });
+
+  async function openOccurrenceDialog() {
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await userEvent.click(within(row).getByRole('button', { name: t.trainer.cancelOccurrence }));
+    return screen.findByRole('dialog', { name: t.occurrenceDialog.title });
+  }
+
+  it('offers Odpovej termin on an open occurrence, apart from the customer cancels', async () => {
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    const action = within(row).getByRole('button', { name: t.trainer.cancelOccurrence });
+    expect(action).toBeEnabled();
+    expect(action).toHaveClass('quiet');
+    expect(action).not.toHaveClass('danger', 'secondary');
+    expect(within(row).getAllByRole('button', { name: t.slot.cancel })).toHaveLength(2);
+  });
+
+  it('offers no Odpovej termin on a closed occurrence', async () => {
+    db.tables.blocked_periods = [
+      {
+        id: 'b-1',
+        starts_at: postgrestTime(startsAt),
+        ends_at: postgrestTime(new Date(startsAt.getTime() + 3_600_000)),
+        reason: null,
+      },
+    ];
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    expect(within(row).getByRole('button', { name: t.calendar.blocked })).toBeDisabled();
+    expect(within(row).queryByRole('button', { name: t.trainer.cancelOccurrence })).toBeNull();
+  });
+
+  it('names the occurrence and who is booked, the refund, the notice and how to reopen', async () => {
+    const dialog = await openOccurrenceDialog();
+    expect(dialog).toHaveTextContent(slotLabel(startsAt));
+    expect(dialog).toHaveTextContent(fill(t.occurrenceDialog.booked, { count: 2 }));
+    const names = within(dialog).getAllByRole('listitem');
+    expect(names.map((item) => item.textContent)).toEqual(['Ana', `Bor${t.trainer.chargedTag}`]);
+    expect(dialog).toHaveTextContent(t.occurrenceDialog.refund);
+    expect(dialog).toHaveTextContent(t.occurrenceDialog.notify);
+    expect(dialog).toHaveTextContent(t.occurrenceDialog.reopen);
+    expect(within(dialog).getByLabelText(t.cancelDialog.reason)).toHaveAttribute(
+      'maxlength',
+      String(CANCEL_REASON_MAX),
+    );
+    expect(within(dialog).getByRole('button', { name: t.occurrenceDialog.confirm })).toHaveClass(
+      'danger',
+    );
+  });
+
+  it('warns that bookings of an overlapping slot stay booked', async () => {
+    const overlapping = { ...todayTemplate, id: 'tpl-overlap', start_time: '18:30:00' };
+    const overlapStart = occurrenceInWeek(overlapping, weekStart(today), tz)!.startsAt;
+    db.tables.slot_templates = [todayTemplate, overlapping];
+    db.tables.appointments.push({
+      ...appointment('a-cvet', 'c-cvet', 'booked'),
+      slot_template_id: overlapping.id,
+      starts_at: postgrestTime(overlapStart),
+      ends_at: postgrestTime(new Date(overlapStart.getTime() + 3_600_000)),
+    });
+    const dialog = await openOccurrenceDialog();
+    expect(
+      await within(dialog).findByText(fill(t.occurrenceDialog.overlapping, { count: 1 })),
+    ).toBeVisible();
+    expect(within(dialog).getAllByRole('listitem')).toHaveLength(2);
+  });
+
+  it('does not warn when nothing else overlaps the occurrence', async () => {
+    const dialog = await openOccurrenceDialog();
+    await waitFor(() => expect(fakeSupabase.from).toHaveBeenLastCalledWith('appointments'));
+    expect(dialog).not.toHaveTextContent(t.occurrenceDialog.overlapping.split('{count}')[0]);
+  });
+
+  it('leaves out the refund line when nobody was charged', async () => {
+    db.tables.appointments = [appointment('a-ana', 'c-ana', 'booked')];
+    const dialog = await openOccurrenceDialog();
+    expect(dialog).toHaveTextContent(fill(t.occurrenceDialog.booked, { count: 1 }));
+    expect(dialog).not.toHaveTextContent(t.occurrenceDialog.refund);
+  });
+
+  it('cancels with the trimmed reason, says how many were told and shows the occurrence as Zaprto', async () => {
+    const dialog = await openOccurrenceDialog();
+    await userEvent.type(within(dialog).getByLabelText(t.cancelDialog.reason), ' Bolezen ');
+    await userEvent.click(within(dialog).getByRole('button', { name: t.occurrenceDialog.confirm }));
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel_occurrence', {
+      p_template_id: todayTemplate.id,
+      p_starts_at: startsAt.toISOString(),
+      p_reason: 'Bolezen',
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      fill(t.occurrenceDialog.done, { count: 2 }),
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await waitFor(() =>
+      expect(within(row).getByRole('button', { name: t.calendar.blocked })).toBeDisabled(),
+    );
+    expect(within(row).queryByRole('button', { name: t.trainer.cancelOccurrence })).toBeNull();
+    expect(within(row).queryByRole('button', { name: t.slot.cancel })).toBeNull();
+    expect(row).toHaveFocus();
+  });
+
+  it('sends no reason when none was typed', async () => {
+    const dialog = await openOccurrenceDialog();
+    await userEvent.click(within(dialog).getByRole('button', { name: t.occurrenceDialog.confirm }));
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel_occurrence', {
+      p_template_id: todayTemplate.id,
+      p_starts_at: startsAt.toISOString(),
+    });
+  });
+
+  it('closes an empty occurrence and says so without a count', async () => {
+    db.tables.appointments = [];
+    db.tables.slot_occupancy = [];
+    const dialog = await openOccurrenceDialog();
+    expect(dialog).toHaveTextContent(t.trainer.nobodyBooked);
+    expect(within(dialog).queryByRole('listitem')).toBeNull();
+    await userEvent.click(within(dialog).getByRole('button', { name: t.occurrenceDialog.confirm }));
+    expect(await screen.findByRole('status')).toHaveTextContent(t.occurrenceDialog.doneEmpty);
+  });
+
+  it('shows the server error in the dialog and disables the confirm button', async () => {
+    db.tables.blocked_periods = [];
+    const original = fakeSupabase.rpc.getMockImplementation();
+    fakeSupabase.rpc.mockImplementation(async (name: string, args: Record<string, unknown>) =>
+      name === 'cancel_occurrence'
+        ? { data: null, error: { message: 'AMRAP_BLOCKED: already closed' } }
+        : original?.(name, args),
+    );
+    const dialog = await openOccurrenceDialog();
+    const confirm = within(dialog).getByRole('button', { name: t.occurrenceDialog.confirm });
+    await userEvent.click(confirm);
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(t.errors.AMRAP_BLOCKED);
+    expect(confirm).toBeDisabled();
+  });
+
+  it('closes on Escape and puts focus back on Odpovej termin', async () => {
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    const action = within(row).getByRole('button', { name: t.trainer.cancelOccurrence });
+    await userEvent.click(action);
+    await screen.findByRole('dialog', { name: t.occurrenceDialog.title });
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(action).toHaveFocus();
+    expect(fakeSupabase.rpc).not.toHaveBeenCalledWith('cancel_occurrence', expect.anything());
   });
 });
 

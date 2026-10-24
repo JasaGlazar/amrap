@@ -93,7 +93,8 @@ Turns recurring rules into appointments about four weeks ahead. Defined in
 - **Writes:** one `appointments` row per occurrence that is in the future, does not overlap a
   blocked period, has no instance of the rule yet (any status), where the customer is not
   already booked and the slot is not full: `status = 'booked'`, `source = 'recurring'`,
-  `rule_id` set. Capacity is counted under `book()`'s advisory lock.
+  `rule_id` set. The blocked check and the capacity count happen under `book()`'s advisory
+  lock, so an occurrence `cancel_occurrence()` closes is skipped even when both run at once.
 - **Returns:** the number inserted.
 - **Idempotent:** the unique index `appointments_rule_id_starts_at_idx` allows one instance
   per rule and start, ever, so a second run returns 0 and a cancelled instance is not

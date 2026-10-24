@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fill, formatAmount, formatBalance, plural, t } from '../../i18n';
-import { formatLongDay, formatTime, weekdayName } from '../../lib/time';
+import { formatDate, formatLongDay, formatTime, weekdayName } from '../../lib/time';
 import { routes } from '../../routes';
 import { PAGE_SIZE } from '../../data/page';
 import { RECENT_DAYS } from './CustomerDetail';
@@ -661,6 +661,36 @@ describe('customer detail', () => {
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', { p_appointment_id: 'recent' });
   });
 
+  it("lists past appointments with their status and the trainer's reason", async () => {
+    const day = 86_400_000;
+    db.tables.appointments = [
+      { id: 'p1', daysAgo: 2, status: 'cancelled_by_trainer', reason: 'Bolezen trenerja' },
+      { id: 'p2', daysAgo: 3, status: 'cancelled_by_trainer', reason: null },
+      { id: 'p3', daysAgo: 4, status: 'charged', reason: null },
+    ].map(({ id, daysAgo, status, reason }) => {
+      const startsAt = new Date(Date.now() - daysAgo * day).toISOString();
+      return {
+        id,
+        customer_id: ana.id,
+        slot_template_id: template.id,
+        starts_at: startsAt,
+        ends_at: startsAt,
+        status,
+        cancel_reason: reason,
+      };
+    });
+    renderAt(`/t/stranke/${ana.id}`);
+    const history = await screen.findByRole('region', { name: t.customerDetail.historyTitle });
+    const items = within(history).getAllByRole('listitem');
+    expect(items).toHaveLength(3);
+    expect(items[0]).toHaveTextContent(t.appointmentStatus.cancelled_by_trainer);
+    expect(items[0]).toHaveTextContent(fill(t.history.reason, { reason: 'Bolezen trenerja' }));
+    expect(items[1]).toHaveTextContent(t.appointmentStatus.cancelled_by_trainer);
+    expect(items[1]).not.toHaveTextContent('Bolezen');
+    expect(items[2]).toHaveTextContent(t.appointmentStatus.charged);
+    expect(within(history).queryByRole('button')).toBeNull();
+  });
+
   it('lays out the page in the order the trainer uses it', async () => {
     renderAt(`/t/stranke/${ana.id}`);
     await screen.findByRole('heading', { level: 1, name: ana.name });
@@ -670,6 +700,7 @@ describe('customer detail', () => {
       t.customerDetail.upcomingTitle,
       t.customerDetail.rulesTitle,
       fill(t.customerDetail.recentTitle, { days: RECENT_DAYS }),
+      t.customerDetail.historyTitle,
       t.customerDetail.ledgerTitle,
       t.customerDetail.inviteTitle,
       t.customerDetail.detailsTitle,
@@ -830,6 +861,9 @@ describe('customer detail history pages', () => {
   const recentLabels = starts.map((startsAt) =>
     fill(t.slot.when, { day: formatLongDay(startsAt, tz), time: formatTime(startsAt, tz) }),
   );
+  const historyLabels = starts.map((startsAt) =>
+    fill(t.slot.when, { day: formatDate(startsAt, tz), time: formatTime(startsAt, tz) }),
+  );
   const notes = starts.map((_, index) => `Vnos ${String(index).padStart(2, '0')}`);
 
   beforeEach(() => {
@@ -857,6 +891,7 @@ describe('customer detail history pages', () => {
       table: 'appointments',
       expected: recentLabels,
     },
+    { region: t.customerDetail.historyTitle, table: 'appointments', expected: historyLabels },
     { region: t.customerDetail.ledgerTitle, table: 'credit_transactions', expected: notes },
   ];
 
