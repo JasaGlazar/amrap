@@ -349,7 +349,8 @@ How the guards and the auth state work is in [auth.md](auth.md).
   48 px). Components carry no outer margins; the context sets the gap: blocks on a page are
   `--space-6` apart, the page title sits `--space-5` above the first block, a section heading
   `--space-3` above its content, blocks inside a section `--space-4` apart, form fields
-  `--space-4`. A form's submit button (or its row of buttons) is full width below 480 px and its
+  `--space-4`. In a card that is not a form, text lines stay together and a form, a notice or a
+  button sits `--space-3` below the text above it. A form's submit button (or its row of buttons) is full width below 480 px and its
   natural width from 480 px.
 
 - **Signed numbers.** Balances and ledger amounts are formatted with `Intl.NumberFormat('sl-SI')`,
