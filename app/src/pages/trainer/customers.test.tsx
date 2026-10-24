@@ -278,7 +278,10 @@ describe('customer detail', () => {
 
   it('keeps the browser from autofilling the trainer’s own details into a customer', async () => {
     renderAt(`/t/stranke/${ana.id}`);
-    const details = await screen.findByRole('form', { name: t.customerDetail.detailsTitle });
+    await userEvent.click(
+      await screen.findByRole('button', { name: t.customerDetail.editDetails }),
+    );
+    const details = screen.getByRole('form', { name: t.customerDetail.editDetails });
     for (const label of [t.customers.name, t.customers.phone, t.customers.email]) {
       expect(within(details).getByLabelText(label)).toHaveAttribute('autocomplete', 'off');
     }
@@ -359,14 +362,104 @@ describe('customer detail', () => {
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', { p_appointment_id: 'recent' });
   });
 
+  it('lays out the page in the order the trainer uses it', async () => {
+    renderAt(`/t/stranke/${ana.id}`);
+    await screen.findByRole('heading', { level: 1, name: ana.name });
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(headings).toEqual([
+      t.customerDetail.creditsTitle,
+      t.customerDetail.upcomingTitle,
+      t.customerDetail.rulesTitle,
+      fill(t.customerDetail.recentTitle, { days: RECENT_DAYS }),
+      t.customerDetail.ledgerTitle,
+      t.customerDetail.inviteTitle,
+      t.customerDetail.detailsTitle,
+    ]);
+  });
+
+  it('puts the credits form next to the balance', async () => {
+    renderAt(`/t/stranke/${ana.id}`);
+    const credits = await screen.findByRole('region', { name: t.customerDetail.creditsTitle });
+    const balance = screen.getByRole('region', { name: t.customer.balanceLabel });
+    expect(balance.parentElement).toBe(credits.parentElement);
+    expect(balance.parentElement).toHaveClass('summary');
+  });
+
+  it('shows the details as text until Uredi podatke is pressed', async () => {
+    renderAt(`/t/stranke/${cvet.id}`);
+    const section = await screen.findByRole('region', { name: t.customerDetail.detailsTitle });
+    expect(within(section).queryByRole('form')).not.toBeInTheDocument();
+    expect(within(section).getAllByText(t.customerDetail.notGiven)).toHaveLength(
+      [cvet.phone, cvet.email].filter((value) => value === null).length,
+    );
+    await userEvent.click(
+      within(section).getByRole('button', { name: t.customerDetail.editDetails }),
+    );
+    const form = within(section).getByRole('form', { name: t.customerDetail.editDetails });
+    expect(within(form).getByLabelText(t.customers.name)).toHaveFocus();
+    expect(within(form).getByLabelText(t.customers.name)).toHaveValue(cvet.name);
+  });
+
+  it('drops edited details on Prekliči and puts focus back on Uredi podatke', async () => {
+    renderAt(`/t/stranke/${cvet.id}`);
+    const section = await screen.findByRole('region', { name: t.customerDetail.detailsTitle });
+    await userEvent.click(
+      within(section).getByRole('button', { name: t.customerDetail.editDetails }),
+    );
+    const form = within(section).getByRole('form', { name: t.customerDetail.editDetails });
+    await userEvent.type(within(form).getByLabelText(t.customers.phone), '041 000 000');
+    await userEvent.click(within(form).getByRole('button', { name: t.common.cancel }));
+    expect(form).not.toBeInTheDocument();
+    const button = within(section).getByRole('button', { name: t.customerDetail.editDetails });
+    expect(button).toHaveFocus();
+    expect(db.tables.customers.find((row) => row.id === cvet.id)?.phone).toBeNull();
+    await userEvent.click(button);
+    expect(within(section).getByLabelText(t.customers.phone)).toHaveValue('');
+  });
+
+  it('saves the details, closes the form and shows the new phone', async () => {
+    renderAt(`/t/stranke/${cvet.id}`);
+    const section = await screen.findByRole('region', { name: t.customerDetail.detailsTitle });
+    await userEvent.click(
+      within(section).getByRole('button', { name: t.customerDetail.editDetails }),
+    );
+    const form = within(section).getByRole('form', { name: t.customerDetail.editDetails });
+    await userEvent.type(within(form).getByLabelText(t.customers.phone), '041 000 000');
+    await userEvent.click(within(form).getByRole('button', { name: t.customerDetail.save }));
+    expect(await within(section).findByRole('status')).toHaveTextContent(t.customerDetail.saved);
+    await waitFor(() => expect(form).not.toBeInTheDocument());
+    expect(within(section).getByText('041 000 000')).toBeVisible();
+    expect(
+      within(section).getByRole('button', { name: t.customerDetail.editDetails }),
+    ).toHaveFocus();
+  });
+
+  it('shows Dodaj stalni termin as a button until it is pressed, and drops the choice on Prekliči', async () => {
+    renderAt(`/t/stranke/${ana.id}`);
+    const rules = await screen.findByRole('region', { name: t.customerDetail.rulesTitle });
+    expect(within(rules).queryByRole('combobox')).not.toBeInTheDocument();
+    await userEvent.click(within(rules).getByRole('button', { name: t.customerDetail.addRule }));
+    const select = within(rules).getByLabelText(t.customerDetail.ruleTemplate);
+    expect(select).toHaveFocus();
+    await userEvent.selectOptions(select, template.id);
+    await userEvent.click(within(rules).getByRole('button', { name: t.common.cancel }));
+    const button = within(rules).getByRole('button', { name: t.customerDetail.addRule });
+    expect(button).toHaveFocus();
+    expect(db.tables.recurring_rules).toHaveLength(0);
+    await userEvent.click(button);
+    expect(within(rules).getByLabelText(t.customerDetail.ruleTemplate)).toHaveValue('');
+  });
+
   it('adds a recurring rule and activates it', async () => {
     renderAt(`/t/stranke/${ana.id}`);
     const rules = await screen.findByRole('region', { name: t.customerDetail.rulesTitle });
+    await userEvent.click(within(rules).getByRole('button', { name: t.customerDetail.addRule }));
+    const form = within(rules).getByRole('form', { name: t.customerDetail.addRuleLabel });
     await userEvent.selectOptions(
-      within(rules).getByLabelText(t.customerDetail.addRuleLabel),
+      within(form).getByLabelText(t.customerDetail.ruleTemplate),
       template.id,
     );
-    await userEvent.click(within(rules).getByRole('button', { name: t.customerDetail.addRule }));
+    await userEvent.click(within(form).getByRole('button', { name: t.customerDetail.addRule }));
     const rule = db.tables.recurring_rules.find((row) => row.customer_id === ana.id);
     expect(rule).toMatchObject({ slot_template_id: template.id, active: true });
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('activate_rule', { p_rule_id: rule?.id });
@@ -376,6 +469,8 @@ describe('customer detail', () => {
         time: template.start_time.slice(0, 5),
       }),
     );
+    await waitFor(() => expect(form).not.toBeInTheDocument());
+    expect(within(rules).getByRole('button', { name: t.customerDetail.addRule })).toHaveFocus();
   });
 
   it('stops an active rule through deactivate_rule and reports the cancelled count', async () => {
@@ -405,7 +500,8 @@ describe('customer detail', () => {
       fill(t.customerDetail.ruleStopped, { count: cancelled }),
     );
     expect(within(rules).getByRole('button', { name: t.customerDetail.restartRule })).toBeVisible();
-    const addable = within(rules).getByLabelText(t.customerDetail.addRuleLabel);
+    await userEvent.click(within(rules).getByRole('button', { name: t.customerDetail.addRule }));
+    const addable = within(rules).getByLabelText(t.customerDetail.ruleTemplate);
     expect(within(addable).getAllByRole('option')).toHaveLength(1);
   });
 });

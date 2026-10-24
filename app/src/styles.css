@@ -1023,6 +1023,43 @@ section:not(.form, .card) > .head + * {
   margin-top: var(--space-5);
 }
 
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.summary > * {
+  margin: 0;
+}
+
+@media (min-width: 48rem) {
+  .summary {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2) var(--space-5);
+}
+
+.facts > div {
+  display: contents;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .page > .overlay {
   margin: 0;
 }

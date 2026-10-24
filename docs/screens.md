@@ -21,7 +21,7 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/t` | trainer | Trainer shell: the same top bar with the [account menu](#account-menu), the [install card](#install-card), the [main navigation](#main-navigation) (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `account`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog`, `common` | Stage 2, add control and forms on demand Stage 7 |
 | `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; create a customer. | `trainer`, `customers`, `common` | Stage 2, form on demand Stage 7 |
-| `/t/stranke/:id` | trainer | One customer: credits, invite link, recurring rules, upcoming appointments, details, ledger. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType` | Stage 2 |
+| `/t/stranke/:id` | trainer | One customer: balance and credits, upcoming appointments, recurring rules, recent sessions, ledger, invite link, details. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType`, `common` | Stage 2, order and forms on demand Stage 7 |
 | `/t/nastavitve` | trainer | Settings, one tab per topic ([Settings](#settings-tnastavitve)); the bare path redirects to `/t/nastavitve/urnik`. | `settings` | Stage 2, tabs Stage 7 |
 | `/t/nastavitve/urnik` | trainer | Tab **Urnik**: slot templates. | `settings`, `trainer` | Stage 2, own route Stage 7 |
 | `/t/nastavitve/odpoved` | trainer | Tab **Odpoved**: cutoff hours. | `settings` | Stage 2, own route Stage 7 |
@@ -196,14 +196,37 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Data:** `getCustomer`, `getSettings`, `balanceOf`, `ledgerOf`, `upcomingAppointments`,
   `rulesOf`, `allTemplates`. A missing record (or the trainer's own id) shows the load error
   with the back link.
-- **Header:** name, then the label `Stanje kreditov` and the invite status tag on one line and
-  the framed balance below (red with `dolg` when negative), on the page rather than in a card.
-- **Krediti:** one amount field and a note. **Dodaj kredite** calls `top_up` (a positive whole
+- **Order:** the back link and the name, then the balance with **Krediti** beside it, then
+  **Prihajajoči termini**, **Stalni termini**, **Opravljeni termini**, **Zgodovina kreditov**,
+  and lower down **Povabilo** and **Podatki** (set up once, rarely changed).
+- **Balance:** the label `Stanje kreditov` and the invite status tag on one line and the framed
+  balance below (red with `dolg` when negative), on the page rather than in a card. From 768 px
+  the balance and the **Krediti** card sit side by side (a two-column grid: the balance as wide
+  as it needs, the card the rest); below 768 px the card comes under the balance.
+- **Krediti:** always open (the screen's main action): one amount field and a note. **Dodaj kredite** calls `top_up` (a positive whole
   number, else `customerDetail.topUpInvalid`); **Popravi stanje** calls `adjust` (any non-zero
   whole number, negative subtracts; else `customerDetail.adjustInvalid`). Waiving a late
   cancel is an adjustment of +1. While the customer has no ledger rows the note is prefilled
   with `customerDetail.startingNote`, so a starting balance entered here is marked the same
   way; it can be edited or cleared.
+- **Prihajajoči termini:** the customer's upcoming booked appointments, each with **Odpovej**
+  (trainer cancel dialog).
+- **Stalni termini:** the customer's recurring rules (`{weekday} ob {time}`, stopped ones
+  greyed with a `ustavljen` tag next to the text). **Ustavi** calls `deactivate_rule` (future booked instances are
+  cancelled; the message shows how many); **Ponovno vključi** calls `activate_rule` (shows how
+  many instances were created; cancelled dates stay cancelled, ADR 0008). The add control
+  lists active templates that have no rule for this customer yet (a stopped rule is restarted
+  with **Ponovno vključi**, not added again). **Dodaj stalni termin** at the right of the heading
+  opens it ([on demand](#forms-on-demand)): a card **Nov stalni termin** with the select
+  (`customerDetail.ruleTemplate`), **Dodaj stalni termin** (disabled until a template is
+  chosen) and **Prekliči**; submitting inserts the rule and activates it, which materializes it
+  right away, and closes the card.
+- **Opravljeni termini (zadnjih 30 dni):** the customer's charged appointments that started in
+  the last 30 days (`RECENT_DAYS`), newest first, each with **Vrni kredit**
+  (`customerDetail.refund`; the action is a cancel with a refund, so it is not labelled
+  **Odpovej**); the trainer cancel dialog says the credit is refunded (`cancelDialog.refund`),
+  and `cancel()` adds the +1 refund. Older charges are corrected with an adjustment.
+- **Zgodovina kreditov:** the ledger, as on the customer's History.
 - **Povabilo:** for an unlinked record, **Ustvari povabilo** calls `create_invite` and shows the
   full link `${location.origin}/invite/<token>` in a read-only field (focus selects it) with
   **Kopiraj** (clipboard; `customerDetail.copied`, or `customerDetail.copyFailed` when the
@@ -212,22 +235,10 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   linked record shows the re-link hint instead (`customerDetail.relinkHint`): if the customer
   loses access, the app administrator removes the old account, then the trainer creates a new
   invite on this page. The procedure is runbook "Re-link a customer" (ADR 0007).
-- **Stalni termini:** the customer's recurring rules (`{weekday} ob {time}`, stopped ones
-  greyed with a `ustavljen` tag next to the text). **Ustavi** calls `deactivate_rule` (future booked instances are
-  cancelled; the message shows how many); **Ponovno vključi** calls `activate_rule` (shows how
-  many instances were created; cancelled dates stay cancelled, ADR 0008). The add control
-  lists active templates that have no rule for this customer yet (a stopped rule is restarted
-  with **Ponovno vključi**, not added again); **Dodaj stalni termin**
-  inserts the rule and activates it, which materializes it right away.
-- **Prihajajoči termini:** the customer's upcoming booked appointments, each with **Odpovej**
-  (trainer cancel dialog).
-- **Opravljeni termini (zadnjih 30 dni):** the customer's charged appointments that started in
-  the last 30 days (`RECENT_DAYS`), newest first, each with **Vrni kredit**
-  (`customerDetail.refund`; the action is a cancel with a refund, so it is not labelled
-  **Odpovej**); the trainer cancel dialog says the credit is refunded (`cancelDialog.refund`),
-  and `cancel()` adds the +1 refund. Older charges are corrected with an adjustment.
-- **Podatki:** name, phone, email; **Shrani** updates the record through RLS.
-- **Zgodovina kreditov:** the ledger, as on the customer's History.
+- **Podatki:** phone and email as text (`customerDetail.notGiven` when empty; the name is the
+  title). **Uredi podatke** at the right of the heading opens the form ([on
+  demand](#forms-on-demand)) with name, phone and email filled in; **Shrani** updates the record
+  through RLS, closes the form and shows `customerDetail.saved`; an error stays in the form.
 
 ### Settings (`/t/nastavitve`)
 
@@ -283,7 +294,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 A form that creates something, or edits details that rarely change, is not on the screen
 until it is asked for (`pages/shared/OnDemand.tsx`). Where it is used: **Nov termin**
 (Urnik), **Novo zaprto obdobje** (Zaprta obdobja), **Nova stranka** (Stranke, at the page
-title), **Nov termin po dogovoru** (Koledar, at the page title), and **Dodaj stranko** on each
+title), **Nov termin po dogovoru** (Koledar, at the page title), **Dodaj stalni termin** and
+**Uredi podatke** (customer detail; the latter a secondary button without `+`), and **Dodaj
+stranko** on each
 occurrence of the trainer calendar (a small secondary button at the right of the occurrence).
 
 - **Closed:** one button named after the action, at the right of the heading the form belongs

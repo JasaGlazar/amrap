@@ -282,6 +282,8 @@ is a question below.
 |---|---|---|
 | `customerDetail.back` | Nazaj na stranke |  |
 | `customerDetail.detailsTitle` | Podatki |  |
+| `customerDetail.editDetails` | Uredi podatke | Gumb, ki odpre obrazec s podatki stranke (ime, telefon, e-pošta). |
+| `customerDetail.notGiven` | Ni podatka | Namesto telefona ali e-pošte, ki ju ni. |
 | `customerDetail.save` | Shrani |  |
 | `customerDetail.saved` | Podatki so shranjeni. |  |
 | `customerDetail.creditsTitle` | Krediti |  |
@@ -312,6 +314,7 @@ is a question below.
 | `customerDetail.chooseTemplate` | Izberi termin |  |
 | `customerDetail.addRule` | Dodaj stalni termin |  |
 | `customerDetail.addRuleLabel` | Nov stalni termin |  |
+| `customerDetail.ruleTemplate` | Termin | Izbira termina v obrazcu »Nov stalni termin«. |
 | `customerDetail.stopRule` | Ustavi |  |
 | `customerDetail.restartRule` | Ponovno vključi |  |
 | `customerDetail.ruleStarted` | Stalni termin je vključen. Novih terminov: {count}. |  |

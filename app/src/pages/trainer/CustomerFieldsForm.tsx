@@ -8,7 +8,7 @@ type Props = {
   initial: CustomerFields;
   busy: boolean;
   error: string | null;
-  notice?: string | null;
+  heading?: 'h2' | 'h3';
   withStartingBalance?: boolean;
   onSubmit: (fields: CustomerFields, startingBalance: number | null) => void;
   onCancel?: () => void;
@@ -25,7 +25,7 @@ export function CustomerFieldsForm({
   initial,
   busy,
   error,
-  notice,
+  heading: Heading = 'h2',
   withStartingBalance = false,
   onSubmit,
   onCancel,
@@ -52,7 +52,7 @@ export function CustomerFieldsForm({
 
   return (
     <form className="form card" onSubmit={submit} aria-label={title}>
-      <h2>{title}</h2>
+      <Heading>{title}</Heading>
       <label>
         {t.customers.name}
         <input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
@@ -102,11 +102,6 @@ export function CustomerFieldsForm({
       {error !== null && (
         <p role="alert" className="error">
           {error}
-        </p>
-      )}
-      {notice !== undefined && notice !== null && (
-        <p role="status" className="ok">
-          {notice}
         </p>
       )}
       <div className="actions">

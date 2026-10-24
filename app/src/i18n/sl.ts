@@ -129,6 +129,8 @@ export const sl = {
   customerDetail: {
     back: 'Nazaj na stranke',
     detailsTitle: 'Podatki',
+    editDetails: 'Uredi podatke',
+    notGiven: 'Ni podatka',
     save: 'Shrani',
     saved: 'Podatki so shranjeni.',
     creditsTitle: 'Krediti',
@@ -161,6 +163,7 @@ export const sl = {
     chooseTemplate: 'Izberi termin',
     addRule: 'Dodaj stalni termin',
     addRuleLabel: 'Nov stalni termin',
+    ruleTemplate: 'Termin',
     stopRule: 'Ustavi',
     restartRule: 'Ponovno vključi',
     ruleStarted: 'Stalni termin je vključen. Novih terminov: {count}.',

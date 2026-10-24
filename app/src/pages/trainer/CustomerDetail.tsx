@@ -14,7 +14,9 @@ import { useLoad } from '../../lib/useLoad';
 import { CancelDialog } from '../shared/CancelDialog';
 import { LedgerList } from '../shared/LedgerList';
 import { NoticeLine, type Notice } from '../shared/NoticeLine';
+import { OnDemand } from '../shared/OnDemand';
 import { CustomerFieldsForm } from './CustomerFieldsForm';
+import { RuleForm } from './RuleForm';
 
 export const RECENT_DAYS = 30;
 
@@ -57,7 +59,8 @@ export function TrainerCustomerDetail() {
   );
   const [note, setNote] = useState<string | null>(null);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
-  const [chosenTemplate, setChosenTemplate] = useState('');
+  const [addingRule, setAddingRule] = useState(false);
+  const [editingDetails, setEditingDetails] = useState(false);
   const [cancelling, setCancelling] = useState<{
     appointment: Appointment;
     section: string;
@@ -203,55 +206,135 @@ export function TrainerCustomerDetail() {
         {t.customerDetail.back}
       </Link>
       <h1>{customer.name}</h1>
-      <section>
-        <p className="label-row">
-          <span className="label">{t.customer.balanceLabel}</span>
-          <span className="tag">{t.customers.inviteStatus[status]}</span>
-        </p>
-        <p className="balance-row">
-          <span className={balance < 0 ? 'balance negative' : 'balance'}>
-            {formatBalance(balance)}
-          </span>
-          {balance < 0 && <span className="tag late">{t.customer.debt}</span>}
-        </p>
-      </section>
-
-      <section className="form card" aria-label={t.customerDetail.creditsTitle}>
-        <h2>{t.customerDetail.creditsTitle}</h2>
-        <label>
-          {t.customerDetail.amount}
-          <input
-            type="number"
-            step="1"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-        </label>
-        <label>
-          {t.customerDetail.note}
-          <input autoComplete="off" value={noteShown} onChange={(e) => setNote(e.target.value)} />
-        </label>
-        <NoticeLine notice={notices.credits} />
-        <div className="actions">
-          <button
-            type="button"
-            className="button"
-            disabled={busy}
-            onClick={() => void changeCredits('topUp')}
+      <div className="summary">
+        <section aria-label={t.customer.balanceLabel}>
+          <p className="label-row">
+            <span className="label">{t.customer.balanceLabel}</span>
+            <span className="tag">{t.customers.inviteStatus[status]}</span>
+          </p>
+          <p className="balance-row">
+            <span className={balance < 0 ? 'balance negative' : 'balance'}>
+              {formatBalance(balance)}
+            </span>
+            {balance < 0 && <span className="tag late">{t.customer.debt}</span>}
+          </p>
+        </section>
+        <section className="form card" aria-label={t.customerDetail.creditsTitle}>
+          <h2>{t.customerDetail.creditsTitle}</h2>
+          <label>
+            {t.customerDetail.amount}
+            <input
+              type="number"
+              step="1"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </label>
+          <label>
+            {t.customerDetail.note}
+            <input autoComplete="off" value={noteShown} onChange={(e) => setNote(e.target.value)} />
+          </label>
+          <NoticeLine notice={notices.credits} />
+          <div className="actions">
+            <button
+              type="button"
+              className="button"
+              disabled={busy}
+              onClick={() => void changeCredits('topUp')}
+            >
+              {t.customerDetail.topUp}
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              disabled={busy}
+              onClick={() => void changeCredits('adjust')}
+            >
+              {t.customerDetail.adjust}
+            </button>
+          </div>
+        </section>
+      </div>
+      {appointmentSection(
+        'upcoming',
+        t.customerDetail.upcomingTitle,
+        upcoming,
+        t.customer.noUpcoming,
+        t.slot.cancel,
+      )}
+      <section aria-label={t.customerDetail.rulesTitle}>
+        <div className="head">
+          <h2>{t.customerDetail.rulesTitle}</h2>
+          <OnDemand
+            label={t.customerDetail.addRule}
+            add
+            open={addingRule}
+            onOpen={() => setAddingRule(true)}
           >
-            {t.customerDetail.topUp}
-          </button>
-          <button
-            type="button"
-            className="button secondary"
-            disabled={busy}
-            onClick={() => void changeCredits('adjust')}
-          >
-            {t.customerDetail.adjust}
-          </button>
+            <RuleForm
+              options={addableTemplates.map((template) => ({
+                id: template.id,
+                label: templateLabel(template.id),
+              }))}
+              busy={busy}
+              onSubmit={(templateId) =>
+                void run(
+                  'rules',
+                  () => addRule(supabase, customer.id, templateId),
+                  (count) => fill(t.customerDetail.ruleStarted, { count: count ?? 0 }),
+                ).then((ok) => ok && setAddingRule(false))
+              }
+              onCancel={() => setAddingRule(false)}
+            />
+          </OnDemand>
         </div>
+        <NoticeLine notice={notices.rules} />
+        {rules.length === 0 ? (
+          <p>{t.customerDetail.noRules}</p>
+        ) : (
+          <ul className="list">
+            {rules.map((rule) => (
+              <li key={rule.id} className={rule.active ? 'row' : 'row muted'}>
+                <span className="row-text">
+                  <span>{templateLabel(rule.slotTemplateId)}</span>
+                  {!rule.active && <span className="tag">{t.customerDetail.ruleInactive}</span>}
+                </span>
+                <button
+                  type="button"
+                  className="button secondary small"
+                  disabled={busy}
+                  onClick={() =>
+                    void (rule.active
+                      ? run(
+                          'rules',
+                          () => deactivateRule(supabase, rule.id),
+                          (count) => fill(t.customerDetail.ruleStopped, { count: count ?? 0 }),
+                        )
+                      : run(
+                          'rules',
+                          () => activateRule(supabase, rule.id),
+                          (count) => fill(t.customerDetail.ruleStarted, { count: count ?? 0 }),
+                        ))
+                  }
+                >
+                  {rule.active ? t.customerDetail.stopRule : t.customerDetail.restartRule}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
-
+      {appointmentSection(
+        'recent',
+        fill(t.customerDetail.recentTitle, { days: RECENT_DAYS }),
+        recent,
+        t.customerDetail.noRecent,
+        t.customerDetail.refund,
+      )}
+      <section aria-label={t.customerDetail.ledgerTitle}>
+        <h2>{t.customerDetail.ledgerTitle}</h2>
+        <LedgerList ledger={ledger} timeZone={timeZone} />
+      </section>
       <section className="card" aria-label={t.customerDetail.inviteTitle}>
         <h2>{t.customerDetail.inviteTitle}</h2>
         {customer.linked ? (
@@ -296,111 +379,47 @@ export function TrainerCustomerDetail() {
           </>
         )}
       </section>
-
-      <section aria-label={t.customerDetail.rulesTitle}>
-        <h2>{t.customerDetail.rulesTitle}</h2>
-        <NoticeLine notice={notices.rules} />
-        {rules.length === 0 ? (
-          <p>{t.customerDetail.noRules}</p>
-        ) : (
-          <ul className="list">
-            {rules.map((rule) => (
-              <li key={rule.id} className={rule.active ? 'row' : 'row muted'}>
-                <span className="row-text">
-                  <span>{templateLabel(rule.slotTemplateId)}</span>
-                  {!rule.active && <span className="tag">{t.customerDetail.ruleInactive}</span>}
-                </span>
-                <button
-                  type="button"
-                  className="button secondary small"
-                  disabled={busy}
-                  onClick={() =>
-                    void (rule.active
-                      ? run(
-                          'rules',
-                          () => deactivateRule(supabase, rule.id),
-                          (count) => fill(t.customerDetail.ruleStopped, { count: count ?? 0 }),
-                        )
-                      : run(
-                          'rules',
-                          () => activateRule(supabase, rule.id),
-                          (count) => fill(t.customerDetail.ruleStarted, { count: count ?? 0 }),
-                        ))
-                  }
-                >
-                  {rule.active ? t.customerDetail.stopRule : t.customerDetail.restartRule}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="roster-add">
-          <select
-            aria-label={t.customerDetail.addRuleLabel}
-            value={chosenTemplate}
-            onChange={(e) => setChosenTemplate(e.target.value)}
+      <section aria-label={t.customerDetail.detailsTitle}>
+        <div className="head">
+          <h2>{t.customerDetail.detailsTitle}</h2>
+          <OnDemand
+            label={t.customerDetail.editDetails}
+            className="button secondary"
+            open={editingDetails}
+            onOpen={() => setEditingDetails(true)}
           >
-            <option value="">{t.customerDetail.chooseTemplate}</option>
-            {addableTemplates.map((template) => (
-              <option key={template.id} value={template.id}>
-                {templateLabel(template.id)}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="button small"
-            disabled={busy || chosenTemplate === ''}
-            onClick={() => {
-              const templateId = chosenTemplate;
-              setChosenTemplate('');
-              void run(
-                'rules',
-                () => addRule(supabase, customer.id, templateId),
-                (count) => fill(t.customerDetail.ruleStarted, { count: count ?? 0 }),
-              );
-            }}
-          >
-            {t.customerDetail.addRule}
-          </button>
+            <CustomerFieldsForm
+              title={t.customerDetail.editDetails}
+              heading="h3"
+              submitLabel={t.customerDetail.save}
+              initial={customer}
+              busy={busy}
+              error={notices.details?.error ? notices.details.text : null}
+              onSubmit={(fields) =>
+                void run(
+                  'details',
+                  () => updateCustomer(supabase, customer.id, fields),
+                  () => t.customerDetail.saved,
+                ).then((ok) => ok && setEditingDetails(false))
+              }
+              onCancel={() => {
+                setNotices((current) => ({ ...current, details: null }));
+                setEditingDetails(false);
+              }}
+            />
+          </OnDemand>
         </div>
-      </section>
-
-      {appointmentSection(
-        'upcoming',
-        t.customerDetail.upcomingTitle,
-        upcoming,
-        t.customer.noUpcoming,
-        t.slot.cancel,
-      )}
-      {appointmentSection(
-        'recent',
-        fill(t.customerDetail.recentTitle, { days: RECENT_DAYS }),
-        recent,
-        t.customerDetail.noRecent,
-        t.customerDetail.refund,
-      )}
-
-      <CustomerFieldsForm
-        key={`${customer.name}|${customer.phone}|${customer.email}`}
-        title={t.customerDetail.detailsTitle}
-        submitLabel={t.customerDetail.save}
-        initial={customer}
-        busy={busy}
-        error={notices.details?.error ? notices.details.text : null}
-        notice={notices.details && !notices.details.error ? notices.details.text : null}
-        onSubmit={(fields) =>
-          void run(
-            'details',
-            () => updateCustomer(supabase, customer.id, fields),
-            () => t.customerDetail.saved,
-          )
-        }
-      />
-
-      <section aria-label={t.customerDetail.ledgerTitle}>
-        <h2>{t.customerDetail.ledgerTitle}</h2>
-        <LedgerList ledger={ledger} timeZone={timeZone} />
+        <NoticeLine notice={notices.details?.error ? null : notices.details} />
+        <dl className="facts">
+          <div>
+            <dt>{t.customers.phone}</dt>
+            <dd>{customer.phone ?? t.customerDetail.notGiven}</dd>
+          </div>
+          <div>
+            <dt>{t.customers.email}</dt>
+            <dd>{customer.email ?? t.customerDetail.notGiven}</dd>
+          </div>
+        </dl>
       </section>
 
       {cancelling !== null && (
