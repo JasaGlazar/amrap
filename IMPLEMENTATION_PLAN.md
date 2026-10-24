@@ -640,6 +640,13 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   account menu in the DOM (right for the top bar; below 768 px Tab reaches the bottom tabs
   before the account button); **Dodaj stranko** still opens an empty select when every
   customer is already booked on an occurrence with free places (rare; would need new copy).
+- Fix list 1 done (`.superpowers/fixes-1.md`, items 1-8; Vitest 391): Prekliči disabled while a
+  save or count runs (fake client `holdTable`), **Ni strank za dodajanje**, one black button per
+  screen (section-level on-demand buttons outlined), balances of 0 or more in plain ink, focus
+  to the occurrence row when its control closes into a disabled button, the ad-hoc form closes
+  on a week change, pilot path and the Dodaj stranko copy question. The "nobody to add"
+  screenshot mocks an empty customer list in the page (`fetch` patched in the browser); no data
+  changed.
 - Left for the owner: the visual review of the PR.
 
 ---
