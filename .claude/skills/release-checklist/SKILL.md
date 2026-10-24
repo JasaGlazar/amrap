@@ -29,7 +29,9 @@ gh run list --branch main --limit 3
 ```
 
 The PR is `MERGED`, `HEAD` is its merge commit (or later), and the latest `main` CI run is green.
-Note the previous release's merge commit (from the last release record) as `<previous>`.
+Note the previous release's merge commit (from the last release record) as `<previous>`. On
+the first run of this skill there is no record yet: use the previous stage's merge commit
+(Stage 3: `e305f91`).
 
 ## 2. See what the release contains
 
@@ -43,7 +45,7 @@ This decides steps 3-5: migrations to push, whether `send-push` changed, what to
 
 ```sh
 supabase link --project-ref etzkbwqgjuipihypokjp   # once per machine
-supabase migration list                             # Local vs Remote: the pending ones
+supabase migration list --linked                    # Local vs Remote: the pending ones
 supabase db push                                    # lists them again and asks to confirm
 ```
 
