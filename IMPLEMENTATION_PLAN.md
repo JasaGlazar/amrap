@@ -85,7 +85,7 @@ cutoff; no duplicate reminders.
 checklist skill. Branch `stage-4-pilot`.
 **Success Criteria**: Trainer runs one full week on AMRAP without the paper sheet.
 **Tests**: manual E2E on both roles on real phones.
-**Status**: In Progress (plan approved; Tasks 15-17 done, Tasks 18-19 not started)
+**Status**: In Progress (plan approved; Tasks 15-18 done, Task 19 not started)
 
 ## Workflow (from 2026-10-23 evening)
 
@@ -335,6 +335,18 @@ the two Stage 3 migrations (Workflow); exact steps in `docs/runbook.md`.
     headless sessions, see Task 15); it is the DOM order (no positive `tabindex` anywhere) and
     the dialog's trap is unit-tested. The state pages (not linked, lookup failed, start-up
     error) were not measured; they reuse the same button and link styles.
+
+- Task 18 done: optional starting balance on **Nova stranka** (positive → `top_up`, negative →
+  `adjust`, note `customerDetail.startingNote`; a failed credit call opens the detail page with
+  `customerDetail.startingFailed`), the note prefilled while a customer's ledger is empty,
+  five new strings with their copy-review rows; `docs/pilot.md` (owner prerequisites, the
+  trainer's first day and daily check in Slovenian, text for customers, owner SQL checks,
+  problem reports, end of the week); `.claude/skills/release-checklist/SKILL.md` with the
+  harness Skills table, skill rule and a runbook pointer. Browser check (local stack,
+  production build, 360×800): a customer created with `-2` through the form got one
+  `adjustment -2` row with the note "Začetno stanje (papir)", the detail page opened with an
+  empty note field; `/t/stranke` with the new field: `scrollWidth` 360, no target under 44 px.
+  Not checked in a browser: a positive starting balance and the failure path (unit tests).
 
 ### Stage 4 Task 15 browser check (2026-10-24, local stack, production build)
 
