@@ -96,6 +96,7 @@ already history.
 | `book(client, { customerId, startsAt, slotTemplateId })` | `book` | `p_customer_id`, `p_starts_at` (`startsAt.toISOString()`), `p_slot_template_id` |
 | `book(client, { customerId, startsAt, endsAt })` | `book` | ad hoc (trainer): `p_customer_id`, `p_starts_at`, `p_ends_at`, no template |
 | `cancel(client, appointmentId, reason?)` | `cancel` | `p_appointment_id`, plus `p_reason` (trimmed) only when the reason is not blank, so a customer's call never carries one |
+| `cancelOccurrence(client, { templateId, startsAt, reason })` | `cancel_occurrence` | `p_template_id`, `p_starts_at`, plus `p_reason` (trimmed) only when not blank; `data` is the number cancelled |
 | `topUp(client, customerId, amount, note)` | `top_up` | `p_customer_id`, `p_amount`, `p_note` (omitted when null) |
 | `adjust(client, customerId, amount, note)` | `adjust` | same as `topUp` |
 | `createInvite(client, customerId)` | `create_invite` | `p_customer_id`; `data` is the token |

@@ -121,6 +121,25 @@ export function saveBlocked(
   );
 }
 
+export function cancelOccurrence(
+  client: Client,
+  occurrence: { templateId: string; startsAt: Date; reason: string },
+): Promise<ActionResult<number | null>> {
+  const reason = occurrence.reason.trim();
+  return runAction(() =>
+    client.rpc(
+      'cancel_occurrence',
+      reason === ''
+        ? { p_template_id: occurrence.templateId, p_starts_at: occurrence.startsAt.toISOString() }
+        : {
+            p_template_id: occurrence.templateId,
+            p_starts_at: occurrence.startsAt.toISOString(),
+            p_reason: reason,
+          },
+    ),
+  );
+}
+
 export function deleteBlocked(client: Client, id: string): Promise<ActionResult<null>> {
   return runAction(() => client.from('blocked_periods').delete().eq('id', id));
 }

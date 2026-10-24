@@ -1,10 +1,11 @@
 import { useId, useRef, useState } from 'react';
-import { cancel, CANCEL_REASON_MAX, type Appointment } from '../../data/appointments';
+import { cancel, type Appointment } from '../../data/appointments';
 import type { GymSettings } from '../../data/settings';
 import { fill, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { cutoffOf, formatDay, formatLongDay, formatTime, isFreeCancel } from '../../lib/time';
 import { useModal } from './modal';
+import { ReasonField } from './ReasonField';
 
 type Props = {
   appointment: Pick<Appointment, 'id' | 'startsAt' | 'status'>;
@@ -71,15 +72,7 @@ export function CancelDialog({
             <p className={appointment.status === 'charged' ? 'notice late' : 'notice'}>
               {appointment.status === 'charged' ? t.cancelDialog.refund : t.cancelDialog.noCharge}
             </p>
-            <label className="dialog-field">
-              {t.cancelDialog.reason}
-              <input
-                autoComplete="off"
-                maxLength={CANCEL_REASON_MAX}
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-              />
-            </label>
+            <ReasonField value={reason} onChange={setReason} />
           </>
         ) : (
           <>

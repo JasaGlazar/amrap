@@ -20,6 +20,7 @@ type Props = {
   names: Map<string, string>;
   onCancel?: (appointment: Appointment) => void;
   add?: Add;
+  onCancelOccurrence?: (opener: HTMLElement) => void;
 };
 
 function AddControl({ add, choices }: { add: Add; choices: Customer[] }) {
@@ -54,7 +55,7 @@ function AddControl({ add, choices }: { add: Add; choices: Customer[] }) {
   );
 }
 
-export function SlotRoster({ appointments, names, onCancel, add }: Props) {
+export function SlotRoster({ appointments, names, onCancel, add, onCancelOccurrence }: Props) {
   const bookedIds = new Set(appointments.map((appointment) => appointment.customerId));
   const choices = add?.customers.filter((customer) => !bookedIds.has(customer.id)) ?? [];
   const reason = add?.unavailable ?? (choices.length === 0 ? t.trainer.noneToAdd : null);
@@ -95,6 +96,17 @@ export function SlotRoster({ appointments, names, onCancel, add }: Props) {
         >
           <AddControl add={add} choices={choices} />
         </OnDemand>
+      )}
+      {onCancelOccurrence !== undefined && (
+        <div className="roster-foot">
+          <button
+            type="button"
+            className="button secondary small danger-text"
+            onClick={(event) => onCancelOccurrence(event.currentTarget)}
+          >
+            {t.trainer.cancelOccurrence}
+          </button>
+        </div>
       )}
     </div>
   );

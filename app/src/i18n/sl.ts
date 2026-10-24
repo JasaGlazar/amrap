@@ -104,6 +104,17 @@ export const sl = {
     refund: 'Odpoved z vračilom: stranki se vrne 1 kredit.',
     reason: 'Razlog (neobvezno)',
   },
+  occurrenceDialog: {
+    title: 'Odpoved celega termina',
+    booked: 'Prijavljenih strank: {count}',
+    refund: 'Strankam z oznako »opravljeno« se kredit vrne.',
+    notify: 'Stranke prejmejo obvestilo o odpovedi; razlog vidijo tudi v svoji zgodovini.',
+    reopen:
+      'Termin bo zaprt, zato ga nihče ne bo mogel rezervirati. Znova ga odprete tako, da izbrišete njegovo zaprto obdobje v »Nastavitve« → »Zaprta obdobja«; odpovedane rezervacije ostanejo odpovedane.',
+    confirm: 'Odpovej termin',
+    done: 'Termin je odpovedan, obveščenih strank: {count}.',
+    doneEmpty: 'Termin je odpovedan in zaprt.',
+  },
   history: {
     appointmentsTitle: 'Termini',
     noAppointments: 'Ni preteklih terminov.',
@@ -290,6 +301,7 @@ export const sl = {
     noSlotsOnDay: 'Ta dan ni terminov.',
     todayTag: 'danes',
     chargedTag: 'opravljeno',
+    cancelOccurrence: 'Odpovej termin',
     addCustomer: 'Dodaj stranko',
     noneToAdd: 'Ni strank za dodajanje',
     addTo: 'Stranka za termin {when}',

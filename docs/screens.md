@@ -210,8 +210,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     never wraps.
     The open add control puts the select on its own line and **Dodaj** and **Prekliči** under
     it.
-- **Unchanged in both views:** **Dodaj stranko** and its disabled reasons, the cancel dialog,
-  **Nov termin po dogovoru**, past weeks, `Zaprto` and `Polno`. Occurrences are bucketed by
+- **The same in both views:** **Dodaj stranko** and its disabled reasons, **Odpovej termin**,
+  the cancel dialog, **Nov termin po dogovoru**, past weeks, `Zaprto` and `Polno`. Occurrences are bucketed by
   their local date (`occurrenceInWeek`) and appointments outside the grid by
   `localDateOf(startsAt, settings.timezone)`, never by UTC or the browser's zone, so an
   appointment at 00:30 on the Sunday of the autumn change (22:30 UTC on Saturday) is on
@@ -233,6 +233,27 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   place) or **Ni strank za dodajanje** (`trainer.noneToAdd`: every customer is already booked
   there, or there are no customers yet, as on the first day before Stranke is filled in). A
   reload that leaves any of these closes an open control. Past occurrences keep the button (the trainer records a session after the fact).
+- **Odpovej termin** (`trainer.cancelOccurrence`, issue #19, [ADR
+  0016](adr/0016-cancel-occurrence-closes-it.md)): at the foot of every occurrence that is not
+  `Zaprto`, under **Dodaj stranko** and right-aligned (full width in a grid card), a small
+  secondary button with red text, so it neither looks like the black primary nor competes with
+  **Dodaj stranko**. Past and empty occurrences have it too (refunding a missed session that was
+  already charged; closing a session nobody booked). It opens a dialog with the cancel dialog's
+  layout and focus rules (`OccurrenceCancelDialog.tsx`): the title **Odpoved celega termina**,
+  the occurrence (`{day} ob {time}`), `Prijavljenih strank: {count}` and their names
+  (`opravljeno` on charged ones) or `Ni prijavljenih strank.`, the refund line
+  (`occurrenceDialog.refund`) when someone is charged, the notice that customers are told, the
+  optional **Razlog (neobvezno)** field (shared with the cancel dialog, `ReasonField.tsx`), how
+  to reopen (delete the period in **Nastavitve → Zaprta obdobja**; the bookings stay cancelled)
+  and **Odpovej termin** (danger) with **Nazaj**. Confirming calls `cancel_occurrence(template,
+  start, reason)`; the dialog stays open until the week has reloaded, then closes with
+  `Termin je odpovedan, obveščenih strank: {count}.` (`Termin je odpovedan in zaprt.` when
+  nobody was booked) in the status line, the occurrence `Zaprto` without its action and its
+  customers, and focus on the occurrence (its row or card). A rejection (for example the
+  occurrence was closed meanwhile, `AMRAP_BLOCKED`) shows its copy in the dialog and disables
+  the confirm button, as in the cancel dialog. A `Zaprto` occurrence has no **Odpovej termin**:
+  it is already closed (`cancel_occurrence` refuses it), and bookings a Settings period
+  stranded inside it are cancelled one by one with **Odpovej**.
 - **Termini zunaj urnika:** live appointments that match no shown occurrence
   (`appointmentsOutsideSlots`): ad-hoc ones (`po dogovoru`) and bookings left behind by a
   deactivated or moved template (`ni več v urniku`), with day, time range and name, each with

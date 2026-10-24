@@ -248,6 +248,15 @@ is a question below.
 | `trainer.days` | Dnevi v tednu | Ni vidno: ime vrstice z gumbi za dneve v koledarju na telefonu (bralnik zaslona). |
 | `trainer.noSlotsOnDay` | Ta dan ni terminov. | Koledar na telefonu, izbran dan brez terminov. |
 | `trainer.todayTag` | danes | Oznaka današnjega stolpca v tedenskem koledarju na računalniku. |
+| `trainer.cancelOccurrence` | Odpovej termin | Novo (Stage 11): gumb pod vsakim terminom v Koledarju, ki odpove termin vsem prijavljenim strankam in ga zapre. |
+| `occurrenceDialog.title` | Odpoved celega termina | Novo (Stage 11): naslov okna za odpoved celega termina. |
+| `occurrenceDialog.booked` | Prijavljenih strank: {count} | Novo (Stage 11): nad seznamom imen v oknu. |
+| `occurrenceDialog.refund` | Strankam z oznako »opravljeno« se kredit vrne. | Novo (Stage 11): le ko je kdo termin že plačal. |
+| `occurrenceDialog.notify` | Stranke prejmejo obvestilo o odpovedi; razlog vidijo tudi v svoji zgodovini. | Novo (Stage 11). Obvestilo prejmejo le stranke z vklopljenimi obvestili; je stavek dovolj natančen? |
+| `occurrenceDialog.reopen` | Termin bo zaprt, zato ga nihče ne bo mogel rezervirati. Znova ga odprete tako, da izbrišete njegovo zaprto obdobje v »Nastavitve« → »Zaprta obdobja«; odpovedane rezervacije ostanejo odpovedane. | Novo (Stage 11). |
+| `occurrenceDialog.confirm` | Odpovej termin | Novo (Stage 11): potrditev v oknu (enako kot gumb v Koledarju). |
+| `occurrenceDialog.done` | Termin je odpovedan, obveščenih strank: {count}. | Novo (Stage 11), besedilo lastnika. Število je število odpovedanih rezervacij; obvestilo na napravo dobijo le stranke z vklopljenimi obvestili, ostale odpoved vidijo v zgodovini. Raje »odpovedanih rezervacij: 3«? |
+| `occurrenceDialog.doneEmpty` | Termin je odpovedan in zaprt. | Novo (Stage 11): ko v terminu ni bilo nikogar. |
 | `trainer.chargedTag` | opravljeno | Isto vprašanje kot »Opravljeno« zgoraj. |
 | `trainer.addCustomer` | Dodaj stranko | Gumb pri terminu v koledarju; odpre izbiro stranke. Ko je termin poln ali zaprt, gumb namesto tega pokaže »Polno« ali »Zaprto«. Enako besedilo ima gumb, ki ustvari novo stranko (`customers.create`), čeprav gre za drugo dejanje: je to v redu, ali naj bo tukaj »Prijavi stranko« ali »Dodaj v termin«? |
 | `trainer.noneToAdd` | Ni strank za dodajanje | Onemogočen gumb pri terminu, ko ni nobene stranke, ki bi jo lahko dodali (vse so že prijavljene ali pa strank še ni). |

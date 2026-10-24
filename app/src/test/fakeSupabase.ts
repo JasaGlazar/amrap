@@ -368,6 +368,28 @@ function fakeCancel(args: Row): Result {
   return { data: null, error: null };
 }
 
+function fakeCancelOccurrence(args: Row): Result {
+  const template = db.tables.slot_templates.find((row) => row.id === args.p_template_id);
+  if (template === undefined) return { data: null, error: { message: 'AMRAP_NOT_FOUND: x' } };
+  const startsAt = String(args.p_starts_at);
+  const live = db.tables.appointments.filter(
+    (row) =>
+      row.slot_template_id === template.id &&
+      compare(row.starts_at, startsAt) === 0 &&
+      (row.status === 'booked' || row.status === 'charged'),
+  );
+  for (const row of live) fakeCancel({ p_appointment_id: row.id });
+  db.tables.blocked_periods.push({
+    id: `blocked-${nextId++}`,
+    starts_at: startsAt,
+    ends_at: new Date(
+      Date.parse(startsAt) + Number(template.duration_minutes) * 60_000,
+    ).toISOString(),
+    reason: args.p_reason ?? null,
+  });
+  return { data: live.length, error: null };
+}
+
 function fakeCredit(type: 'topup' | 'adjustment', args: Row): Result {
   const id = `${type}-${nextId++}`;
   db.tables.credit_transactions.push({
@@ -425,6 +447,7 @@ function fakeSavePushSubscription(args: Row): Result {
 const rpcs: Record<string, (args: Row) => Result> = {
   book: fakeBook,
   cancel: fakeCancel,
+  cancel_occurrence: fakeCancelOccurrence,
   top_up: (args) => fakeCredit('topup', args),
   adjust: (args) => fakeCredit('adjustment', args),
   create_invite: fakeCreateInvite,
