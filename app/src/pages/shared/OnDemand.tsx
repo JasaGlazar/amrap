@@ -29,7 +29,10 @@ export function OnDemand({
     if (open) {
       area.current?.querySelector<HTMLElement>('input, select, textarea')?.focus();
     } else if (document.activeElement === null || document.activeElement === document.body) {
-      button.current?.focus();
+      const target = button.current?.disabled
+        ? button.current.closest<HTMLElement>('[tabindex="-1"]')
+        : button.current;
+      target?.focus();
     }
   }, [open]);
 

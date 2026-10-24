@@ -302,6 +302,7 @@ describe('trainer calendar', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(t.errors.AMRAP_CAPACITY_FULL);
     expect(await within(row).findByRole('button', { name: t.calendar.full })).toBeDisabled();
     expect(within(row).queryByRole('combobox')).not.toBeInTheDocument();
+    expect(row).toHaveFocus();
   });
 
   it('disables the add button when every customer is already booked there', async () => {

@@ -324,6 +324,10 @@ occurrence of the trainer calendar (a small secondary button at the right of the
   result notice (`settings.saved`, `trainer.added`, …); **Nova stranka** opens the new
   customer's page instead. A rejected save or a warning that asks for a second
   **Shrani** keeps it open.
+- When the close turns the button into a disabled one (the calendar's add control after a
+  rejected booking whose reload shows **Polno**, **Zaprto** or **Ni strank za dodajanje**),
+  focus goes to the occurrence row instead (each row can take focus, `tabindex="-1"`, and is
+  named by its day and time), so it never falls back to the top of the page.
 - Closing one form because another opened (the trainer calendar's add control, one open at a
   time) leaves focus in the form that opened.
 
