@@ -69,8 +69,8 @@ values ('<trainer name>', '<trainer email>', 'trainer', '<auth user uid>');
 
 The trainer does this in the app:
 
-1. **Stranke** (`/t/stranke`): fill in **Nova stranka** (name; phone and email optional) and
-   tap **Dodaj stranko**. The customer's page opens.
+1. **Stranke** (`/t/stranke`): tap **Nova stranka**, fill in the form (name; phone and email
+   optional) and tap **Dodaj stranko**. The customer's page opens.
 2. Under **Povabilo** tap **Ustvari povabilo**. The full link
    (`https://<pages-domain>/invite/<token>`) appears with **Kopiraj**; it is valid for 7 days.
    **Ustvari novo povabilo** replaces it (the old link stops working).

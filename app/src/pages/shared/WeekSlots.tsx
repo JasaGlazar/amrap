@@ -26,6 +26,7 @@ export function WeekSlots({ slots, timeZone, actions, details }: Props) {
                 return (
                   <li
                     key={slot.key}
+                    tabIndex={-1}
                     aria-label={fill(t.slot.when, {
                       day: formatLongDay(slot.startsAt, timeZone),
                       time,

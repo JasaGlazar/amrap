@@ -12,7 +12,7 @@ screens are in [screens.md](screens.md), sign-in and role gating in [auth.md](au
 | `src/routes.tsx` | The route tree (React Router v7 data router). The tests render the same tree. |
 | `src/data/` | Typed reads and RPC wrappers ([data-layer.md](data-layer.md)). |
 | `src/auth/` | `AuthProvider`, `useAuth()`, the route guards ([auth.md](auth.md)). |
-| `src/pages/` | One component per screen or state page. The shells (`CustomerPages.tsx`, `TrainerPages.tsx`) use `AppShell`: a top bar with the framed wordmark and the account menu (theme and sign-out), the install card, the page, and a fixed bottom navigation bar. Customer screens are in `pages/customer/`, trainer screens in `pages/trainer/`; the pieces several screens use (`WeekNav`, `WeekSlots`, `CancelDialog`, `LedgerList`, `Amount`, `NoticeLine`, `PushToggle`, `InstallCard`, `AccountMenu`, `BrandMark`) are in `pages/shared/` ([screens.md](screens.md#customer-screens)). |
+| `src/pages/` | One component per screen or state page. The shells (`CustomerPages.tsx`, `TrainerPages.tsx`) use `AppShell`: a top bar with the framed wordmark, the main navigation and the account menu (theme and sign-out), then the install card and the page. The navigation is one `nav` that CSS places: in the top bar from 768 px, a fixed bar at the bottom below that ([screens.md](screens.md#main-navigation)). The settings screen is a small layout of its own (`trainer/Settings.tsx`: title, tab row, `Outlet`) over one component per tab (`SettingsTemplates`, `SettingsCutoff`, `SettingsBlocked`, `SettingsNotifications`), each a child route ([ADR 0011](adr/0011-responsive-navigation-and-on-demand-forms.md)). Customer screens are in `pages/customer/`, trainer screens in `pages/trainer/`; the pieces several screens use (`WeekNav`, `WeekSlots`, `CancelDialog`, `LedgerList`, `Amount`, `NoticeLine`, `PushToggle`, `InstallCard`, `AccountMenu`, `BrandMark`, `OnDemand`) are in `pages/shared/` ([screens.md](screens.md#customer-screens)). |
 | `src/i18n/` | `sl.ts` (all copy), `errors.ts` (`fromError`), `fill.ts` (`fill` for `{name}` placeholders, `formatTimeUntil`, `plural`, the signed numbers `formatAmount` and `formatBalance`), `index.ts` (exports `t` and the helpers). |
 | `src/install/` | Install onboarding: the `beforeinstallprompt` capture and store, the install mode, the per-device dismissal ([Install onboarding](#install-onboarding)). |
 | `src/theme/` | The per-device theme preference and applying it to the page ([Theme](#theme)). |
@@ -177,6 +177,9 @@ vi.mock('./lib/supabase', async () => ({
   future booked appointments) and `save_push_subscription` (upserts the signed-in user's row by
   endpoint). Any other RPC throws unless a test mocks it. Tests mock a rejection with
   `mockResolvedValueOnce({ data: null, error: { message: 'AMRAP_…: detail' } })`.
+- `holdTable(table)` holds every read and write of that table (`then`, `single`,
+  `maybeSingle`) until the returned function is called, to test what a screen shows while a
+  request runs; `resetFake` drops any hold.
 - `resetFake({ session?, customer? })` in `beforeEach` clears the state (tables empty, default
   settings) and the mocks and optionally starts signed in. `onAuthStateChange` delivers
   `INITIAL_SESSION` on a microtask, like the real client.

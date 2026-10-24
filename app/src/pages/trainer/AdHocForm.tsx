@@ -9,9 +9,17 @@ type Props = {
   timeZone: string;
   disabled: boolean;
   onSubmit: (booking: { customerId: string; startsAt: Date; endsAt: Date }) => void;
+  onCancel: () => void;
 };
 
-export function AdHocForm({ customers, defaultDate, timeZone, disabled, onSubmit }: Props) {
+export function AdHocForm({
+  customers,
+  defaultDate,
+  timeZone,
+  disabled,
+  onSubmit,
+  onCancel,
+}: Props) {
   const [customerId, setCustomerId] = useState('');
   const [date, setDate] = useState(defaultDate);
   const [start, setStart] = useState('');
@@ -62,9 +70,14 @@ export function AdHocForm({ customers, defaultDate, timeZone, disabled, onSubmit
           {error}
         </p>
       )}
-      <button type="submit" className="button" disabled={disabled}>
-        {t.trainer.adHocSubmit}
-      </button>
+      <div className="actions">
+        <button type="submit" className="button" disabled={disabled}>
+          {t.trainer.adHocSubmit}
+        </button>
+        <button type="button" className="button secondary" disabled={disabled} onClick={onCancel}>
+          {t.common.cancel}
+        </button>
+      </div>
     </form>
   );
 }

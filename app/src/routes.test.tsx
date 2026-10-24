@@ -211,6 +211,62 @@ describe('shells', () => {
     expect(labels).toEqual([t.nav.home, t.nav.calendar, t.nav.history]);
   });
 
+  it.each([
+    ['customer', customer, '/c', t.nav.customerLabel],
+    ['trainer', trainer, '/t', t.nav.trainerLabel],
+  ])('renders the %s navigation once, inside the top bar', async (_name, row, path, label) => {
+    signedInAs(row);
+    renderAt(path);
+    const banner = await screen.findByRole('banner');
+    expect(within(banner).getByRole('navigation', { name: label })).toBeInTheDocument();
+    expect(screen.getAllByRole('navigation')).toHaveLength(1);
+  });
+
+  it('marks the link of the open screen as the current page', async () => {
+    signedInAs(trainer);
+    renderAt('/t/stranke');
+    const nav = await screen.findByRole('navigation', { name: t.nav.trainerLabel });
+    expect(within(nav).getByRole('link', { name: t.nav.customers })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(nav).getByRole('link', { name: t.nav.today })).not.toHaveAttribute(
+      'aria-current',
+    );
+  });
+
+  it('opens the settings on their first tab', async () => {
+    signedInAs(trainer);
+    const router = renderAt('/t/nastavitve');
+    await screen.findByRole('region', { name: t.settings.templatesTitle });
+    expect(router.state.location.pathname).toBe('/t/nastavitve/urnik');
+  });
+
+  it.each([
+    ['urnik', t.settings.tabs.templates, 'region', t.settings.templatesTitle],
+    ['odpoved', t.settings.tabs.cutoff, 'form', t.settings.cutoffTitle],
+    ['zaprto', t.settings.tabs.blocked, 'region', t.settings.blockedTitle],
+    ['obvestila', t.settings.tabs.notifications, 'region', t.pushToggle.title],
+  ] as const)(
+    'shows /t/nastavitve/%s as the current settings tab',
+    async (child, tab, role, name) => {
+      signedInAs(trainer);
+      renderAt(`/t/nastavitve/${child}`);
+      await screen.findByRole(role, { name });
+      const tabs = screen.getByRole('navigation', { name: t.settings.sectionsLabel });
+      expect(within(tabs).getByRole('link', { name: tab })).toHaveAttribute('aria-current', 'page');
+      expect(within(tabs).getAllByRole('link', { current: 'page' })).toHaveLength(1);
+      const main = screen.getByRole('navigation', { name: t.nav.trainerLabel });
+      expect(within(main).getByRole('link', { name: t.nav.settings })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+      expect(
+        screen.getByRole('heading', { level: 1, name: t.trainer.settingsTitle }),
+      ).toBeVisible();
+    },
+  );
+
   it('shows the install card in the trainer shell too', async () => {
     signedInAs(trainer);
     renderAt('/t', fakeInstallPlatform({ device: { ios: true } }).platform);

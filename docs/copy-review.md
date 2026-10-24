@@ -103,6 +103,7 @@ is a question below.
 | `common.loadFailed` | Podatkov ni mogoče naložiti. |  |
 | `common.signOut` | Odjava |  |
 | `common.continue` | Nadaljuj |  |
+| `common.cancel` | Prekliči | Zapre odprt obrazec brez shranjevanja (nova stranka, termin po dogovoru, stalni termin, podatki, dodajanje stranke v termin). |
 | `notLinked.title` | Račun ni povezan |  |
 | `notLinked.body` | Vaš račun še ni povezan s stranko. Za povezavo se obrnite na trenerja. | »povezan s stranko« zveni nerodno. Predlog: »Vaš račun še ni povezan z vašimi podatki pri trenerju.« |
 | `lookupFailed.title` | Podatkov ni mogoče naložiti |  |
@@ -235,6 +236,8 @@ is a question below.
 | `trainer.noDebtors` | Nihče nima negativnega stanja. |  |
 | `trainer.nobodyBooked` | Ni prijavljenih strank. | »prijavljenih« ali »rezerviranih« strank? |
 | `trainer.chargedTag` | opravljeno | Isto vprašanje kot »Opravljeno« zgoraj. |
+| `trainer.addCustomer` | Dodaj stranko | Gumb pri terminu v koledarju; odpre izbiro stranke. Ko je termin poln ali zaprt, gumb namesto tega pokaže »Polno« ali »Zaprto«. Enako besedilo ima gumb, ki ustvari novo stranko (`customers.create`), čeprav gre za drugo dejanje: je to v redu, ali naj bo tukaj »Prijavi stranko« ali »Dodaj v termin«? |
+| `trainer.noneToAdd` | Ni strank za dodajanje | Onemogočen gumb pri terminu, ko ni nobene stranke, ki bi jo lahko dodali (vse so že prijavljene ali pa strank še ni). |
 | `trainer.addTo` | Stranka za termin {when} |  |
 | `trainer.chooseCustomer` | Izberi stranko |  |
 | `trainer.add` | Dodaj |  |
@@ -263,7 +266,7 @@ is a question below.
 | `customers.name` | Ime in priimek |  |
 | `customers.phone` | Telefon |  |
 | `customers.email` | E-poštni naslov |  |
-| `customers.create` | Dodaj stranko |  |
+| `customers.create` | Dodaj stranko | Enako besedilo kot gumb pri terminu v koledarju (`trainer.addCustomer`), ki stranko doda v termin. Je to v redu, ali naj bo tukaj »Ustvari stranko«? |
 | `customers.startingBalance` | Začetno stanje kreditov (s papirja) | Novo (Stage 4). Razumljivo? |
 | `customers.startingHint` | Neobvezno. Pozitivno število doda kredite, negativno vpiše dolg. | Novo. |
 | `customers.startingInvalid` | Začetno stanje mora biti celo število (lahko negativno) ali prazno. | Novo. |
@@ -280,6 +283,8 @@ is a question below.
 |---|---|---|
 | `customerDetail.back` | Nazaj na stranke |  |
 | `customerDetail.detailsTitle` | Podatki |  |
+| `customerDetail.editDetails` | Uredi podatke | Gumb, ki odpre obrazec s podatki stranke (ime, telefon, e-pošta). |
+| `customerDetail.notGiven` | Ni podatka | Namesto telefona ali e-pošte, ki ju ni. |
 | `customerDetail.save` | Shrani |  |
 | `customerDetail.saved` | Podatki so shranjeni. |  |
 | `customerDetail.creditsTitle` | Krediti |  |
@@ -310,6 +315,7 @@ is a question below.
 | `customerDetail.chooseTemplate` | Izberi termin |  |
 | `customerDetail.addRule` | Dodaj stalni termin |  |
 | `customerDetail.addRuleLabel` | Nov stalni termin |  |
+| `customerDetail.ruleTemplate` | Termin | Izbira termina v obrazcu »Nov stalni termin«. |
 | `customerDetail.stopRule` | Ustavi |  |
 | `customerDetail.restartRule` | Ponovno vključi |  |
 | `customerDetail.ruleStarted` | Stalni termin je vključen. Novih terminov: {count}. |  |
@@ -324,6 +330,11 @@ is a question below.
 
 | Ključ | Besedilo | Vprašanje |
 |---|---|---|
+| `settings.sectionsLabel` | Razdelki nastavitev | Ime vrstice zavihkov (bralnik zaslona) |
+| `settings.tabs.templates` | Urnik |  |
+| `settings.tabs.cutoff` | Odpoved | Zavihek z rokom za brezplačno odpoved. Dovolj jasno ali »Rok odpovedi«? |
+| `settings.tabs.blocked` | Zaprta obdobja |  |
+| `settings.tabs.notifications` | Obvestila |  |
 | `settings.templatesTitle` | Termini v tednu | »Termini v tednu« ali »Tedenski urnik«? |
 | `settings.noTemplates` | Ni terminov. |  |
 | `settings.templateLine` | {weekday} ob {time} · {minutes} min · {places} |  |

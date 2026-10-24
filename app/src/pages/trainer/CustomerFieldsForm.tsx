@@ -8,9 +8,10 @@ type Props = {
   initial: CustomerFields;
   busy: boolean;
   error: string | null;
-  notice?: string | null;
+  heading?: 'h2' | 'h3';
   withStartingBalance?: boolean;
   onSubmit: (fields: CustomerFields, startingBalance: number | null) => void;
+  onCancel?: () => void;
 };
 
 function orNull(value: string): string | null {
@@ -24,9 +25,10 @@ export function CustomerFieldsForm({
   initial,
   busy,
   error,
-  notice,
+  heading: Heading = 'h2',
   withStartingBalance = false,
   onSubmit,
+  onCancel,
 }: Props) {
   const [name, setName] = useState(initial.name);
   const [phone, setPhone] = useState(initial.phone ?? '');
@@ -50,7 +52,7 @@ export function CustomerFieldsForm({
 
   return (
     <form className="form card" onSubmit={submit} aria-label={title}>
-      <h2>{title}</h2>
+      <Heading>{title}</Heading>
       <label>
         {t.customers.name}
         <input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
@@ -102,14 +104,16 @@ export function CustomerFieldsForm({
           {error}
         </p>
       )}
-      {notice !== undefined && notice !== null && (
-        <p role="status" className="ok">
-          {notice}
-        </p>
-      )}
-      <button type="submit" className="button" disabled={busy}>
-        {submitLabel}
-      </button>
+      <div className="actions">
+        <button type="submit" className="button" disabled={busy}>
+          {submitLabel}
+        </button>
+        {onCancel !== undefined && (
+          <button type="button" className="button secondary" disabled={busy} onClick={onCancel}>
+            {t.common.cancel}
+          </button>
+        )}
+      </div>
     </form>
   );
 }

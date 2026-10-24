@@ -1,11 +1,11 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fill, plural, t } from '../../i18n';
 import { weekdayName } from '../../lib/time';
 import { routes } from '../../routes';
-import { db, makeCustomer, makeSession, resetFake } from '../../test/fakeSupabase';
+import { db, holdTable, makeCustomer, makeSession, resetFake } from '../../test/fakeSupabase';
 
 vi.mock('../../lib/supabase', async () => ({
   supabase: (await import('../../test/fakeSupabase')).fakeSupabase,
@@ -22,15 +22,19 @@ const existing = {
   active: true,
 };
 
-function renderSettings() {
-  const router = createMemoryRouter(routes, { initialEntries: ['/t/nastavitve'] });
+function renderSettings(tab: 'urnik' | 'odpoved' | 'zaprto') {
+  const router = createMemoryRouter(routes, { initialEntries: [`/t/nastavitve/${tab}`] });
   render(<RouterProvider router={router} />);
 }
 
-async function newTemplateForm() {
-  renderSettings();
-  return screen.findByRole('form', { name: t.settings.newTemplate });
+async function openForm(tab: 'urnik' | 'zaprto', button: string) {
+  renderSettings(tab);
+  await userEvent.click(await screen.findByRole('button', { name: button }));
+  return screen.getByRole('form', { name: button });
 }
+
+const newTemplateForm = () => openForm('urnik', t.settings.newTemplate);
+const newBlockedForm = () => openForm('zaprto', t.settings.newBlocked);
 
 async function fillTemplate(form: HTMLElement, values: Record<string, string>) {
   for (const [label, value] of Object.entries(values)) {
@@ -50,6 +54,49 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('slot templates', () => {
+  it('keeps Prekliči disabled while a new template is being saved', async () => {
+    const form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '18:00' });
+    const release = holdTable('slot_templates');
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+    expect(within(form).getByRole('button', { name: t.settings.cancelEdit })).toBeDisabled();
+    release();
+    await waitFor(() => expect(form).not.toBeInTheDocument());
+  });
+
+  it('shows Nov termin as a button until it is pressed, then the form with focus in it', async () => {
+    renderSettings('urnik');
+    const button = await screen.findByRole('button', { name: t.settings.newTemplate });
+    expect(screen.queryByRole('form', { name: t.settings.newTemplate })).not.toBeInTheDocument();
+    await userEvent.click(button);
+    const form = screen.getByRole('form', { name: t.settings.newTemplate });
+    expect(within(form).getByLabelText(t.settings.weekday)).toHaveFocus();
+    expect(screen.queryByRole('button', { name: t.settings.newTemplate })).not.toBeInTheDocument();
+  });
+
+  it('clears the last notice when a new template is cancelled, like a new blocked period', async () => {
+    let form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '18:00' });
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    await userEvent.click(await screen.findByRole('button', { name: t.settings.newTemplate }));
+    form = screen.getByRole('form', { name: t.settings.newTemplate });
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.cancelEdit }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('drops the input on Prekliči and puts focus back on the button', async () => {
+    const form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '18:00' });
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.cancelEdit }));
+    expect(form).not.toBeInTheDocument();
+    const button = screen.getByRole('button', { name: t.settings.newTemplate });
+    expect(button).toHaveFocus();
+    await userEvent.click(button);
+    const again = screen.getByRole('form', { name: t.settings.newTemplate });
+    expect(within(again).getByLabelText(t.settings.startTime)).toHaveValue('');
+  });
+
   it('rejects a duration that is not positive', async () => {
     const before = db.tables.slot_templates.length;
     const form = await newTemplateForm();
@@ -78,6 +125,8 @@ describe('slot templates', () => {
     });
     await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
     expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    await waitFor(() => expect(form).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: t.settings.newTemplate })).toHaveFocus();
     expect(db.tables.slot_templates.at(-1)).toMatchObject({
       weekday: 2,
       start_time: '18:00',
@@ -88,7 +137,7 @@ describe('slot templates', () => {
   });
 
   it('deactivates an existing template instead of deleting it', async () => {
-    renderSettings();
+    renderSettings('urnik');
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
     const line = fill(t.settings.templateLine, {
       weekday: weekdayName(existing.weekday),
@@ -122,7 +171,7 @@ describe('stranded bookings', () => {
   });
 
   it('warns with the count of future bookings and saves only on the second click', async () => {
-    renderSettings();
+    renderSettings('urnik');
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
     await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
     const form = await screen.findByRole('form', { name: t.settings.editTemplate });
@@ -142,7 +191,7 @@ describe('stranded bookings', () => {
 
   it('shows an error and saves nothing when the count cannot be read', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    renderSettings();
+    renderSettings('urnik');
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
     await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
     const form = await screen.findByRole('form', { name: t.settings.editTemplate });
@@ -157,7 +206,7 @@ describe('stranded bookings', () => {
   });
 
   it('warns when the start time moves too', async () => {
-    renderSettings();
+    renderSettings('urnik');
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
     await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
     const form = await screen.findByRole('form', { name: t.settings.editTemplate });
@@ -170,7 +219,7 @@ describe('stranded bookings', () => {
   });
 
   it('saves a capacity change without a warning', async () => {
-    renderSettings();
+    renderSettings('urnik');
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
     await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
     const form = await screen.findByRole('form', { name: t.settings.editTemplate });
@@ -183,7 +232,7 @@ describe('stranded bookings', () => {
 
 describe('cutoff', () => {
   it('saves the late-cancel hours', async () => {
-    renderSettings();
+    renderSettings('odpoved');
     const form = await screen.findByRole('form', { name: t.settings.cutoffTitle });
     const input = within(form).getByLabelText(t.settings.cutoffHours);
     expect(input).toHaveValue(db.settings.late_cancel_hours);
@@ -195,7 +244,7 @@ describe('cutoff', () => {
   });
 
   it('rejects a negative value', async () => {
-    renderSettings();
+    renderSettings('odpoved');
     const form = await screen.findByRole('form', { name: t.settings.cutoffTitle });
     const before = db.settings.late_cancel_hours;
     const input = within(form).getByLabelText(t.settings.cutoffHours);
@@ -208,15 +257,49 @@ describe('cutoff', () => {
 });
 
 describe('blocked periods', () => {
+  it('keeps Prekliči disabled while the overlapping bookings are counted', async () => {
+    const form = await newBlockedForm();
+    await fillTemplate(form, {
+      [t.settings.fromDate]: '2026-12-24',
+      [t.settings.fromTime]: '00:00',
+      [t.settings.toDate]: '2026-12-27',
+      [t.settings.toTime]: '00:00',
+    });
+    const release = holdTable('appointments');
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+    expect(within(form).getByRole('button', { name: t.settings.cancelEdit })).toBeDisabled();
+    release();
+    await waitFor(() => expect(form).not.toBeInTheDocument());
+  });
+
+  it('shows Novo zaprto obdobje as a button until it is pressed, then the form with focus in it', async () => {
+    renderSettings('zaprto');
+    const button = await screen.findByRole('button', { name: t.settings.newBlocked });
+    expect(screen.queryByRole('form', { name: t.settings.newBlocked })).not.toBeInTheDocument();
+    await userEvent.click(button);
+    const form = screen.getByRole('form', { name: t.settings.newBlocked });
+    expect(within(form).getByLabelText(t.settings.fromDate)).toHaveFocus();
+  });
+
+  it('drops the input on Prekliči and puts focus back on the button', async () => {
+    const form = await newBlockedForm();
+    await fillTemplate(form, { [t.settings.reason]: 'Prazniki' });
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.cancelEdit }));
+    expect(form).not.toBeInTheDocument();
+    const button = screen.getByRole('button', { name: t.settings.newBlocked });
+    expect(button).toHaveFocus();
+    await userEvent.click(button);
+    const again = screen.getByRole('form', { name: t.settings.newBlocked });
+    expect(within(again).getByLabelText(t.settings.reason)).toHaveValue('');
+  });
+
   it('keeps the browser from autofilling the reason', async () => {
-    renderSettings();
-    const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+    const form = await newBlockedForm();
     expect(within(form).getByLabelText(t.settings.reason)).toHaveAttribute('autocomplete', 'off');
   });
 
   it('creates a period from local date and time in the gym timezone', async () => {
-    renderSettings();
-    const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+    const form = await newBlockedForm();
     await fillTemplate(form, {
       [t.settings.fromDate]: '2026-12-24',
       [t.settings.fromTime]: '00:00',
@@ -226,6 +309,9 @@ describe('blocked periods', () => {
     });
     await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
     expect(await screen.findByText('Prazniki')).toBeVisible();
+    expect(screen.getByRole('status')).toHaveTextContent(t.settings.saved);
+    await waitFor(() => expect(form).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: t.settings.newBlocked })).toHaveFocus();
     expect(db.tables.blocked_periods[0]).toMatchObject({
       starts_at: '2026-12-23T23:00:00.000Z',
       ends_at: '2026-12-26T23:00:00.000Z',
@@ -263,8 +349,7 @@ describe('blocked periods', () => {
       const live = db.tables.appointments.filter(
         (row) => row.id === 'inside-booked' || row.id === 'inside-charged',
       ).length;
-      renderSettings();
-      const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+      const form = await newBlockedForm();
       await fillTemplate(form, period);
       await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
 
@@ -281,8 +366,7 @@ describe('blocked periods', () => {
 
     it('shows an error and saves nothing when the bookings cannot be counted', async () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      renderSettings();
-      const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+      const form = await newBlockedForm();
       await fillTemplate(form, period);
       db.readErrors.appointments = { message: 'FetchError: network down' };
       await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
@@ -295,8 +379,7 @@ describe('blocked periods', () => {
     });
 
     it('counts again and warns again when the range changed after the warning', async () => {
-      renderSettings();
-      const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+      const form = await newBlockedForm();
       await fillTemplate(form, period);
       await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
       const section = screen.getByRole('region', { name: t.settings.blockedTitle });
@@ -319,8 +402,7 @@ describe('blocked periods', () => {
       const notEnded = db.tables.appointments.filter(
         (row) => new Date(String(row.ends_at)) > now,
       ).length;
-      renderSettings();
-      const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+      const form = await newBlockedForm();
       await fillTemplate(form, {
         [t.settings.fromDate]: '2026-10-20',
         [t.settings.fromTime]: '00:00',
@@ -343,7 +425,7 @@ describe('blocked periods', () => {
           reason: 'Prazniki',
         },
       ];
-      renderSettings();
+      renderSettings('zaprto');
       const section = await screen.findByRole('region', { name: t.settings.blockedTitle });
       const edit = async () => {
         const row = (await within(section).findByText('Prazniki')).closest('li') as HTMLElement;
@@ -372,8 +454,7 @@ describe('blocked periods', () => {
       db.tables.appointments = db.tables.appointments.filter(
         (row) => !String(row.id).startsWith('inside-') || row.status === 'cancelled',
       );
-      renderSettings();
-      const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+      const form = await newBlockedForm();
       await fillTemplate(form, period);
       await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
       const section = screen.getByRole('region', { name: t.settings.blockedTitle });
@@ -383,8 +464,7 @@ describe('blocked periods', () => {
   });
 
   it('rejects an end before the start', async () => {
-    renderSettings();
-    const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+    const form = await newBlockedForm();
     await fillTemplate(form, {
       [t.settings.fromTime]: '12:00',
       [t.settings.toTime]: '10:00',
@@ -403,7 +483,7 @@ describe('blocked periods', () => {
         reason: 'Servis',
       },
     ];
-    renderSettings();
+    renderSettings('zaprto');
     const row = (await screen.findByText('Servis')).closest('li') as HTMLElement;
     await userEvent.click(within(row).getByRole('button', { name: t.settings.delete }));
     expect(await screen.findByText(t.settings.noBlocked)).toBeVisible();
@@ -412,17 +492,15 @@ describe('blocked periods', () => {
 });
 
 describe('empty sections', () => {
-  it('shows the empty line instead of an empty list', async () => {
+  it.each([
+    ['urnik', t.settings.templatesTitle, t.settings.noTemplates],
+    ['zaprto', t.settings.blockedTitle, t.settings.noBlocked],
+  ] as const)('shows the empty line on %s instead of an empty list', async (tab, name, empty) => {
     db.tables.slot_templates = [];
     db.tables.blocked_periods = [];
-    renderSettings();
-    for (const [name, empty] of [
-      [t.settings.templatesTitle, t.settings.noTemplates],
-      [t.settings.blockedTitle, t.settings.noBlocked],
-    ]) {
-      const section = await screen.findByRole('region', { name });
-      expect(within(section).getByText(empty)).toBeVisible();
-      expect(within(section).queryByRole('list')).toBeNull();
-    }
+    renderSettings(tab);
+    const section = await screen.findByRole('region', { name });
+    expect(within(section).getByText(empty)).toBeVisible();
+    expect(within(section).queryByRole('list')).toBeNull();
   });
 });

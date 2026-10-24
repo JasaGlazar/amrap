@@ -8,6 +8,7 @@ import { formatLongDay, formatTime } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
 import { CancelDialog } from '../shared/CancelDialog';
 import { NoticeLine, type Notice } from '../shared/NoticeLine';
+import { OnDemand } from '../shared/OnDemand';
 import { WeekNav } from '../shared/WeekNav';
 import { WeekSlots } from '../shared/WeekSlots';
 import { AdHocForm } from './AdHocForm';
@@ -27,6 +28,8 @@ export function TrainerCalendar() {
   const [message, setMessage] = useState<Notice>(null);
   const [pending, setPending] = useState(false);
   const [cancelling, setCancelling] = useState<Appointment | null>(null);
+  const [addingAdHoc, setAddingAdHoc] = useState(false);
+  const [addingTo, setAddingTo] = useState<string | null>(null);
 
   async function addBooking(booking: Booking) {
     setPending(true);
@@ -37,10 +40,13 @@ export function TrainerCalendar() {
     );
     await reload();
     setPending(false);
+    return result.ok;
   }
 
   function goToWeek(offset: number) {
     setMessage(null);
+    setAddingTo(null);
+    setAddingAdHoc(false);
     setWeekOffset(offset);
   }
 
@@ -50,7 +56,30 @@ export function TrainerCalendar() {
 
   return (
     <>
-      <h1>{t.trainer.calendarTitle}</h1>
+      <div className="head">
+        <h1>{t.trainer.calendarTitle}</h1>
+        <OnDemand
+          label={t.trainer.adHocFormTitle}
+          add
+          disabled={data === null}
+          open={addingAdHoc}
+          onOpen={() => setAddingAdHoc(true)}
+        >
+          {data !== null && (
+            <AdHocForm
+              key={data.week.start}
+              customers={data.customers}
+              defaultDate={data.week.start}
+              timeZone={timeZone}
+              disabled={pending}
+              onSubmit={(booking) =>
+                void addBooking(booking).then((ok) => ok && setAddingAdHoc(false))
+              }
+              onCancel={() => setAddingAdHoc(false)}
+            />
+          )}
+        </OnDemand>
+      </div>
       <WeekNav
         start={data?.week.start ?? null}
         canGoBack
@@ -83,13 +112,21 @@ export function TrainerCalendar() {
                     }),
                   }),
                   customers: data.customers,
-                  disabled: pending || slot.free === 0 || slot.blocked,
+                  open: addingTo === slot.key,
+                  unavailable: slot.blocked
+                    ? t.calendar.blocked
+                    : slot.free === 0
+                      ? t.calendar.full
+                      : null,
+                  pending,
+                  onOpen: () => setAddingTo(slot.key),
+                  onClose: () => setAddingTo(null),
                   onAdd: (customerId) =>
                     void addBooking({
                       customerId,
                       startsAt: slot.startsAt,
                       slotTemplateId: slot.templateId,
-                    }),
+                    }).then((ok) => ok && setAddingTo(null)),
                 }}
               />
             )}
@@ -99,14 +136,6 @@ export function TrainerCalendar() {
             names={names}
             timeZone={timeZone}
             onCancel={setCancelling}
-          />
-          <AdHocForm
-            key={data.week.start}
-            customers={data.customers}
-            defaultDate={data.week.start}
-            timeZone={timeZone}
-            disabled={pending}
-            onSubmit={(booking) => void addBooking(booking)}
           />
         </>
       )}

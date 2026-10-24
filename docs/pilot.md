@@ -19,7 +19,7 @@ All on the hosted project, from an up-to-date `main`; steps in [runbook.md](runb
    ([Cloudflare Pages build settings](runbook.md#cloudflare-pages-build-settings)).
 4. The trainer account exists ([Bootstrap the trainer](runbook.md#bootstrap-the-trainer)).
 5. On the trainer's phone: AMRAP opened from the home screen (install card), signed in as the
-   trainer, **Vklopi obvestila** on **Nastavitve**.
+   trainer, **Vklopi obvestila** on **Nastavitve → Obvestila**.
 6. The trainer has this guide's Slovenian parts (below) and the copy review
    ([copy-review.md](copy-review.md)) if it is not signed off yet.
 
@@ -27,9 +27,9 @@ All on the hosted project, from an up-to-date `main`; steps in [runbook.md](runb
 
 Vse na telefonu, v aplikaciji AMRAP, prijavljeni kot trener. Papirnati list imejte ob sebi.
 
-1. **Nastavitve → Rok za brezplačno odpoved:** koliko ur pred začetkom lahko stranka še
+1. **Nastavitve → Odpoved:** koliko ur pred začetkom lahko stranka še
    brezplačno odpove (privzeto 5). Tapnite »Shrani«.
-2. **Nastavitve → Termini v tednu → Nov termin:** za vsak redni termin v tednu vpišite dan,
+2. **Nastavitve → Urnik → Nov termin:** za vsak redni termin v tednu vpišite dan,
    začetek, trajanje (min) in število mest; »Aktiven (stranke ga vidijo in rezervirajo)« naj
    ostane označen. Tapnite »Shrani«.
    Ponovite za vse termine z whiteboarda.
@@ -47,13 +47,15 @@ Vse na telefonu, v aplikaciji AMRAP, prijavljeni kot trener. Papirnati list imej
    »Zgodovina kreditov« vrstica z opombo »Začetno stanje (papir)«. Če se pokaže sporočilo, da
    začetnega stanja ni bilo mogoče vpisati, sta število in opomba v razdelku »Krediti« že
    izpolnjena: tapnite »Dodaj kredite« (pozitivno) ali »Popravi stanje« (negativno).
-5. **Stalni termini** (na strani stranke): izberite termin in tapnite »Dodaj stalni termin«.
+5. **Stalni termini** (na strani stranke): tapnite »Dodaj stalni termin«, izberite termin in
+   znova tapnite »Dodaj stalni termin«.
    Aplikacija takoj rezervira ta termin za naslednje 4 tedne (sporočilo pove, koliko terminov).
 6. **Povabilo** (na strani stranke, za vsako stranko, ki bo uporabljala aplikacijo): »Ustvari
    povabilo«, nato »Kopiraj« in povezavo pošljite stranki (SMS, WhatsApp) skupaj z besedilom
    spodaj. Povezava velja 7 dni; novo povabilo razveljavi prejšnje.
 7. Stranke brez aplikacije ostanejo v aplikaciji kot zapis: njihove termine dodajate vi
-   (**Koledar**, izberite stranko pri terminu in »Dodaj«) in jih tudi odpoveste vi.
+   (**Koledar**, pri terminu »Dodaj stranko«, izberite stranko in »Dodaj«) in jih tudi
+   odpoveste vi.
 
 Na koncu primerjajte **Stranke** (stanje vsake stranke) s papirnatim listom.
 
@@ -91,7 +93,7 @@ Vsak dan, nekaj minut:
 
 Popravki:
 
-- **Dopust ali zaprtje sredi tedna:** dodajte zaprto obdobje (**Nastavitve**). Že rezervirani
+- **Dopust ali zaprtje sredi tedna:** dodajte zaprto obdobje (**Nastavitve → Zaprta obdobja**). Že rezervirani
   termini v njem ostanejo in bi se zaračunali; odpovejte jih v **Koledarju** (»Odpovej«).
 - **Termin odpoveste vi** (bolezen, dopust): **Koledar**, »Odpovej« pri stranki, »Odpovej
   termin«. Nikoli se ne zaračuna; že zaračunan termin se stranki vrne (+1).

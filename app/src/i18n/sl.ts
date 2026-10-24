@@ -7,6 +7,7 @@ export const sl = {
     loadFailed: 'Podatkov ni mogoče naložiti.',
     signOut: 'Odjava',
     continue: 'Nadaljuj',
+    cancel: 'Prekliči',
   },
   nav: {
     customerLabel: 'Glavni meni',
@@ -128,6 +129,8 @@ export const sl = {
   customerDetail: {
     back: 'Nazaj na stranke',
     detailsTitle: 'Podatki',
+    editDetails: 'Uredi podatke',
+    notGiven: 'Ni podatka',
     save: 'Shrani',
     saved: 'Podatki so shranjeni.',
     creditsTitle: 'Krediti',
@@ -160,6 +163,7 @@ export const sl = {
     chooseTemplate: 'Izberi termin',
     addRule: 'Dodaj stalni termin',
     addRuleLabel: 'Nov stalni termin',
+    ruleTemplate: 'Termin',
     stopRule: 'Ustavi',
     restartRule: 'Ponovno vključi',
     ruleStarted: 'Stalni termin je vključen. Novih terminov: {count}.',
@@ -171,6 +175,13 @@ export const sl = {
     ledgerTitle: 'Zgodovina kreditov',
   },
   settings: {
+    sectionsLabel: 'Razdelki nastavitev',
+    tabs: {
+      templates: 'Urnik',
+      cutoff: 'Odpoved',
+      blocked: 'Zaprta obdobja',
+      notifications: 'Obvestila',
+    },
     templatesTitle: 'Termini v tednu',
     noTemplates: 'Ni terminov.',
     templateLine: '{weekday} ob {time} · {minutes} min · {places}',
@@ -238,6 +249,8 @@ export const sl = {
     noDebtors: 'Nihče nima negativnega stanja.',
     nobodyBooked: 'Ni prijavljenih strank.',
     chargedTag: 'opravljeno',
+    addCustomer: 'Dodaj stranko',
+    noneToAdd: 'Ni strank za dodajanje',
     addTo: 'Stranka za termin {when}',
     chooseCustomer: 'Izberi stranko',
     add: 'Dodaj',
