@@ -48,8 +48,12 @@ export function CancelDialog({
 
   useEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const root = document.documentElement;
+    const overflow = root.style.overflow;
+    root.style.overflow = 'hidden';
     dialogRef.current?.focus();
     return () => {
+      root.style.overflow = overflow;
       if (opener?.isConnected) opener.focus();
     };
   }, []);

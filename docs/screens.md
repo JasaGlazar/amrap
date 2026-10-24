@@ -78,6 +78,8 @@ data.
 - Shows the appointment (`slot.when`), the cutoff (`Brezplačna odpoved do {day} ob {time}`,
   `starts_at − settings.late_cancel_hours`) and either `cancelDialog.free` (now before the
   cutoff) or `cancelDialog.late` (`zaračunan bo 1 kredit`, from the cutoff on), like `cancel()`.
+- While it is open the page behind it does not scroll (`overflow: hidden` on the root element,
+  restored on close).
 - It takes focus when it opens, keeps Tab and Shift+Tab inside, and Escape and **Nazaj** close
   it; on close, focus returns to the button that opened it (when that button still exists).
 - **Odpovej termin** first re-checks free vs late against the current time. If the answer

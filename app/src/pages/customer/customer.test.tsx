@@ -270,6 +270,13 @@ describe('cancel dialog', () => {
     expect(within(row).getByRole('button', { name: t.slot.cancel })).toHaveFocus();
   });
 
+  it('stops the page behind it from scrolling while it is open', async () => {
+    await openDialog();
+    expect(document.documentElement.style.overflow).toBe('hidden');
+    await userEvent.keyboard('{Escape}');
+    expect(document.documentElement.style.overflow).toBe('');
+  });
+
   it('keeps Tab inside the dialog', async () => {
     const dialog = await openDialog();
     const confirm = within(dialog).getByRole('button', { name: t.cancelDialog.confirm });

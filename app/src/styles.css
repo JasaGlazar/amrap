@@ -374,7 +374,6 @@ input[type='checkbox'] {
   justify-content: center;
   background: rgb(0 0 0 / 0.4);
   z-index: 10;
-  overscroll-behavior: contain;
 }
 
 .dialog {

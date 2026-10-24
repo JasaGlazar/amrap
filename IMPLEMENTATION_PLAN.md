@@ -312,8 +312,9 @@ the two Stage 3 migrations (Workflow); exact steps in `docs/runbook.md`.
     1.47:1 (`--control-border` #6b7280, 4.83:1); the credits amount used `inputMode="numeric"`,
     so an iPhone had no minus key for a negative adjustment (removed); trainer forms about
     other people autofilled the trainer's own details (`autoComplete="off"`); the cancel
-    dialog let Tab leave it and dropped focus on close (trap and focus return); overscroll
-    under the dialog (`overscroll-behavior: contain`); no tabular numbers on balances, amounts
+    dialog let Tab leave it and dropped focus on close (trap and focus return); the page
+    behind the dialog could scroll (first an `overscroll-behavior` rule that did nothing; after
+    the Task 17 review the dialog sets `overflow: hidden` on the root element while open); no tabular numbers on balances, amounts
     and times; safe-area insets missing on the top bar and page sides; no hover/active
     feedback on buttons; long text in rows could overflow (wraps anywhere now, buttons and
     amounts never wrap).
