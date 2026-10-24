@@ -167,6 +167,30 @@ either side, no self-overlap, an existing overlap not asked again, a new one on 
 with stranded bookings) and the marks in both layouts.
 **Status**: Complete (PR open)
 
+## Stage 10: Trainer Koledar day view and week grid
+**Goal**: Issue #17 from the 2026-10-24 owner review: the trainer's **Koledar** as a day view
+below 1024 px and a week grid from 1024 px, instead of one long column of every slot. The
+customer calendar stays as it is. Branch `stage-10-koledar` off `main`.
+**Success Criteria**: below 1024 px a strip of seven day buttons under the week navigation
+(selected `aria-pressed`, today `aria-current="date"`, neither by colour alone, 44 px targets,
+no page scroll at 360 px) and only the selected day's occurrences and appointments outside the
+grid, with an empty state; the default day is today in the current week and Monday in any
+other; `?dan=YYYY-MM-DD` keeps the day and decides the week through reload and Back, written
+with `replace`. From 1024 px seven day columns in the ADR 0014 `wide` box, occurrences and
+outside-the-grid appointments in their day's column by time as compact cards, today tagged.
+**Dodaj stranko** (one open at a time, Polno, Zaprto, Ni strank za dodajanje), the cancel
+dialog, **Nov termin po dogovoru** and past weeks work in both views; days are bucketed in the
+gym timezone.
+**Tests**: Vitest for `parseLocalDate` and `defaultDayOf`; the day view (seven buttons in
+order, today selected and marked, only that day's occurrences, a pressed day in the URL with
+`replace`, the URL's day and week, an impossible date, Monday in another week and today again,
+the day kept after another screen and Back, the empty day, that day's outside-the-grid list
+and none on a day without); the week grid (columns in order and no strip, each occurrence in
+its column in time order, an ad-hoc appointment in its column by time and tagged, today's
+column, the URL's week); add, one control open, Polno and both cancels in each view; the DST
+Sunday (a 10:00 slot and an ad-hoc at 00:30, 22:30 UTC on Saturday) in both views.
+**Status**: Complete (PR open)
+
 ## Workflow (from 2026-10-23 evening)
 
 - Orchestrator session runs on Opus. Per stage: a Herdr worktree with a fresh session does the
@@ -876,6 +900,70 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   keyboard leaves the ring on that **Uredi**; Stranke "386" shows the empty state, "+386 41"
   three customers. One keyboard run pressed Enter in a number field instead of Prekliči and
   saved Monday 07:07 with unchanged values. Demo data back to 11 templates.
+
+### Handoff state (2026-10-25, Stage 10)
+
+- Branch `stage-10-koledar` off `main` (39abf3b, after Stage 9); issue #17 in a helper commit,
+  a feature commit, a browser-fix commit, a review-fix commit and this plan commit; PR open
+  against `main`, not merged. Vitest 525 (483 at Stage 9), lint, typecheck, build and
+  `check-docs.sh` green. No DB change, no migration.
+- Test first (watched red): `parseLocalDate` and `defaultDayOf` failed on the missing
+  functions; 18 page tests (strip, default day, URL with `replace`, Back, empty day, the day's
+  outside-the-grid list, grid columns, card order, today's column, the DST Sunday in both
+  views) failed before the views existed. The add, one-control, Polno and both cancel tests
+  run in each view (`describe.each`); they passed before too, as characterisation of what must
+  keep working. A mutation check (bucketing appointments by UTC) turned both DST view tests red.
+  Review fixes: the no-reload/focus test and the arrows-disabled test failed first, and the
+  day-button name test (visible text in the name) failed on the `aria-label`.
+- Browser check (Vite dev server on 5180, local stack, agent-browser sessions `s10-trainer`,
+  `s10-ana`): the day view at 390 and 768 in both themes (default day, Monday 26 Oct with the
+  full 07:00 and five names, Friday 30 Oct blocked, Tuesday 27 Oct with an ad-hoc
+  appointment, a past week, **Dodaj stranko** open with focus in the select, the cancel
+  dialog opened and closed with Escape with focus back on **Odpovej**, never confirmed), an
+  empty day (`fetch` for `slot_templates` patched to `[]` in the page, then the next week
+  opened through the arrow; agent-browser `network route --body` did not intercept these
+  requests); the week grid at 1440x900 and 1024x768 in both themes (the week of 26 Oct with
+  Polno, Zaprto and two ad-hoc cards, the current week with today and the DST Sunday, the week
+  of 12 Oct), the add control and the cancel dialog in the grid at 1440. 1023 px shows the
+  strip, 1024 px the grid. At 360 px `scrollWidth` 360, day buttons 44.6 px wide and 52 px
+  tall, no target under 44 px. The grid's left edge is the title's (368/368 at 1440,
+  160/160 at 1024); the whole week fits from 1280 (976 px box) and scrolls inside its box at
+  1024 (920 in 848); the page never scrolls sideways. The first day press on a bare
+  `/t/koledar` makes no new request and keeps focus. Customer Koledar at 390 and 1440 is the
+  old list (no strip, no grid). Screenshots `t1-*` in the gitignored `.superpowers/shots/`.
+- Demo data: nothing added, changed or deleted; no dialog was confirmed and no booking made.
+- Judged beyond the issue:
+  - `?dan` alone decides the week; the arrows write the target week's default day; both the
+    day buttons and the arrows use `replace` (one history entry, like Stranke's filters). The
+    main navigation's **Koledar** (no `dan`) resets to the current week and today. The loaded
+    week is kept in state, so the first press that adds `dan` in the current week does not
+    reload. Before the first load the arrows are disabled (no timezone, so no Monday yet).
+  - `loadWeek` takes an optional `start` (a Monday) next to `weekOffset`; the customer
+    calendar and Today are untouched. `SlotRow` was extracted from `WeekSlots` with identical
+    markup for the day view.
+  - Day buttons show `Intl`'s "pon." over "26." instead of a hand-written "Po 26.", so no new
+    abbreviations in `sl.ts`; their name is the visible text plus the month in hidden text.
+    Selected = ink frame on paper (the Stranke segment style), today = underlined number and
+    `aria-current="date"`; the grid marks today with a "danes" tag and a 2 px rule.
+  - **Termini zunaj urnika** shows only when the selected day has entries (as on Today); in
+    the grid those appointments are grey cards in their day's column, sorted with the slots.
+    `trainer.noOther` is removed (Changes row in `copy-review.md`).
+  - Grid columns are at least 8 rem, so 1280 and 1366 px laptops see the whole week (9 rem cut
+    Sunday below about 1390 px); a container query drops the `+` icon under 8.75 rem; a long
+    disabled reason may wrap in a card. No new layout rule: `wide` from ADR 0014 as it is,
+    with one consequence line added there. No new ADR: the view switch in script is ADR
+    0014's own rule, and the URL behaviour is documented in `screens.md` like Stage 9's.
+  - **Nov termin po dogovoru** defaults its date to the selected day instead of the week's
+    Monday.
+  - Stage 11's **Odpovej termin** fits next to **Dodaj stranko** at the foot of `SlotRoster`
+    (rendered by the page's `roster(slot)` for both views).
+- Project `reviewer`: approve with fixes. Critical (the first day press on a bare URL reloaded
+  the week and dropped focus), both Important (16 px select in cards, dead arrows before the
+  first load) and the Minor items (h2 column headings, label in name, focus ring inset,
+  disabled outline in cards, tests choosing the day view, docs on the ad-hoc date and
+  wrapping) are done in 6cfb1f7. Not changed: a new ADR for `?dan` and the view switch (see
+  above).
+- Owner actions: none. Phone check of the day strip on a real device whenever convenient.
 
 ---
 
