@@ -1,6 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
 export const wideScreen = '(min-width: 48rem)';
+export const weekGrid = '(min-width: 64rem)';
 
 export function useMediaQuery(query: string): boolean {
   const subscribe = useCallback(

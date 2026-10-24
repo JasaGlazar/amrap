@@ -35,11 +35,12 @@ export type Week = {
 
 export async function loadWeek(
   client: Client,
-  options: { now: Date; weekOffset: number; customerId?: string },
+  options: { now: Date; weekOffset: number; start?: LocalDate; customerId?: string },
 ): Promise<Week> {
   const { now, weekOffset, customerId } = options;
   const settings = await getSettings(client);
-  const start = addDays(weekStart(localDateOf(now, settings.timeZone)), weekOffset * 7);
+  const start =
+    options.start ?? addDays(weekStart(localDateOf(now, settings.timeZone)), weekOffset * 7);
   const { from, to } = weekRange(start, settings.timeZone);
   const templates = await activeTemplates(client);
   const longest = Math.max(0, ...templates.map((template) => template.duration_minutes));

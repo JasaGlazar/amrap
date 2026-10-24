@@ -36,7 +36,10 @@ settings tabs sideways every time the trainer switches between Urnik and the oth
 
 ## Consequences
 
-- Stage 10's calendar can reuse `wide` and `--content-wide` without a new layout rule.
+- Stage 10's calendar can reuse `wide` and `--content-wide` without a new layout rule. It
+  did (issue #17): the trainer Koledar's week grid is a `wide` box from 1024 px, with a day
+  view below 1024 px chosen the same way in script; its columns are at least 8 rem, so the
+  whole week fits from about 1170 px and scrolls inside the box below that.
 - `100vw` includes a classic scrollbar (about 15 px) while the column is centred on the
   visible area, so the right edge lands about half a scrollbar short of one gutter from the
   window; it stays inside the window for any scrollbar narrower than two gutters.
