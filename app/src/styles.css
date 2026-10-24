@@ -610,6 +610,10 @@ input[type='checkbox'] {
   color: var(--muted);
 }
 
+.muted .slot-time {
+  color: inherit;
+}
+
 .week-nav {
   display: flex;
   align-items: center;
