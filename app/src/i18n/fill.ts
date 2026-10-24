@@ -22,6 +22,12 @@ export function formatAmount(amount: number): string {
   return signedAmount.format(amount);
 }
 
+const balanceNumber = new Intl.NumberFormat('sl-SI');
+
+export function formatBalance(balance: number): string {
+  return balanceNumber.format(balance);
+}
+
 export function formatTimeUntil(left: { days: number; hours: number; minutes: number }): string {
   if (left.days > 0) return fill(sl.time.inDaysHours, left);
   if (left.hours > 0) return fill(sl.time.inHoursMinutes, left);

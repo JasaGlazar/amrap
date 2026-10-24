@@ -363,8 +363,11 @@ input[type='checkbox'] {
 
 .amount {
   font-weight: 700;
-  color: var(--accent);
   font-variant-numeric: tabular-nums;
+}
+
+.amount.positive {
+  color: var(--accent);
 }
 
 .amount.negative {

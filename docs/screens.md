@@ -35,8 +35,8 @@ data.
 ### Home (`/c`)
 
 - **Data:** `getSettings`, `balanceOf`, `upcomingAppointments` (mine, `booked`, in the future).
-- **Balance:** the number from `customer_balances`; when negative it is red with a `dolg` tag
-  (`customer.debt`).
+- **Balance:** the number from `customer_balances` (a [signed number](#behaviour-shared-by-all-screens),
+  `−3`); when negative it is red with a `dolg` tag (`customer.debt`).
 - **Next appointment:** the soonest upcoming one, `slot.when` (`ponedeljek, 26. oktober ob
   07:00`) and the time left (`čez 2 d 9 h`, computed when the page loaded). Hidden when there is
   none.
@@ -113,7 +113,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 
 - **Data:** `loadWeek` for the current week (all customers), `listCustomers`, `allBalances`.
 - **Debtors:** every customer with a negative balance, most negative first, each a link to
-  their detail page with the balance in red. None: `trainer.noDebtors`.
+  their detail page with the balance in red (`−3`, the same minus as the ledger). None:
+  `trainer.noDebtors`.
 - **Today's occurrences:** the week's occurrences on today's local date, each with remaining
   capacity (as in the customer calendar) and the names of the customers booked (`booked` or
   `charged`, the latter tagged `opravljeno`). Nothing today: `trainer.noSlotsToday`.
@@ -153,9 +154,10 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 
 - **Data:** `listCustomers` (customer records only, not the trainer's own row) and
   `allBalances`.
-- **List:** by name; each row links to the detail page and shows the invite status
-  (`customers.inviteStatus`: linked, pending = an unexpired token, none) and the balance (red
-  when negative).
+- **List:** by name; each row links to the detail page and shows the balance (red when
+  negative, accent when positive, neutral at 0). A tag shows the invite status only while the
+  customer has no account (`customers.inviteStatus`: pending = an unexpired token, none); a
+  linked account is the normal end state and has no tag.
 - **Nova stranka:** name (required, `customers.nameRequired`), phone and email (empty becomes
   null), and an optional starting balance from the paper sheet (`customers.startingBalance`, a
   whole number that may be negative, else `customers.startingInvalid`; nothing is created then).
@@ -331,6 +333,11 @@ How the guards and the auth state work is in [auth.md](auth.md).
   - in a row, text wraps anywhere but buttons and amounts never wrap or shrink;
   - safe-area insets on the top bar, the page sides, the bottom navigation and the dialog;
   - errors are `role="alert"`, results `role="status"`.
+
+- **Signed numbers.** Balances and ledger amounts are formatted with `Intl.NumberFormat('sl-SI')`,
+  which writes the minus as U+2212 (`−3`), never a hyphen: `formatBalance` for a balance (`4`,
+  `0`, `−3`) and `formatAmount` for a change (`+8`, `−1`), both in `i18n/fill.ts`. The shared
+  `Amount` span colours them: negative red, positive accent, zero neutral.
 
 - **Keep-alive.** Once per signed-in user per page load, `AuthProvider` runs
   `select id from settings limit 1` (ADR 0005). A failure is logged with `console.warn` and

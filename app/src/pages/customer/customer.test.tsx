@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { errorMessages, fill, formatAmount, formatTimeUntil, t } from '../../i18n';
+import { errorMessages, fill, formatAmount, formatBalance, formatTimeUntil, t } from '../../i18n';
 import {
   cutoffOf,
   formatDate,
@@ -346,14 +346,14 @@ describe('home', () => {
   it('marks a negative balance in red with the debt label', async () => {
     db.balance = -2;
     renderAt('/c');
-    expect(await screen.findByText(String(db.balance))).toHaveClass('negative');
+    expect(await screen.findByText(formatBalance(db.balance))).toHaveClass('negative');
     expect(screen.getByText(t.customer.debt)).toBeInTheDocument();
   });
 
   it('does not show the debt label for a positive balance', async () => {
     db.balance = 3;
     renderAt('/c');
-    expect(await screen.findByText(String(db.balance))).not.toHaveClass('negative');
+    expect(await screen.findByText(formatBalance(db.balance))).not.toHaveClass('negative');
     expect(screen.queryByText(t.customer.debt)).not.toBeInTheDocument();
   });
 

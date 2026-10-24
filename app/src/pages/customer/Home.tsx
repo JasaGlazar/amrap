@@ -3,7 +3,7 @@ import { useCustomer } from '../../auth/AuthContext';
 import { upcomingAppointments, type Appointment } from '../../data/appointments';
 import { balanceOf } from '../../data/credits';
 import { getSettings } from '../../data/settings';
-import { fill, formatTimeUntil, t } from '../../i18n';
+import { fill, formatBalance, formatTimeUntil, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { formatLongDay, formatTime, timeUntil } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
@@ -49,7 +49,9 @@ export function CustomerHome() {
       <section className="card">
         <p className="label">{t.customer.balanceLabel}</p>
         <p className="balance-row">
-          <span className={balance < 0 ? 'balance negative' : 'balance'}>{balance}</span>
+          <span className={balance < 0 ? 'balance negative' : 'balance'}>
+            {formatBalance(balance)}
+          </span>
           {balance < 0 && <span className="tag late">{t.customer.debt}</span>}
         </p>
       </section>

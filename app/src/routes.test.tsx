@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { t } from './i18n';
+import { formatBalance, t } from './i18n';
 import { InstallContext } from './install/platform';
 import { routes } from './routes';
 import { fakeInstallPlatform } from './test/fakeInstall';
@@ -226,7 +226,7 @@ describe('shells', () => {
     signedInAs(customer);
     db.balance = -2;
     renderAt('/c');
-    expect(await screen.findByText(String(db.balance))).toHaveClass('negative');
+    expect(await screen.findByText(formatBalance(db.balance))).toHaveClass('negative');
   });
 });
 

@@ -10,6 +10,7 @@ import {
 import { t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { useLoad } from '../../lib/useLoad';
+import { Amount } from '../shared/Amount';
 import { CustomerFieldsForm } from './CustomerFieldsForm';
 
 export function TrainerCustomers() {
@@ -61,16 +62,16 @@ export function TrainerCustomers() {
           ) : (
             <ul className="list">
               {state.data.customers.map((customer) => {
-                const balance = state.data.balances.get(customer.id) ?? 0;
+                const status = inviteStatus(customer, state.data.now);
                 return (
                   <li key={customer.id} className="row">
                     <Link to={`/t/stranke/${customer.id}`} className="row-link">
                       {customer.name}
                     </Link>
-                    <span className="tag">
-                      {t.customers.inviteStatus[inviteStatus(customer, state.data.now)]}
-                    </span>
-                    <span className={balance < 0 ? 'amount negative' : 'amount'}>{balance}</span>
+                    {status !== 'linked' && (
+                      <span className="tag">{t.customers.inviteStatus[status]}</span>
+                    )}
+                    <Amount value={state.data.balances.get(customer.id) ?? 0} />
                   </li>
                 );
               })}

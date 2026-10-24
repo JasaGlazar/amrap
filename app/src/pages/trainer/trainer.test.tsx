@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fill, t } from '../../i18n';
+import { fill, formatAmount, t } from '../../i18n';
 import {
   addDays,
   formatLongDay,
@@ -98,6 +98,20 @@ describe('today', () => {
       debtors.map((customer) => customer.name),
     );
     expect(links[0]).toHaveAttribute('href', `/t/stranke/${debtors[0].id}`);
+  });
+
+  it('signs a debtor balance with the same minus as the ledger', async () => {
+    renderAt('/t');
+    const strip = await screen.findByRole('region', { name: t.trainer.debtorsTitle });
+    const links = within(strip).getAllByRole('link');
+    const debtors = customers.filter(
+      (customer) => balances[customer.id as keyof typeof balances] < 0,
+    );
+    for (const customer of debtors) {
+      const balance = balances[customer.id as keyof typeof balances];
+      const link = links.find((item) => item.textContent?.startsWith(customer.name));
+      expect(link).toHaveTextContent(formatAmount(balance));
+    }
   });
 
   it("shows today's occurrence with its booked customers and remaining capacity", async () => {

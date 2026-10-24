@@ -7,7 +7,7 @@ import { createInvite, getCustomer, inviteStatus, updateCustomer } from '../../d
 import { activateRule, addRule, deactivateRule, rulesOf } from '../../data/rules';
 import { getSettings } from '../../data/settings';
 import { allTemplates } from '../../data/slots';
-import { fill, t } from '../../i18n';
+import { fill, formatBalance, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 import { formatLongDay, formatTime, weekdayName } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
@@ -205,7 +205,9 @@ export function TrainerCustomerDetail() {
       <section className="card">
         <p className="label">{t.customer.balanceLabel}</p>
         <p className="balance-row">
-          <span className={balance < 0 ? 'balance negative' : 'balance'}>{balance}</span>
+          <span className={balance < 0 ? 'balance negative' : 'balance'}>
+            {formatBalance(balance)}
+          </span>
           {balance < 0 && <span className="tag late">{t.customer.debt}</span>}
           <span className="tag">{t.customers.inviteStatus[status]}</span>
         </p>
