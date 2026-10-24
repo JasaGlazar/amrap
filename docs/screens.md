@@ -57,7 +57,8 @@ data.
   are left out; a week without any shows `calendar.noSlots`). A start time in the spring-forward
   gap has no occurrence that week. Each row shows the start time, duration and
   `Prosta mesta: {free} od {capacity}` with `free = capacity − booked_count` (an occurrence
-  without a `slot_occupancy` row has `booked_count` 0).
+  without a `slot_occupancy` row has `booked_count` 0). The duration, the places and `· Zaprto`
+  are unbreakable parts: a narrow row wraps between them, never inside one.
 - **States of a row:**
 
   | State | Shown |
@@ -75,6 +76,8 @@ data.
 
 ### Cancel dialog
 
+- Below 768 px it is a bottom sheet (top corners rounded, safe-area padding at the bottom);
+  from 768 px it is centred, with all corners rounded and a margin from the window edges.
 - Shows the appointment (`slot.when`), the cutoff (`Brezplačna odpoved do {day} ob {time}`,
   `starts_at − settings.late_cancel_hours`) and either `cancelDialog.free` (now before the
   cutoff) or `cancelDialog.late` (`zaračunan bo 1 kredit`, from the cutoff on), like `cancel()`.
@@ -133,8 +136,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Occurrence row:** start, duration, remaining capacity, blocked state, then the booked
   customers (names, `opravljeno` for charged), each with **Odpovej**, and an add control: a
   customer select (named `Stranka za termin {when}`; customers already booked there are left
-  out) with **Dodaj**, disabled while the occurrence is full or blocked or another booking is in
-  flight. **Dodaj** calls `book(customer, startsAt, template)`; success shows `trainer.added`,
+  out) with **Dodaj**, disabled (neutral grey) until a customer is chosen and while the
+  occurrence is full or blocked or another booking is in flight. **Dodaj** calls `book(customer, startsAt, template)`; success shows `trainer.added`,
   a rejection its `errors.AMRAP_*` copy.
 - **Termini zunaj urnika:** the week's live appointments that match no shown occurrence
   (`appointmentsOutsideSlots`): ad-hoc ones (`po dogovoru`) and bookings left behind by a
@@ -177,7 +180,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Data:** `getCustomer`, `getSettings`, `balanceOf`, `ledgerOf`, `upcomingAppointments`,
   `rulesOf`, `allTemplates`. A missing record (or the trainer's own id) shows the load error
   with the back link.
-- **Header:** name, balance (red with `dolg` when negative) and invite status.
+- **Header:** name, then a card with the label `Stanje kreditov` and the invite status tag on
+  one line and the balance below (red with `dolg` when negative).
 - **Krediti:** one amount field and a note. **Dodaj kredite** calls `top_up` (a positive whole
   number, else `customerDetail.topUpInvalid`); **Popravi stanje** calls `adjust` (any non-zero
   whole number, negative subtracts; else `customerDetail.adjustInvalid`). Waiving a late
@@ -193,7 +197,7 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   loses access, the app administrator removes the old account, then the trainer creates a new
   invite on this page. The procedure is runbook "Re-link a customer" (ADR 0007).
 - **Stalni termini:** the customer's recurring rules (`{weekday} ob {time}`, stopped ones
-  greyed with `ustavljen`). **Ustavi** calls `deactivate_rule` (future booked instances are
+  greyed with a `ustavljen` tag next to the text). **Ustavi** calls `deactivate_rule` (future booked instances are
   cancelled; the message shows how many); **Ponovno vključi** calls `activate_rule` (shows how
   many instances were created; cancelled dates stay cancelled, ADR 0008). The add control
   lists active templates that have no rule for this customer yet (a stopped rule is restarted
@@ -215,7 +219,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   that have not ended). Every write goes through RLS and shows `settings.saved` or the error.
 - **Termini v tednu:** each template as `{weekday} ob {time} · {minutes} min · {places}`, the
   capacity in its Slovenian plural form (`settings.places`: 1 mesto, 2 mesti, 3 mesta, 5 mest),
-  inactive ones greyed with `neaktiven`, each with **Uredi** (the form inline). The form
+  inactive ones greyed with a `neaktiven` tag right after the text, each with **Uredi** (the
+  form inline). The form
   (also **Nov termin** below the list): weekday, start time, duration in minutes, capacity and
   an active checkbox. Validation: start time required, duration and capacity positive whole
   numbers (`settings.durationInvalid`, `settings.capacityInvalid`). There is no delete: a
@@ -233,7 +238,7 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   more (`settings.cutoffInvalid`). It applies to every later cancel and to the customers'
   cancel dialog.
 - **Zaprta obdobja:** upcoming blocked periods with their range and reason, each with
-  **Uredi** and **Izbriši** (deletes at once). The form (also **Novo zaprto obdobje**): from
+  **Uredi** and **Izbriši** (deletes at once) on one line at the right; the text wraps. The form (also **Novo zaprto obdobje**): from
   date and time, to date and time (in the gym timezone, via `zonedInstant`) and an optional
   reason; a time that does not exist that day or an end not after the start is rejected
   (`trainer.invalidTime`, `trainer.invalidRange`). A new block does not cancel appointments
@@ -331,7 +336,12 @@ How the guards and the auth state work is in [auth.md](auth.md).
     fields the trainer fills in about someone else (customer name, phone, email, credit note,
     blocked-period reason) have `autoComplete="off"`, best effort: some browsers and password
     managers ignore it;
-  - in a row, text wraps anywhere but buttons and amounts never wrap or shrink;
+  - in a row, text wraps anywhere but buttons and amounts never wrap or shrink; a row's
+    buttons stay on one line together, and a tag sits next to the text it describes;
+  - links are the accent colour (never the browser's default blue);
+  - a disabled button is neutral, whatever its kind: surface background, muted text, no
+    outline and no opacity; an enabled secondary button has a 1 px `--control-border` outline,
+    so an enabled and a disabled one are told apart (for example the week arrows);
   - safe-area insets on the top bar, the page sides, the bottom navigation and the dialog;
   - errors are `role="alert"`, results `role="status"`.
 

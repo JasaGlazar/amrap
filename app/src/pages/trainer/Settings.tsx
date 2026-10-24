@@ -192,15 +192,17 @@ export function TrainerSettings() {
               </li>
             ) : (
               <li key={template.id} className={template.active ? 'row' : 'row muted'}>
-                <span>
-                  {fill(t.settings.templateLine, {
-                    weekday: weekdayName(template.weekday),
-                    time: template.start_time.slice(0, 5),
-                    minutes: template.duration_minutes,
-                    places: plural(t.settings.places, template.capacity),
-                  })}
+                <span className="row-text">
+                  <span>
+                    {fill(t.settings.templateLine, {
+                      weekday: weekdayName(template.weekday),
+                      time: template.start_time.slice(0, 5),
+                      minutes: template.duration_minutes,
+                      places: plural(t.settings.places, template.capacity),
+                    })}
+                  </span>
+                  {!template.active && <span className="tag">{t.settings.inactive}</span>}
                 </span>
-                {!template.active && <span className="tag">{t.settings.inactive}</span>}
                 <button
                   type="button"
                   className="button secondary small"
