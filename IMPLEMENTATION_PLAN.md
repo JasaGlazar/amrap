@@ -1312,7 +1312,8 @@ Branch `stage-4-pilot` off `main` (Stage 3 merged as #4). Rulings proposed for t
    pending)"; the file stays (the trial week is open).
 3. Consolidated "Stage 4 owner actions": copy sign-off; Android and iPhone install and push from
    the installed app; on the trainer's phone, that the customer and blocked-period forms do not
-   offer the trainer's own name, phone or email (autofill is turned off best effort); the trial
+   offer the trainer's own name, phone or email (autofill is turned off best effort); on an
+   iPhone, that the page behind the open cancel dialog does not scroll; the trial
    week with the pilot guide; Stage 3 owner actions still open.
 4. Open product questions for the owner (not decided here): should a trainer cancel notify the
    customer; does the trainer want a veto over self-bookings (`PLAN.md` open question 1); should

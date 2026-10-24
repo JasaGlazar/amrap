@@ -291,11 +291,27 @@ describe('cancel dialog', () => {
     expect(within(dialog).getByRole('button', { name: t.cancelDialog.back })).toHaveFocus();
   });
 
-  it('stops the page behind it from scrolling while it is open', async () => {
+  it('stops the page behind it from scrolling while it is open and restores it after', async () => {
+    document.documentElement.style.overflow = 'scroll';
     await openDialog();
     expect(document.documentElement.style.overflow).toBe('hidden');
     await userEvent.keyboard('{Escape}');
-    expect(document.documentElement.style.overflow).toBe('');
+    expect(document.documentElement.style.overflow).toBe('scroll');
+    document.documentElement.style.overflow = '';
+  });
+
+  it('sends Tab to the first button and Shift+Tab to the last when focus is outside', async () => {
+    const dialog = await openDialog();
+    const confirm = within(dialog).getByRole('button', { name: t.cancelDialog.confirm });
+    const back = within(dialog).getByRole('button', { name: t.cancelDialog.back });
+    const outside = screen.getByRole('link', { name: t.common.signOut });
+
+    outside.focus();
+    await userEvent.tab();
+    expect(confirm).toHaveFocus();
+    outside.focus();
+    await userEvent.tab({ shift: true });
+    expect(back).toHaveFocus();
   });
 
   it('keeps Tab inside the dialog', async () => {

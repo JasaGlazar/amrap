@@ -79,7 +79,8 @@ data.
   `starts_at − settings.late_cancel_hours`) and either `cancelDialog.free` (now before the
   cutoff) or `cancelDialog.late` (`zaračunan bo 1 kredit`, from the cutoff on), like `cancel()`.
 - While it is open the page behind it does not scroll (`overflow: hidden` on the root element,
-  restored on close).
+  restored to its previous value on close). iOS Safari has ignored this for touch scrolling in
+  some versions; checked on a real iPhone as an owner action.
 - It takes focus when it opens and keeps Tab and Shift+Tab inside, also when focus has left it
   (for example the focused **Odpovej termin** was disabled after a server error: the next Tab
   goes to the first enabled button, Shift+Tab to the last). Escape and **Nazaj** close it. On
