@@ -160,6 +160,11 @@ export function weekdayName(weekday: number): string {
   return formatLocalDate(addDays(referenceMonday, weekday), { weekday: 'long' });
 }
 
+export function weekdayHeading(weekday: number): string {
+  const name = weekdayName(weekday);
+  return name.charAt(0).toLocaleUpperCase('sl') + name.slice(1);
+}
+
 export function formatLocalDate(date: LocalDate, options: Intl.DateTimeFormatOptions): string {
   return display('UTC', options).format(new Date(utcMsOf(date)));
 }

@@ -8,6 +8,7 @@ type Props = {
   initial: TemplateFields;
   busy: boolean;
   warning?: string | null;
+  framed?: boolean;
   onSave: (fields: TemplateFields) => void;
   onCancel?: () => void;
 };
@@ -19,7 +20,15 @@ function positiveInteger(value: string): number | null {
   return value.trim() !== '' && Number.isInteger(number) && number > 0 ? number : null;
 }
 
-export function TemplateForm({ title, initial, busy, warning, onSave, onCancel }: Props) {
+export function TemplateForm({
+  title,
+  initial,
+  busy,
+  warning,
+  framed = true,
+  onSave,
+  onCancel,
+}: Props) {
   const [weekday, setWeekday] = useState(String(initial.weekday));
   const [start, setStart] = useState(initial.start_time.slice(0, 5));
   const [duration, setDuration] = useState(String(initial.duration_minutes));
@@ -45,7 +54,7 @@ export function TemplateForm({ title, initial, busy, warning, onSave, onCancel }
   }
 
   return (
-    <form className="form card" onSubmit={submit} aria-label={title}>
+    <form className={framed ? 'form card' : 'form'} onSubmit={submit} aria-label={title}>
       <h3>{title}</h3>
       <div className="form-row">
         <label>

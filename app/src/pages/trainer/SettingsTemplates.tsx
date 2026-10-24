@@ -1,13 +1,15 @@
 import { useCallback, useState } from 'react';
 import { futureBookedCount } from '../../data/appointments';
 import { allTemplates, saveTemplate, type TemplateFields } from '../../data/slots';
-import { fill, fromError, plural, t } from '../../i18n';
+import { fill, fromError, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
-import { weekdayName } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
+import { useMediaQuery, wideScreen } from '../../lib/useMediaQuery';
 import { NoticeLine, type Notice } from '../shared/NoticeLine';
 import { OnDemand } from '../shared/OnDemand';
+import { TemplateDialog } from './TemplateDialog';
 import { TemplateForm } from './TemplateForm';
+import { DayGroups, WeekGrid, type WeekTemplate } from './TemplateWeek';
 
 const newTemplate: TemplateFields = {
   weekday: 0,
@@ -25,6 +27,7 @@ export function SettingsTemplates() {
   const [editing, setEditing] = useState<string | null>(null);
   const [stranded, setStranded] = useState<{ key: string; id: string; count: number } | null>(null);
   const [adding, setAdding] = useState(false);
+  const wide = useMediaQuery(wideScreen);
 
   if (state.status === 'loading') return <p className="status">{t.common.loading}</p>;
   if (state.status === 'error') {
@@ -77,6 +80,36 @@ export function SettingsTemplates() {
     }
   }
 
+  function openEdit(id: string) {
+    setNotice(null);
+    setEditing(id);
+  }
+
+  function closeEdit() {
+    setStranded(null);
+    setEditing(null);
+  }
+
+  function editForm(template: WeekTemplate, framed: boolean) {
+    return (
+      <TemplateForm
+        title={t.settings.editTemplate}
+        initial={template}
+        busy={busy}
+        framed={framed}
+        warning={
+          stranded?.id === template.id
+            ? fill(t.settings.strandedWarning, { count: stranded.count })
+            : null
+        }
+        onSave={(fields) => void store(template.id, fields)}
+        onCancel={closeEdit}
+      />
+    );
+  }
+
+  const editedTemplate = templates.find((template) => template.id === editing);
+
   return (
     <section aria-label={t.settings.templatesTitle}>
       <div className="head">
@@ -103,51 +136,21 @@ export function SettingsTemplates() {
       <NoticeLine notice={notice} />
       {templates.length === 0 ? (
         <p>{t.settings.noTemplates}</p>
+      ) : wide ? (
+        <WeekGrid templates={templates} onEdit={openEdit} />
       ) : (
-        <ul className="list">
-          {templates.map((template) =>
-            editing === template.id ? (
-              <li key={template.id}>
-                <TemplateForm
-                  title={t.settings.editTemplate}
-                  initial={template}
-                  busy={busy}
-                  warning={
-                    stranded?.id === template.id
-                      ? fill(t.settings.strandedWarning, { count: stranded.count })
-                      : null
-                  }
-                  onSave={(fields) => void store(template.id, fields)}
-                  onCancel={() => {
-                    setStranded(null);
-                    setEditing(null);
-                  }}
-                />
-              </li>
-            ) : (
-              <li key={template.id} className={template.active ? 'row' : 'row muted'}>
-                <span className="row-text">
-                  <span>
-                    {fill(t.settings.templateLine, {
-                      weekday: weekdayName(template.weekday),
-                      time: template.start_time.slice(0, 5),
-                      minutes: template.duration_minutes,
-                      places: plural(t.settings.places, template.capacity),
-                    })}
-                  </span>
-                  {!template.active && <span className="tag">{t.settings.inactive}</span>}
-                </span>
-                <button
-                  type="button"
-                  className="button secondary small"
-                  onClick={() => setEditing(template.id)}
-                >
-                  {t.settings.edit}
-                </button>
-              </li>
-            ),
-          )}
-        </ul>
+        <DayGroups
+          templates={templates}
+          onEdit={openEdit}
+          editing={editing}
+          editForm={(template) => editForm(template, true)}
+        />
+      )}
+      {wide && editedTemplate !== undefined && (
+        <TemplateDialog templateId={editedTemplate.id} busy={busy} onClose={closeEdit}>
+          {editForm(editedTemplate, false)}
+          {notice?.error === true && <NoticeLine notice={notice} />}
+        </TemplateDialog>
       )}
     </section>
   );

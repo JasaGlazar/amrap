@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fill, plural, t } from '../../i18n';
-import { weekdayName } from '../../lib/time';
+import { weekdayHeading } from '../../lib/time';
 import { routes } from '../../routes';
 import { db, holdTable, makeCustomer, makeSession, resetFake } from '../../test/fakeSupabase';
 
@@ -44,6 +44,29 @@ async function fillTemplate(form: HTMLElement, values: Record<string, string>) {
   }
 }
 
+type Template = typeof existing;
+
+function blockName(template: Template) {
+  return fill(t.settings.blockLabel, {
+    day: weekdayHeading(template.weekday),
+    time: template.start_time.slice(0, 5),
+    minutes: template.duration_minutes,
+    places: plural(t.settings.places, template.capacity),
+    marks: template.active ? '' : `, ${t.settings.inactive}`,
+  });
+}
+
+function wideScreen() {
+  window.matchMedia = vi.fn(
+    (query: string) =>
+      ({
+        matches: query === '(min-width: 48rem)',
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }) as unknown as MediaQueryList,
+  );
+}
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(now);
@@ -51,7 +74,10 @@ beforeEach(() => {
   db.tables.slot_templates = [{ ...existing }];
 });
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  delete (window as { matchMedia?: unknown }).matchMedia;
+});
 
 describe('slot templates', () => {
   it('keeps Prekliči disabled while a new template is being saved', async () => {
@@ -139,20 +165,177 @@ describe('slot templates', () => {
   it('deactivates an existing template instead of deleting it', async () => {
     renderSettings('urnik');
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
-    const line = fill(t.settings.templateLine, {
-      weekday: weekdayName(existing.weekday),
-      time: existing.start_time.slice(0, 5),
-      minutes: existing.duration_minutes,
-      places: plural(t.settings.places, existing.capacity),
-    });
-    const row = within(list).getByText(line).closest('li') as HTMLElement;
+    const row = within(list)
+      .getByRole('button', { name: blockName(existing) })
+      .closest('li');
+    if (row === null) throw new Error('no row for the template');
     expect(within(row).queryByRole('button', { name: t.settings.delete })).not.toBeInTheDocument();
-    await userEvent.click(within(row).getByRole('button', { name: t.settings.edit }));
+    await userEvent.click(within(row).getByRole('button', { name: blockName(existing) }));
     const form = await screen.findByRole('form', { name: t.settings.editTemplate });
     await userEvent.click(within(form).getByLabelText(t.settings.active));
     await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
     expect(await within(list).findByText(t.settings.inactive)).toBeVisible();
     expect(db.tables.slot_templates[0]).toMatchObject({ id: existing.id, active: false });
+  });
+});
+
+describe('day groups below 768 px', () => {
+  const week: Template[] = [
+    { ...existing, id: 'tpl-wed', weekday: 2, start_time: '18:00:00', duration_minutes: 90 },
+    { ...existing, id: 'tpl-sun', weekday: 6, start_time: '10:00:00', active: false },
+    { ...existing, id: 'tpl-mon-17', weekday: 0, start_time: '17:00:00', capacity: 1 },
+    { ...existing },
+  ];
+
+  beforeEach(() => {
+    db.tables.slot_templates = week.map((template) => ({ ...template }));
+  });
+
+  it('groups templates under capitalised day headings in order, leaving out empty days', async () => {
+    renderSettings('urnik');
+    const section = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    const days = [...new Set(week.map((template) => template.weekday))].sort((a, b) => a - b);
+    expect(
+      within(section)
+        .getAllByRole('heading', { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual(days.map(weekdayHeading));
+  });
+
+  it('lists a day by start time with duration and places, and edits in place', async () => {
+    renderSettings('urnik');
+    const monday = await screen.findByRole('region', { name: weekdayHeading(0) });
+    const rows = within(monday).getAllByRole('listitem');
+    const mondays = week
+      .filter((template) => template.weekday === 0)
+      .sort((a, b) => a.start_time.localeCompare(b.start_time));
+    expect(rows).toHaveLength(mondays.length);
+    mondays.forEach((template, index) => {
+      expect(rows[index]).toHaveTextContent(template.start_time.slice(0, 5));
+      expect(rows[index]).toHaveTextContent(
+        fill(t.settings.slotDetails, {
+          minutes: template.duration_minutes,
+          places: plural(t.settings.places, template.capacity),
+        }),
+      );
+      expect(
+        within(rows[index]).getByRole('button', { name: blockName(template) }),
+      ).toHaveTextContent(t.settings.edit);
+    });
+    await userEvent.click(within(rows[0]).getByRole('button', { name: blockName(mondays[0]) }));
+    expect(within(monday).getByRole('form', { name: t.settings.editTemplate })).toBeVisible();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('marks an inactive template next to its text', async () => {
+    renderSettings('urnik');
+    const sunday = await screen.findByRole('region', { name: weekdayHeading(6) });
+    expect(within(sunday).getByRole('listitem')).toHaveTextContent(t.settings.inactive);
+  });
+});
+
+describe('week grid from 768 px', () => {
+  const week: Template[] = [
+    { ...existing },
+    { ...existing, id: 'tpl-mon-730', start_time: '07:30:00', capacity: 4 },
+    {
+      ...existing,
+      id: 'tpl-wed',
+      weekday: 2,
+      start_time: '18:00:00',
+      duration_minutes: 90,
+      capacity: 1,
+    },
+    { ...existing, id: 'tpl-sun', weekday: 6, start_time: '10:00:00', capacity: 2, active: false },
+  ];
+
+  beforeEach(() => {
+    wideScreen();
+    db.tables.slot_templates = week.map((template) => ({ ...template }));
+  });
+
+  it('shows seven day columns with capitalised headings in order', async () => {
+    renderSettings('urnik');
+    const section = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    expect(
+      within(section)
+        .getAllByRole('heading', { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual([0, 1, 2, 3, 4, 5, 6].map(weekdayHeading));
+  });
+
+  it('places each template in its weekday column with its time range and places', async () => {
+    renderSettings('urnik');
+    await screen.findByRole('region', { name: t.settings.templatesTitle });
+    for (const template of week) {
+      const column = screen.getByRole('region', { name: weekdayHeading(template.weekday) });
+      const block = within(column).getByRole('button', { name: blockName(template) });
+      const start = template.start_time.slice(0, 5);
+      const endMinutes =
+        Number(start.slice(0, 2)) * 60 + Number(start.slice(3)) + template.duration_minutes;
+      const end = `${String(Math.floor(endMinutes / 60)).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`;
+      expect(block).toHaveTextContent(fill(t.settings.timeRange, { start, end }));
+      expect(block).toHaveTextContent(plural(t.settings.places, template.capacity));
+    }
+  });
+
+  it('mutes an inactive template and tags it', async () => {
+    renderSettings('urnik');
+    const sunday = await screen.findByRole('region', { name: weekdayHeading(6) });
+    const inactive = week.find((template) => !template.active) as Template;
+    const block = within(sunday).getByRole('button', { name: blockName(inactive) });
+    expect(block).toHaveClass('inactive');
+    expect(block).toHaveTextContent(t.settings.inactive);
+  });
+
+  it('opens the edit form for a block in a dialog, focus in its first field', async () => {
+    renderSettings('urnik');
+    const target = week.find((template) => template.id === 'tpl-wed') as Template;
+    const block = await screen.findByRole('button', { name: blockName(target) });
+    await userEvent.click(block);
+    const dialog = screen.getByRole('dialog', { name: t.settings.editTemplate });
+    expect(within(dialog).getByLabelText(t.settings.weekday)).toHaveFocus();
+    expect(within(dialog).getByLabelText(t.settings.weekday)).toHaveValue(String(target.weekday));
+    expect(within(dialog).getByLabelText(t.settings.startTime)).toHaveValue('18:00');
+    expect(within(dialog).getByLabelText(t.settings.duration)).toHaveValue(target.duration_minutes);
+  });
+
+  it('closes the dialog on Prekliči or Escape and returns focus to the block', async () => {
+    renderSettings('urnik');
+    const block = await screen.findByRole('button', { name: blockName(existing) });
+    await userEvent.click(block);
+    let dialog = screen.getByRole('dialog', { name: t.settings.editTemplate });
+    await userEvent.click(within(dialog).getByRole('button', { name: t.settings.cancelEdit }));
+    expect(dialog).not.toBeInTheDocument();
+    expect(block).toHaveFocus();
+    await userEvent.click(block);
+    dialog = screen.getByRole('dialog', { name: t.settings.editTemplate });
+    await userEvent.keyboard('{Escape}');
+    expect(dialog).not.toBeInTheDocument();
+    expect(block).toHaveFocus();
+  });
+
+  it('saves from the dialog, closes it and shows the notice', async () => {
+    renderSettings('urnik');
+    await userEvent.click(await screen.findByRole('button', { name: blockName(existing) }));
+    const dialog = screen.getByRole('dialog', { name: t.settings.editTemplate });
+    await fillTemplate(dialog, { [t.settings.capacity]: String(existing.capacity + 2) });
+    await userEvent.click(within(dialog).getByRole('button', { name: t.settings.save }));
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    expect(dialog).not.toBeInTheDocument();
+    const saved = { ...existing, capacity: existing.capacity + 2 };
+    expect(screen.getByRole('button', { name: blockName(saved) })).toHaveFocus();
+    expect(db.tables.slot_templates[0]).toMatchObject({
+      id: existing.id,
+      capacity: saved.capacity,
+    });
+  });
+
+  it('keeps Nov termin as the section action', async () => {
+    renderSettings('urnik');
+    const section = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    await userEvent.click(within(section).getByRole('button', { name: t.settings.newTemplate }));
+    expect(within(section).getByRole('form', { name: t.settings.newTemplate })).toBeVisible();
   });
 });
 
@@ -173,7 +356,7 @@ describe('stranded bookings', () => {
   it('warns with the count of future bookings and saves only on the second click', async () => {
     renderSettings('urnik');
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
-    await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
+    await userEvent.click(within(list).getByRole('button', { name: blockName(existing) }));
     const form = await screen.findByRole('form', { name: t.settings.editTemplate });
     await userEvent.click(within(form).getByLabelText(t.settings.active));
     await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
@@ -193,7 +376,7 @@ describe('stranded bookings', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     renderSettings('urnik');
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
-    await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
+    await userEvent.click(within(list).getByRole('button', { name: blockName(existing) }));
     const form = await screen.findByRole('form', { name: t.settings.editTemplate });
     db.readErrors.appointments = { message: 'FetchError: network down' };
     await userEvent.click(within(form).getByLabelText(t.settings.active));
@@ -208,7 +391,7 @@ describe('stranded bookings', () => {
   it('warns when the start time moves too', async () => {
     renderSettings('urnik');
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
-    await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
+    await userEvent.click(within(list).getByRole('button', { name: blockName(existing) }));
     const form = await screen.findByRole('form', { name: t.settings.editTemplate });
     await fillTemplate(form, { [t.settings.startTime]: '08:00' });
     await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
@@ -221,7 +404,7 @@ describe('stranded bookings', () => {
   it('saves a capacity change without a warning', async () => {
     renderSettings('urnik');
     const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
-    await userEvent.click(within(list).getByRole('button', { name: t.settings.edit }));
+    await userEvent.click(within(list).getByRole('button', { name: blockName(existing) }));
     const form = await screen.findByRole('form', { name: t.settings.editTemplate });
     await fillTemplate(form, { [t.settings.capacity]: String(existing.capacity + 1) });
     await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));

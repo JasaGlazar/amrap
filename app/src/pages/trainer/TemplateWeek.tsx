@@ -1,0 +1,163 @@
+import { useId, type CSSProperties, type ReactNode } from 'react';
+import type { SlotTemplate } from '../../data/slots';
+import { fill, plural, t } from '../../i18n';
+import { axisRange, clock, dayLanes, endOf, minutesOf } from '../../lib/schedule';
+import { weekdayHeading } from '../../lib/time';
+
+export type WeekTemplate = SlotTemplate & { active: boolean };
+
+type Props = {
+  templates: WeekTemplate[];
+  onEdit: (id: string) => void;
+};
+
+const weekdays = [0, 1, 2, 3, 4, 5, 6];
+
+function byStart(a: WeekTemplate, b: WeekTemplate) {
+  return minutesOf(a.start_time) - minutesOf(b.start_time);
+}
+
+function marks(template: WeekTemplate): string[] {
+  return template.active ? [] : [t.settings.inactive];
+}
+
+function blockLabel(template: WeekTemplate): string {
+  return fill(t.settings.blockLabel, {
+    day: weekdayHeading(template.weekday),
+    time: template.start_time.slice(0, 5),
+    minutes: template.duration_minutes,
+    places: plural(t.settings.places, template.capacity),
+    marks: marks(template)
+      .map((mark) => `, ${mark}`)
+      .join(''),
+  });
+}
+
+function Tags({ template }: { template: WeekTemplate }) {
+  return marks(template).map((mark) => (
+    <span key={mark} className="tag">
+      {mark}
+    </span>
+  ));
+}
+
+export function WeekGrid({ templates, onEdit }: Props) {
+  const id = useId();
+  const { from, to } = axisRange(templates);
+  const hours: number[] = [];
+  for (let hour = from; hour < to; hour += 60) hours.push(hour);
+  return (
+    <div className="week wide">
+      <div className="week-grid" style={{ '--span': to - from } as CSSProperties}>
+        <div className="week-axis" aria-hidden="true">
+          {[...hours, to].map((hour) => (
+            <span key={hour} style={{ '--at': hour - from } as CSSProperties}>
+              {clock(hour)}
+            </span>
+          ))}
+        </div>
+        {weekdays.map((weekday) => {
+          const day = templates.filter((template) => template.weekday === weekday).sort(byStart);
+          const lanes = dayLanes(day);
+          return (
+            <section key={weekday} className="week-day" aria-labelledby={`${id}-${weekday}`}>
+              <h3 id={`${id}-${weekday}`}>{weekdayHeading(weekday)}</h3>
+              <div className="week-day-body">
+                {hours.map((hour) => (
+                  <span
+                    key={hour}
+                    className="week-hour"
+                    style={{ '--at': hour - from } as CSSProperties}
+                  />
+                ))}
+                {day.length > 0 && (
+                  <ul className="week-blocks">
+                    {day.map((template) => {
+                      const start = minutesOf(template.start_time);
+                      const place = lanes.get(template.id) ?? { lane: 0, lanes: 1 };
+                      const style = {
+                        '--start': start - from,
+                        '--length': Math.min(endOf(template), to) - start,
+                        '--lane': place.lane,
+                        '--lanes': place.lanes,
+                      } as CSSProperties;
+                      return (
+                        <li key={template.id} style={style}>
+                          <button
+                            type="button"
+                            className={template.active ? 'week-block' : 'week-block inactive'}
+                            data-template-id={template.id}
+                            aria-label={blockLabel(template)}
+                            onClick={() => onEdit(template.id)}
+                          >
+                            <span className="week-block-time">
+                              {fill(t.settings.timeRange, {
+                                start: clock(start),
+                                end: clock(endOf(template)),
+                              })}
+                            </span>
+                            <span className="week-block-places">
+                              {plural(t.settings.places, template.capacity)}
+                            </span>
+                            <Tags template={template} />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function DayGroups({
+  templates,
+  onEdit,
+  editing,
+  editForm,
+}: Props & { editing: string | null; editForm: (template: WeekTemplate) => ReactNode }) {
+  const id = useId();
+  return weekdays.map((weekday) => {
+    const day = templates.filter((template) => template.weekday === weekday).sort(byStart);
+    if (day.length === 0) return null;
+    return (
+      <section key={weekday} className="day-group" aria-labelledby={`${id}-${weekday}`}>
+        <h3 id={`${id}-${weekday}`}>{weekdayHeading(weekday)}</h3>
+        <ul className="list">
+          {day.map((template) =>
+            editing === template.id ? (
+              <li key={template.id}>{editForm(template)}</li>
+            ) : (
+              <li key={template.id} className={template.active ? 'row' : 'row muted'}>
+                <span className="row-text">
+                  <span className="slot-time">{template.start_time.slice(0, 5)}</span>
+                  <span>
+                    {fill(t.settings.slotDetails, {
+                      minutes: template.duration_minutes,
+                      places: plural(t.settings.places, template.capacity),
+                    })}
+                  </span>
+                  <Tags template={template} />
+                </span>
+                <button
+                  type="button"
+                  className="button secondary small"
+                  data-template-id={template.id}
+                  aria-label={blockLabel(template)}
+                  onClick={() => onEdit(template.id)}
+                >
+                  {t.settings.edit}
+                </button>
+              </li>
+            ),
+          )}
+        </ul>
+      </section>
+    );
+  });
+}

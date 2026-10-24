@@ -23,7 +23,7 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; search and filters kept in the query (`?q=…&f=…`); create a customer. | `trainer`, `customers`, `common` | Stage 2, form on demand Stage 7, search and filters Stage 9 |
 | `/t/stranke/:id` | trainer | One customer: balance and credits, upcoming appointments, recurring rules, recent sessions, ledger, invite link, details. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType`, `common` | Stage 2, order and forms on demand Stage 7 |
 | `/t/nastavitve` | trainer | Settings, one tab per topic ([Settings](#settings-tnastavitve)); the bare path redirects to `/t/nastavitve/urnik`. | `settings` | Stage 2, tabs Stage 7 |
-| `/t/nastavitve/urnik` | trainer | Tab **Urnik**: slot templates. | `settings`, `trainer` | Stage 2, own route Stage 7 |
+| `/t/nastavitve/urnik` | trainer | Tab **Urnik**: slot templates, a week grid from 768 px and day groups below. | `settings`, `trainer` | Stage 2, own route Stage 7, week grid Stage 9 |
 | `/t/nastavitve/odpoved` | trainer | Tab **Odpoved**: cutoff hours. | `settings` | Stage 2, own route Stage 7 |
 | `/t/nastavitve/zaprto` | trainer | Tab **Zaprta obdobja**: blocked periods. | `settings`, `trainer`, `slot` | Stage 2, own route Stage 7 |
 | `/t/nastavitve/obvestila` | trainer | Tab **Obvestila**: notifications toggle. | `pushToggle` | Stage 3, own route Stage 7 |
@@ -294,10 +294,40 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   **Odpoved** `getSettings`, **Zaprta obdobja** `getSettings` (the timezone) and
   `upcomingBlocked` (periods that have not ended). Every write goes through RLS and shows
   `settings.saved` or the error.
-- **Termini v tednu** (tab **Urnik**): each template as `{weekday} ob {time} · {minutes} min · {places}`, the
-  capacity in its Slovenian plural form (`settings.places`: 1 mesto, 2 mesti, 3 mesta, 5 mest),
-  inactive ones greyed with a `neaktiven` tag right after the text, each with **Uredi** (the
-  form inline). **Nov termin** at the right of the section heading opens the same form empty
+- **Termini v tednu** (tab **Urnik**): every template, active and inactive, in one of two
+  layouts chosen by the window width (`useMediaQuery('(min-width: 48rem)')`, so only one is
+  in the page and a screen reader or a test never meets both):
+  - **From 768 px, a week grid** (`TemplateWeek.tsx`, `WeekGrid`): seven columns,
+    **Ponedeljek** to **Nedelja** (`weekdayHeading`, each an `h3` naming its column, a
+    `section`, so a screen reader can move day by day), and a time axis on the left from the
+    earliest start to the latest end, rounded out to the hour (`axisRange` in
+    `lib/schedule.ts`), with a hairline per hour. Each template is a block placed by its start
+    and sized by its duration (4.5 rem an hour, so a 60-minute block holds its text), showing
+    `settings.timeRange` ("07:00–08:00", breaking only after the dash) and the places
+    (`settings.places`). Blocks that overlap in time sit side by side within the column
+    (`dayLanes`: a group of slots that overlap one another shares the column in lanes, a lane
+    is reused once it is free; touching slots do not share). An inactive template is muted
+    (paper background, `--line` edge, muted text) with the `neaktiven` tag. Each block is a
+    `button` whose name says everything its position shows (`settings.blockLabel`:
+    "Ponedeljek 07:00, 60 min, 5 mest, uredi", with ", neaktiven" when inactive). The axis is
+    `aria-hidden`. From 1024 px the grid is a [wide view](#behaviour-shared-by-all-screens);
+    below that (768-1023 px) its columns keep at least 7 rem and the grid scrolls sideways
+    inside its own box, the hours column staying in place, so the page itself never scrolls
+    sideways.
+  - **Clicking a block** opens the edit form (`settings.editTemplate`) in a dialog
+    (`TemplateDialog.tsx`, the cancel dialog's overlay and focus rules through
+    `pages/shared/modal.ts`): focus moves to its first field (**Dan**), Tab stays inside,
+    **Prekliči** or Escape closes it (not while a save or count runs) and focus returns to
+    the block; a successful save closes it, the section shows `settings.saved` and focus is on
+    the block again (found by its template id if the save moved it to another day). A
+    rejected save shows its error inside the dialog. Empty cells do nothing; **Nov termin**
+    stays the way to add a template.
+  - **Below 768 px, day groups** (`DayGroups`): one `h3` per day that has templates
+    (**Ponedeljek** first, days without templates left out), then compact rows by start time:
+    the start in the display type, `settings.slotDetails` ("60 min · 5 mest", capacity in its
+    plural form: 1 mesto, 2 mesti, 3 mesta, 5 mest), the `neaktiven` tag next to the text, and
+    **Uredi** (named like the grid's block), which opens the form in place of the row.
+- **Nov termin** at the right of the section heading opens the same form empty
   ([on demand](#forms-on-demand)): weekday, start time, duration in minutes, capacity and
   an active checkbox. Validation: start time required, duration and capacity positive whole
   numbers (`settings.durationInvalid`, `settings.capacityInvalid`). There is no delete: a
@@ -525,6 +555,14 @@ How the guards and the auth state work is in [auth.md](auth.md).
   - safe-area insets on the top bar, the page sides, the bottom navigation and the dialog;
     the top bar's sides take the larger of the inset and the page column's edge;
   - errors are `role="alert"`, results `role="status"`.
+
+- **Wide views.** Pages keep the 46 rem column (`--content`) at every width, and the top bar
+  lines up with it. A week view that needs more room (the Urnik week grid, Stage 9) carries
+  the class `wide`: from 1024 px it grows to `--content-wide` (80 rem) or the window minus
+  the page gutters, whichever is smaller, centred on the column, while the title, tabs and
+  section heading above it stay on the column ([ADR 0014](adr/0014-wide-week-views.md)).
+  Below 1024 px it stays in the column and scrolls sideways inside its own box when it needs
+  more width.
 
 - **Brand mark.** The framed AMRAP wordmark (`public/brand-mark.png`, alt `app.name`) replaces
   the plain "AMRAP" text: at the left of the top bar in both shells, and as the `h1` above the

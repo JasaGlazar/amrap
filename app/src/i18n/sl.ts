@@ -207,7 +207,9 @@ export const sl = {
     },
     templatesTitle: 'Termini v tednu',
     noTemplates: 'Ni terminov.',
-    templateLine: '{weekday} ob {time} · {minutes} min · {places}',
+    timeRange: '{start}–{end}',
+    slotDetails: '{minutes} min · {places}',
+    blockLabel: '{day} {time}, {minutes} min, {places}{marks}, uredi',
     places: {
       one: '{count} mesto',
       two: '{count} mesti',

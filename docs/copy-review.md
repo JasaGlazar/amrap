@@ -51,6 +51,7 @@ is a question below.
 | `invite.title` | Ustvari račun | Nov račun | Stage 5: heading and button were the same; the heading names the page, the button keeps the action |
 | `customerDetail.refund` (new) | Odpovej (`slot.cancel`) | Vrni kredit | Stage 5: on a charged session the action cancels with a refund; "Odpovej" hid that |
 | `customers.startingBalance` | Začetno stanje kreditov (s papirja) | Začetno stanje kreditov | Stage 8 (issue #20): the owner removed "(s papirja)"; the hint under the field is unchanged |
+| `settings.templateLine` (removed) | {weekday} ob {time} · {minutes} min · {places} | `settings.slotDetails` ({minutes} min · {places}) under a day heading, `settings.timeRange` in the week grid | Stage 9 (issue #16): the list of lowercase lines became day groups on a phone and a week grid from 768 px; the day is now the heading |
 
 ## Open questions for the trainer
 
@@ -349,7 +350,9 @@ is a question below.
 | `settings.tabs.notifications` | Obvestila |  |
 | `settings.templatesTitle` | Termini v tednu | »Termini v tednu« ali »Tedenski urnik«? |
 | `settings.noTemplates` | Ni terminov. |  |
-| `settings.templateLine` | {weekday} ob {time} · {minutes} min · {places} |  |
+| `settings.timeRange` | {start}–{end} | Novo: čas v bloku tedenskega urnika (»07:00–08:00«). |
+| `settings.slotDetails` | {minutes} min · {places} | Novo: vrstica pod dnevom na telefonu (»60 min · 5 mest«). |
+| `settings.blockLabel` | {day} {time}, {minutes} min, {places}{marks}, uredi | Novo: ime gumba za bralnik zaslona (»Ponedeljek 07:00, 60 min, 5 mest, uredi«; pri neaktivnem še », neaktiven«). |
 | `settings.places.one` | {count} mesto |  |
 | `settings.places.two` | {count} mesti |  |
 | `settings.places.few` | {count} mesta |  |
