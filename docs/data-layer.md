@@ -41,7 +41,7 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 | `upcomingBlocked(client, now)` | `blocked_periods` | `ends_at > now`, by start |
 | `chargedSince(client, customerId, since)` | `appointments` | that customer's `charged` appointments with `starts_at >= since`, newest first |
 | `futureBookedCount(client, templateId, now)` | `appointments` | the number of `booked` appointments of that template with `starts_at > now` |
-| `liveCountBetween(client, from, to)` | `appointments` | the number of live (`booked` or `charged`) appointments overlapping `[from, to)`: `starts_at < to` and `ends_at > from` |
+| `liveCountBetween(client, from, to, now)` | `appointments` | the number of live (`booked` or `charged`) appointments overlapping `[from, to)` that have not ended: `starts_at < to` and `ends_at` after both `from` and `now` |
 | `hasPushSubscription(client, endpoint, userId)` | `push_subscriptions` | whether a row with that endpoint belongs to `userId` (the signed-in auth user); filtered by `user_id` because the trainer's RLS policy returns every user's rows |
 
 `inviteStatus(customer, now)` derives a customer's invite status: `linked` (an auth user is

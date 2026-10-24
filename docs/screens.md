@@ -235,11 +235,12 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   reason; a time that does not exist that day or an end not after the start is rejected
   (`trainer.invalidTime`, `trainer.invalidRange`). A new block does not cancel appointments
   already booked in it; `book()` and materialization reject or skip later ones. So saving a new
-  or edited period first counts the live appointments that overlap it (`liveCountBetween`); if
-  there are any, the section shows `settings.blockedOverlapWarning` with the count (they stay
-  booked and are charged unless the trainer cancels them in the calendar) and saves only when
-  **Shrani** is clicked again with the same range. A failed count shows the error and saves
-  nothing.
+  or edited period first counts the live appointments that overlap it and have not ended yet
+  (`liveCountBetween`; sessions already held are not counted); if there are any, the section
+  shows `settings.blockedOverlapWarning` with the count (they stay booked and are charged unless
+  the trainer cancels them in the calendar) and saves only when **Shrani** is clicked again with
+  the same range. A changed range is counted again; a failed count shows the error and saves
+  nothing; **Prekliči** on an edit clears the warning, so the next save counts again.
 - **Obvestila:** the notifications toggle with the trainer hint (`pushToggle.trainerHint`).
 
 ## Install card

@@ -135,7 +135,7 @@ export function TrainerSettings() {
       setNotice((current) => ({ ...current, blocked: null }));
       let count: number;
       try {
-        count = await liveCountBetween(supabase, period.startsAt, period.endsAt);
+        count = await liveCountBetween(supabase, period.startsAt, period.endsAt, new Date());
       } catch (error) {
         console.warn('blocked overlap count failed', error);
         setNotice((current) => ({ ...current, blocked: { error: true, text: fromError(error) } }));
@@ -257,7 +257,11 @@ export function TrainerSettings() {
                   timeZone={timeZone}
                   busy={busy}
                   onSave={(next) => void storeBlocked(period.id, next)}
-                  onCancel={() => setEditingBlocked(null)}
+                  onCancel={() => {
+                    setOverlapKey(null);
+                    setNotice((current) => ({ ...current, blocked: null }));
+                    setEditingBlocked(null);
+                  }}
                 />
               </li>
             ) : (

@@ -279,6 +279,95 @@ describe('blocked periods', () => {
       expect(db.tables.blocked_periods).toHaveLength(1);
     });
 
+    it('shows an error and saves nothing when the bookings cannot be counted', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      renderSettings();
+      const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+      await fillTemplate(form, period);
+      db.readErrors.appointments = { message: 'FetchError: network down' };
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      const section = screen.getByRole('region', { name: t.settings.blockedTitle });
+      expect(await within(section).findByRole('alert')).toHaveTextContent(t.genericError);
+      expect(within(form).getByRole('button', { name: t.settings.save })).toBeEnabled();
+      expect(db.tables.blocked_periods).toHaveLength(0);
+      expect(warn).toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
+    it('counts again and warns again when the range changed after the warning', async () => {
+      renderSettings();
+      const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+      await fillTemplate(form, period);
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      const section = screen.getByRole('region', { name: t.settings.blockedTitle });
+      await within(section).findByRole('alert');
+
+      await fillTemplate(form, { [t.settings.toDate]: '2026-12-25' });
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      const stillInside = db.tables.appointments.filter((row) => row.id === 'inside-booked').length;
+      expect(await within(section).findByRole('alert')).toHaveTextContent(
+        fill(t.settings.blockedOverlapWarning, { count: stillInside }),
+      );
+      expect(db.tables.blocked_periods).toHaveLength(0);
+    });
+
+    it('does not count sessions that have already ended', async () => {
+      db.tables.appointments = [
+        appointment('held', '2026-10-20T08:00:00.000Z', 'charged'),
+        appointment('ahead', '2026-10-22T08:00:00.000Z', 'booked'),
+      ];
+      const notEnded = db.tables.appointments.filter(
+        (row) => new Date(String(row.ends_at)) > now,
+      ).length;
+      renderSettings();
+      const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+      await fillTemplate(form, {
+        [t.settings.fromDate]: '2026-10-20',
+        [t.settings.fromTime]: '00:00',
+        [t.settings.toDate]: '2026-10-23',
+        [t.settings.toTime]: '00:00',
+      });
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      const section = screen.getByRole('region', { name: t.settings.blockedTitle });
+      expect(await within(section).findByRole('alert')).toHaveTextContent(
+        fill(t.settings.blockedOverlapWarning, { count: notEnded }),
+      );
+    });
+
+    it('drops the warning when an edit is cancelled, and warns again on the next save', async () => {
+      db.tables.blocked_periods = [
+        {
+          id: 'b-xmas',
+          starts_at: '2026-12-23T23:00:00.000Z',
+          ends_at: '2026-12-26T23:00:00.000Z',
+          reason: 'Prazniki',
+        },
+      ];
+      renderSettings();
+      const section = await screen.findByRole('region', { name: t.settings.blockedTitle });
+      const edit = async () => {
+        const row = (await within(section).findByText('Prazniki')).closest('li') as HTMLElement;
+        await userEvent.click(within(row).getByRole('button', { name: t.settings.edit }));
+        return screen.findByRole('form', { name: t.settings.editBlocked });
+      };
+
+      let form = await edit();
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      await within(section).findByRole('alert');
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.cancelEdit }));
+      expect(within(section).queryByRole('alert')).not.toBeInTheDocument();
+
+      form = await edit();
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      const live = db.tables.appointments.filter(
+        (row) => row.id === 'inside-booked' || row.id === 'inside-charged',
+      ).length;
+      expect(await within(section).findByRole('alert')).toHaveTextContent(
+        fill(t.settings.blockedOverlapWarning, { count: live }),
+      );
+      expect(screen.getByRole('form', { name: t.settings.editBlocked })).toBeInTheDocument();
+    });
+
     it('saves at once when no live booking overlaps', async () => {
       db.tables.appointments = db.tables.appointments.filter(
         (row) => !String(row.id).startsWith('inside-') || row.status === 'cancelled',
