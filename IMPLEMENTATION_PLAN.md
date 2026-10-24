@@ -97,7 +97,7 @@ below; open questions: "Stage 4 open questions".
 **Tests**: Vitest for the changed labels and states (refund button label on charged
 appointments, minus sign on debtor chips, zero balance not marked positive, linked customers
 without a status tag).
-**Status**: Not Started
+**Status**: Complete (PR open)
 
 ## Stage 6: Brand and theme
 **Goal**: The AMRAP visual identity from the gym logo: black, white and grey tokens, light and
@@ -513,6 +513,45 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   a 401 `PGRST303` once after one second, nothing else ([auth.md](docs/auth.md)). The
   "same second" explanation turned out wrong (PostgREST allows 30 s of skew); the cause is
   open, see auth.md.
+
+### Handoff state (2026-10-24, Stage 5)
+
+- Branch `stage-5-ui-fixes` off `main`; all 15 Stage 5 tasks done, PR open and not merged (the
+  owner looks at visual work first). Vitest 317, lint, typecheck, build and `check-docs.sh`
+  green. No DB change. The project `reviewer` approved with fixes; the fixes are in 413446b.
+- Test first (watched red): zero balance neutral, positive marked (task 2); `−` (U+2212) on
+  debtor chips and Stranke (task 4); **Vrni kredit** on charged sessions (task 3); heading and
+  submit button differ on `/login` and `/invite/:token` (task 8); no tag for a linked customer
+  on Stranke (task 13).
+- Browser check (Vite dev server on 5174, local stack, agent-browser sessions `s5-trainer`,
+  `s5-ana` and a signed-out `s5-login`): every changed screen at 390, 768 and 1440 px; at
+  360 px `scrollWidth` 360 and no target under 44 px on `/t`, `/t/koledar`, `/t/stranke`, a
+  customer detail and `/t/nastavitve`, the customer calendar row does not overflow. The cancel
+  dialog was opened and closed with Escape, never confirmed: overlay 0,0 to full window, the
+  dialog centred from 768 px. Screenshots in the gitignored `.superpowers/shots/`.
+- Demo data: nothing added or changed. The inactive Sunday template already existed (task 11);
+  there are no recurring rules, so the `ustavljen` rule row (same markup fix) was not seen in a
+  browser.
+- Judged differently from the task list, or beyond it:
+  - Task 4: one formatter family, two functions: `formatAmount` (always signed, ledger) and
+    `formatBalance` (minus only), both `Intl.NumberFormat('sl-SI')`, rendered by a shared
+    `pages/shared/Amount.tsx` that also picks the colour. The big balance on customer Home and
+    customer detail had the same hyphen and uses `formatBalance` too.
+  - Tasks 6/7: disabled buttons are neutral as specified; to make a disabled secondary button
+    (the `‹` arrow) differ from an enabled one, enabled secondary buttons got a 1 px
+    `--control-border` outline everywhere (cards already had it). A disabled button on a card
+    keeps a 1 px `--border` outline so it still reads as a button.
+  - Task 8: the invite page repeated "Ustvari račun"; its heading is now **Nov račun** and the
+    button keeps the action (rather than renaming the button). Both rows in
+    `docs/copy-review.md`, which also answers the old `login.submit` question.
+  - Task 13: Stranke only. Customer detail still shows the account tag (task 12 moves it to the
+    label line); runbook re-link step 3 now says the customer is tagged "Brez računa".
+  - Task 14: spacing is set by context at the end of `styles.css` (page, section, card, form);
+    components carry no outer margins. The submit rule covers `.form` only; standalone card
+    buttons (**Ustvari povabilo**, the notifications toggle) keep their natural width.
+  - Calendar rows (task 9) wrap with the separator leading the second part (`· Prosta mesta:
+    …`).
+- Left for the owner: the visual review of the PR.
 
 ---
 
