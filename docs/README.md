@@ -8,8 +8,8 @@
 | [runbook.md](runbook.md) | Operations: unpause, bootstrap trainer, invite and re-link a customer, deploy migrations and the edge function, database size check, turn on push, Cloudflare Pages |
 | [adr/](adr/README.md) | Architecture decision records |
 | [schema.md](schema.md) | Tables (including the `notifications` log), columns, constraints, indexes, RLS, grants, views `customer_balances` and `slot_occupancy`, helpers, migrations list |
-| [rpcs.md](rpcs.md) | RPC reference: `book`, `cancel`, `top_up`, `adjust`, `create_invite`, `accept_invite`, `charge_due_appointments`, `materialize_recurring`, `activate_rule`, `deactivate_rule`, `send_cutoff_reminders`, `claim_notifications`, `save_push_subscription`, error tokens, helpers (including the notification triggers) |
-| [jobs.md](jobs.md) | Scheduled jobs: pg_cron schedules for `charge_due_appointments()` and `send_cutoff_reminders()` (every 15 min) and `materialize_recurring()` (nightly); the `send-push` edge function |
+| [rpcs.md](rpcs.md) | RPC reference: `book`, `cancel`, `top_up`, `adjust`, `create_invite`, `accept_invite`, `charge_due_appointments`, `materialize_recurring`, `activate_rule`, `deactivate_rule`, `send_cutoff_reminders`, `prune_cron_history`, `claim_notifications`, `save_push_subscription`, error tokens, helpers (including the notification triggers) |
+| [jobs.md](jobs.md) | Scheduled jobs: pg_cron schedules for `charge_due_appointments()` and `send_cutoff_reminders()` (every 15 min), `materialize_recurring()` and `prune_cron_history()` (daily); the `send-push` edge function |
 | [notifications.md](notifications.md) | Web push: the notification log, kinds and their data, event triggers, subscriptions, service worker, no-duplicates rule, dispatch through pg_net, Vault config, best effort, manual check |
 | [auth.md](auth.md) | App auth: session loading, customer-row lookup, role gating, lookup failed vs not linked, sign-out, invite acceptance, keep-alive, start-up error |
 | [data-layer.md](data-layer.md) | App data layer: reads and RPC wrappers in `app/src/data/`, what each selects |

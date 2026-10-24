@@ -21,8 +21,24 @@ Usage estimate from issue #12: about 100 customers training 3 times a week. The 
 ### Measured (local stack, 2026-10-24)
 
 The local database holds demo data only: `pg_database_size` is 14 MB, almost all of it
-Supabase's own schemas and empty pages. Every listed relation was 24 to 128 kB (the minimum
-pages of a table and its indexes). Bytes per row were measured instead: 10,000 representative
+Supabase's own schemas and empty pages. Each relation is at its minimum pages
+(`pg_total_relation_size`, heap plus indexes):
+
+| Relation | Rows | Size |
+|---|---|---|
+| `auth.refresh_tokens` | 11 | 128 kB |
+| `public.appointments` | 23 | 120 kB |
+| `public.customers` | 10 | 96 kB |
+| `auth.sessions` | 1 | 96 kB |
+| `auth.audit_log_entries` | 51 | 80 kB |
+| `public.notifications`, `public.push_subscriptions`, `public.credit_transactions` | 0, 0, 19 | 64 kB each |
+| `public.recurring_rules` | 0 | 40 kB |
+| `public.blocked_periods`, `public.settings` | 2, 1 | 32 kB each |
+| `cron.job_run_details` | 41 | 32 kB |
+| `net._http_response` | 0 | 32 kB |
+| `public.slot_templates` | 11 | 24 kB |
+
+So bytes per row were measured instead: 10,000 representative
 rows inserted into each table in a transaction, `pg_total_relation_size` (heap, TOAST and every
 index) compared before and after, then rolled back.
 
@@ -66,7 +82,7 @@ Retention per table:
 - **`cron.job_run_details`:** 14 days. A new daily job, `prune_cron_history` at 03:07 UTC,
   deletes every run that ended (or, if it never ended, started) more than 14 days ago. It is a
   function rather than inline SQL in `cron.schedule` so a pgTAP test can check that it deletes
-  only the old rows ([jobs.md](../jobs.md#prune_cron_history)). Supabase's example keeps 7
+  only the old rows ([jobs.md](../jobs.md#prune_cron_history-daily)). Supabase's example keeps 7
   days; 14 keeps two weeks of history for checking a missed charge or reminder.
 - **`net._http_response`:** pg_net's own TTL, 6 hours by default. The worker deletes expired
   rows when it processes requests, so after a quiet spell a few older rows stay until the next

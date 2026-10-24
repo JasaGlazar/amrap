@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Page } from '../../data/page';
 import { t } from '../../i18n';
 
@@ -22,6 +22,12 @@ type Props<T> = {
 export function PagedList<T extends { id: string }>({ first, fetchPage, children }: Props<T>) {
   const [state, setState] = useState<Shown<T> | null>(null);
   const focusNext = useRef<string | null>(null);
+  const currentFirst = useRef(first);
+
+  useEffect(() => {
+    currentFirst.current = first;
+    focusNext.current = null;
+  }, [first]);
   const shown: Shown<T> =
     state?.first === first
       ? state
@@ -43,7 +49,7 @@ export function PagedList<T extends { id: string }>({ first, fetchPage, children
       const page = await fetchPage(shown.next);
       const known = new Set(shown.rows.map((row) => row.id));
       const added = page.rows.filter((row) => !known.has(row.id));
-      focusNext.current = added[0]?.id ?? null;
+      if (currentFirst.current === shown.first) focusNext.current = added[0]?.id ?? null;
       update((current) => ({
         ...current,
         rows: [...current.rows, ...added],

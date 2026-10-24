@@ -206,7 +206,7 @@ select count(*), min(start_time) from cron.job_run_details;
 | 250 MB (half the quota) | find what grew in the largest-tables query and compare it with ADR 0013's projection; write the finding on a GitHub issue |
 | 400 MB | act now: prune the relation that grew (a new migration and ADR if it is not a log) |
 | `auth.audit_log_entries` over 50 MB | decide in a new ADR how to trim it (ADR 0013) |
-| `cron.job_run_details` over 3,000 rows or older than 15 days | check `prune_cron_history` in `cron.job` and its runs ([jobs.md](jobs.md#prune_cron_history)) |
+| `cron.job_run_details` over 3,000 rows or older than 15 days | check `prune_cron_history` in `cron.job` and its runs ([jobs.md](jobs.md#prune_cron_history-daily)) |
 
 Never upgrade the plan or add a payment method to get room (ADR 0005). If the project does go
 read-only, delete log rows (cron log, notifications older than 30 days) after `set session
