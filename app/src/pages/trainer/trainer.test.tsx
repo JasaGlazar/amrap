@@ -246,6 +246,27 @@ describe('trainer calendar', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('closes the add control when the occurrence fills up before the booking lands', async () => {
+    fakeSupabase.rpc.mockImplementationOnce(async () => {
+      db.tables.slot_occupancy = [
+        {
+          slot_template_id: todayTemplate.id,
+          starts_at: postgrestTime(startsAt),
+          booked_count: todayTemplate.capacity,
+        },
+      ];
+      return { data: null, error: { message: 'AMRAP_CAPACITY_FULL: no places left' } };
+    });
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await userEvent.click(within(row).getByRole('button', { name: t.trainer.addCustomer }));
+    await userEvent.selectOptions(within(row).getByRole('combobox'), 'c-bor');
+    await userEvent.click(within(row).getByRole('button', { name: t.trainer.add }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(t.errors.AMRAP_CAPACITY_FULL);
+    expect(await within(row).findByRole('button', { name: t.calendar.full })).toBeDisabled();
+    expect(within(row).queryByRole('combobox')).not.toBeInTheDocument();
+  });
+
   it('disables the add button with Zaprto when the occurrence is blocked', async () => {
     db.tables.blocked_periods = [
       {

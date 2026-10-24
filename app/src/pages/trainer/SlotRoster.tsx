@@ -84,7 +84,7 @@ export function SlotRoster({ appointments, names, onCancel, add }: Props) {
           className="button secondary small"
           add={add.unavailable === null}
           disabled={add.unavailable !== null || add.pending}
-          open={add.open}
+          open={add.open && add.unavailable === null}
           onOpen={add.onOpen}
         >
           <AddControl add={add} choices={choices} />

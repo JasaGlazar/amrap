@@ -64,6 +64,17 @@ describe('slot templates', () => {
     expect(screen.queryByRole('button', { name: t.settings.newTemplate })).not.toBeInTheDocument();
   });
 
+  it('clears the last notice when a new template is cancelled, like a new blocked period', async () => {
+    let form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '18:00' });
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    await userEvent.click(await screen.findByRole('button', { name: t.settings.newTemplate }));
+    form = screen.getByRole('form', { name: t.settings.newTemplate });
+    await userEvent.click(within(form).getByRole('button', { name: t.settings.cancelEdit }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
   it('drops the input on Prekliči and puts focus back on the button', async () => {
     const form = await newTemplateForm();
     await fillTemplate(form, { [t.settings.startTime]: '18:00' });

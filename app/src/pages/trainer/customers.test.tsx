@@ -434,7 +434,22 @@ describe('customer detail', () => {
     ).toHaveFocus();
   });
 
+  it('drops the saved line when the details form opens again', async () => {
+    renderAt(`/t/stranke/${cvet.id}`);
+    const section = await screen.findByRole('region', { name: t.customerDetail.detailsTitle });
+    await userEvent.click(
+      within(section).getByRole('button', { name: t.customerDetail.editDetails }),
+    );
+    await userEvent.click(within(section).getByRole('button', { name: t.customerDetail.save }));
+    await within(section).findByRole('status');
+    await userEvent.click(
+      await within(section).findByRole('button', { name: t.customerDetail.editDetails }),
+    );
+    expect(within(section).queryByRole('status')).not.toBeInTheDocument();
+  });
+
   it('shows Dodaj stalni termin as a button until it is pressed, and drops the choice on Prekliči', async () => {
+    const before = db.tables.recurring_rules.length;
     renderAt(`/t/stranke/${ana.id}`);
     const rules = await screen.findByRole('region', { name: t.customerDetail.rulesTitle });
     expect(within(rules).queryByRole('combobox')).not.toBeInTheDocument();
@@ -445,7 +460,7 @@ describe('customer detail', () => {
     await userEvent.click(within(rules).getByRole('button', { name: t.common.cancel }));
     const button = within(rules).getByRole('button', { name: t.customerDetail.addRule });
     expect(button).toHaveFocus();
-    expect(db.tables.recurring_rules).toHaveLength(0);
+    expect(db.tables.recurring_rules).toHaveLength(before);
     await userEvent.click(button);
     expect(within(rules).getByLabelText(t.customerDetail.ruleTemplate)).toHaveValue('');
   });

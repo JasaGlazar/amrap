@@ -29,7 +29,6 @@ export function OnDemand({
     if (open) {
       area.current?.querySelector<HTMLElement>('input, select, textarea')?.focus();
     } else if (document.activeElement === null || document.activeElement === document.body) {
-      // Closing removed the focused control; another form opening keeps its own focus.
       button.current?.focus();
     }
   }, [open]);

@@ -386,7 +386,10 @@ export function TrainerCustomerDetail() {
             label={t.customerDetail.editDetails}
             className="button secondary"
             open={editingDetails}
-            onOpen={() => setEditingDetails(true)}
+            onOpen={() => {
+              setNotices((current) => ({ ...current, details: null }));
+              setEditingDetails(true);
+            }}
           >
             <CustomerFieldsForm
               title={t.customerDetail.editDetails}

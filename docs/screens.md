@@ -148,7 +148,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   customer is chosen and while another booking is in flight) and **Prekliči**. One add control
   is open at a time: opening another closes the first, and so does moving to another week.
   **Dodaj** calls `book(customer, startsAt, template)`; success closes the control and shows
-  `trainer.added`, a rejection keeps it open and shows its `errors.AMRAP_*` copy. When the
+  `trainer.added`, a rejection keeps it open and shows its `errors.AMRAP_*` copy (unless the
+  reload shows the occurrence full or blocked now: then the control closes into the disabled
+  button). When the
   occurrence cannot take anyone, the button is disabled and says why instead: **Zaprto**
   (`calendar.blocked`, it overlaps a blocked period) or **Polno** (`calendar.full`, no free
   place). Past occurrences keep the button (the trainer records a session after the fact).
@@ -246,7 +248,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   `settings.sectionsLabel`: **Urnik** (`urnik`), **Odpoved** (`odpoved`), **Zaprta obdobja**
   (`zaprto`), **Obvestila** (`obvestila`), each a link to its own route with
   `aria-current="page"` on the open one (`--ink` with a 2 px underline on the row's 1 px
-  `--line`; the others `--muted`). Below 768 px the tabs spread across the column, from 768 px
+  `--line`; the others `--muted`). Below 768 px the tabs spread across the column (wrapping on a screen
+  too narrow for one line), from 768 px
   they sit left aligned. `/t/nastavitve` redirects to `/t/nastavitve/urnik` (replacing the
   history entry), and the main navigation's **Nastavitve** stays current on every tab.
 - **Data:** each tab loads only what it shows: **Urnik** `allTemplates` (active and inactive),

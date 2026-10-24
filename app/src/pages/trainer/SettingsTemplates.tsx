@@ -87,7 +87,10 @@ export function SettingsTemplates() {
             initial={newTemplate}
             busy={busy}
             onSave={(fields) => void store(null, fields)}
-            onCancel={() => setAdding(false)}
+            onCancel={() => {
+              setNotice(null);
+              setAdding(false);
+            }}
           />
         </OnDemand>
       </div>
