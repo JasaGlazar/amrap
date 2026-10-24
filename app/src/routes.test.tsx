@@ -215,10 +215,14 @@ describe('shells', () => {
     expect(router.state.location.pathname).toBe('/c/zgodovina');
   });
 
-  it('signs out from the customer shell through /logout', async () => {
-    signedInAs(customer);
-    const router = renderAt('/c');
-    await userEvent.click(await screen.findByRole('link', { name: t.common.signOut }));
+  it.each([
+    ['customer', customer, '/c'],
+    ['trainer', trainer, '/t'],
+  ])('signs out from the %s account menu through /logout', async (_name, row, path) => {
+    signedInAs(row);
+    const router = renderAt(path);
+    await userEvent.click(await screen.findByRole('button', { name: t.account.menu }));
+    await userEvent.click(screen.getByRole('link', { name: t.common.signOut }));
     await screen.findByRole('heading', { name: t.login.title });
     expect(fakeSupabase.auth.signOut).toHaveBeenCalledOnce();
     expect(router.state.location.pathname).toBe('/login');

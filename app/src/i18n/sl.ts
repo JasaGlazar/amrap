@@ -18,6 +18,15 @@ export const sl = {
     customers: 'Stranke',
     settings: 'Nastavitve',
   },
+  account: {
+    menu: 'Račun',
+    appearance: 'Videz',
+    theme: {
+      system: 'Sistem',
+      light: 'Svetlo',
+      dark: 'Temno',
+    },
+  },
   login: {
     title: 'Prijava',
     email: 'E-poštni naslov',

@@ -62,7 +62,7 @@ push's 404/410 removes the row. A failure is logged with `console.warn` and neve
 sign-out (see [notifications.md](notifications.md#subscribing-in-the-app)). It then calls
 `supabase.auth.signOut()` and redirects to `/login`. If signing out fails, the loader logs it
 and returns the `fromError` message, and `LogoutFailedPage` shows it with a continue link. Every
-sign-out control links to `/logout`: the top bar of both shells, `NotLinkedPage` and
+sign-out control links to `/logout`: the account menu in the top bar of both shells, `NotLinkedPage` and
 `LookupFailedPage`, so a failed sign-out is always shown.
 
 ## Invite acceptance

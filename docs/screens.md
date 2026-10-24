@@ -15,10 +15,10 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/` | signed in | Redirects to `/t` for the trainer or `/c` for a customer. | none | Stage 1 |
 | (any route below `/`) | signed in, customer lookup failed | Error page with a retry button and a sign-out link to `/logout`. | `lookupFailed`, `common.signOut` | Stage 1 |
 | (any route below `/`) | signed in, no `customers` row | "Account not linked" page with a sign-out link to `/logout`. Shown instead of the route, URL unchanged. | `notLinked`, `common.signOut` | Stage 1 |
-| `/c` | customer | Customer shell: top bar with the app name and a sign-out link to `/logout`, the [install card](#install-card), bottom navigation (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `install`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle` | Stage 2, push Stage 3, install Stage 4 |
+| `/c` | customer | Customer shell: top bar with the app name and the [account menu](#account-menu) (theme, sign-out), the [install card](#install-card), bottom navigation (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `account`, `install`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle` | Stage 2, push Stage 3, install Stage 4, account menu Stage 6 |
 | `/c/koledar` | customer | Week calendar: book open slots, cancel own bookings. | `customer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
-| `/t` | trainer | Trainer shell: the same top bar with sign-out, the [install card](#install-card), bottom navigation (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4 |
+| `/t` | trainer | Trainer shell: the same top bar with the [account menu](#account-menu), the [install card](#install-card), bottom navigation (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `account`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4, account menu Stage 6 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; create a customer. | `trainer`, `customers` | Stage 2 |
 | `/t/stranke/:id` | trainer | One customer: credits, invite link, recurring rules, upcoming appointments, details, ledger. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType` | Stage 2 |
@@ -252,6 +252,25 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   the same range. A changed range is counted again; a failed count shows the error and saves
   nothing; **Prekliči** on an edit clears the warning, so the next save counts again.
 - **Obvestila:** the notifications toggle with the trainer hint (`pushToggle.trainerHint`).
+
+## Account menu
+
+`pages/shared/AccountMenu.tsx`, at the right end of the top bar in both shells: a square button
+named `account.menu` (**Račun**, a person icon) that opens a small panel below it with:
+
+- **Videz** (`account.appearance`): a radio group **Sistem** / **Svetlo** / **Temno**
+  (`account.theme`). Choosing one applies it at once and remembers it on this device
+  ([app-structure.md](app-structure.md#theme)); **Sistem** follows the device setting. The
+  panel stays open, so the change is seen in place.
+- **Odjava** (`common.signOut`): a link to `/logout`, as the bare link in the top bar was
+  before.
+
+Keyboard and pointer: Enter or Space on the button opens the panel and puts focus on the chosen
+theme (arrow keys move within the group, Tab goes on to **Odjava**). Escape closes it and returns
+focus to the button; pressing the button again, a click or tap outside it, or Tab out of it also
+closes it (focus then stays where the user put it). The button has `aria-expanded` and
+`aria-controls`; the panel is a plain disclosure, not an ARIA menu, so the radios and the link
+keep their native roles.
 
 ## Install card
 
