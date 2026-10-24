@@ -1132,6 +1132,11 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
     07:00 at 390 and 1440 in both themes ("… drugih terminov: 1 …") and closed with Escape,
     never confirmed (still 2 blocked periods); then the booking was cancelled with **Odpovej**,
     so it stays as `cancelled_by_trainer`. `customer_balances` equals the pre-check snapshot.
+  - Item 6: `occurrenceDialog.overlapping` no longer puts the count before a full stop ("…: 1."
+    reads as the ordinal "1."): "Ob istem času imajo drugi termini še rezervacije (1). …".
+    Re-shot `f2-occurrence-overlap-390-dark.png` with a second throwaway booking for Marko
+    Kranjc on Monday 2 Nov 07:07 (`9d0c9323-0302-4595-b4fa-c75f3fc3404f`), dialog closed with
+    Escape, booking then cancelled with **Odpovej**; balances equal the snapshot.
 
 ---
 

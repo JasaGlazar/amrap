@@ -115,7 +115,7 @@ export const sl = {
     done: 'Termin je odpovedan, obveščenih strank: {count}.',
     doneEmpty: 'Termin je odpovedan in zaprt.',
     overlapping:
-      'V istem času so še rezervacije drugih terminov: {count}. Ostanejo rezervirane; odpoveste jih lahko posamično z »Odpovej«.',
+      'Ob istem času imajo drugi termini še rezervacije ({count}). Ostanejo rezervirane; odpoveste jih lahko posamično z »Odpovej«.',
   },
   history: {
     appointmentsTitle: 'Termini',

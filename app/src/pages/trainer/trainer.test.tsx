@@ -929,9 +929,7 @@ describe.each<View>(['day', 'week'])('cancelling a whole occurrence in the %s vi
   it('does not warn when nothing else overlaps the occurrence', async () => {
     const dialog = await openOccurrenceDialog();
     await waitFor(() => expect(fakeSupabase.from).toHaveBeenLastCalledWith('appointments'));
-    expect(dialog).not.toHaveTextContent(
-      fill(t.occurrenceDialog.overlapping, { count: 0 }).split('0')[0],
-    );
+    expect(dialog).not.toHaveTextContent(t.occurrenceDialog.overlapping.split('{count}')[0]);
   });
 
   it('leaves out the refund line when nobody was charged', async () => {
