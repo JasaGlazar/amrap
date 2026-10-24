@@ -799,7 +799,13 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   added through the UI (Monday 07:30, 60 min, 5 places: warning shown, then saved inactive),
   id `963619a2-642d-45e6-b701-7440dd52d584`, and deleted by id with psql after checking that no
   appointment or rule referenced it; back to 11 templates. The second warning (390 dark) was
-  cancelled, not saved. The demo has one debtor (Tadej Mlakar, −2), not two, and no inactive
+  cancelled, not saved. After the review fixes the same template was added again through the
+  UI to see them (id `ab00499b-a5cc-4c16-8da3-4da5ebcad322`): the dotted inactive edge and both
+  legend lines at 768 and 1440 in both themes and the inactive row at 390 (`t4-urnik-*`), the
+  focus ring of a lane-0 block drawn over its neighbour, and the edit dialog at 844×390 (a
+  phone held sideways) with the overlap warning, which scrolls inside the window so **Shrani**
+  is reachable (`t4-urnik-dialog-*`; Escape, not saved). Deleted by id the same way; 11
+  templates, none inactive. The demo has one debtor (Tadej Mlakar, −2), not two, and no inactive
   template.
 - Judged beyond the issues:
   - **Brez računa** includes customers with a pending invite (they keep the **Povabilo čaka**
