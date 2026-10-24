@@ -121,6 +121,23 @@ no longer one long column of customer pickers.
 on-demand form and for the per-slot add control.
 **Status**: Complete (PR open)
 
+## Stage 8: Small fixes and data
+**Goal**: Issues #20, #12 and #13 from the 2026-10-24 owner review: the starting-balance label
+without "(s papirja)"; a written data-retention policy with the pg_cron run log pruned to 14
+days and a database size check in the runbook; history lists 10 rows at a time with **Pokaži
+več**. Branch `stage-8-small-data` off `main`.
+**Success Criteria**: the Nova stranka label reads "Začetno stanje kreditov"; `cron.job` has a
+daily `prune_cron_history` that deletes only runs older than 14 days; ADR 0013 states the
+retention per table with measured numbers; the runbook has "Database size check"; customer
+History and the trainer's customer detail show 10 rows per list, then 10 more per press, with a
+loading state, an error line that keeps the rows, and no button at the end.
+**Tests**: Vitest for the label; pgTAP `033_retention.sql` (schedule, grants, 13/15-day runs,
+the exact 14-day boundary, runs that never ended, a second run); Vitest for the paged reads
+(25-row fixture → pages of 10, 10, 5, order and ties) and for each of the four lists (10 → 20 →
+25 with no button, order across pages, loading state, a failed page keeps the rows and
+retries, focus on the first new row).
+**Status**: Complete (PR open)
+
 ## Workflow (from 2026-10-23 evening)
 
 - Orchestrator session runs on Opus. Per stage: a Herdr worktree with a fresh session does the
@@ -648,6 +665,66 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   screenshot mocks an empty customer list in the page (`fetch` patched in the browser); no data
   changed.
 - Left for the owner: the visual review of the PR.
+
+### Handoff state (2026-10-25, Stage 8)
+
+- Branch `stage-8-small-data` off `main` (d22cd71); issues #20, #12, #13 done in that order, one
+  commit each, PR open against `main`, not merged. Vitest 410, `supabase test db` 449,
+  `supabase db lint`, lint, typecheck, build and `check-docs.sh` green. One migration,
+  `20261024193349_data_retention.sql`, applied locally with `supabase migration up --local`
+  (no reset); the hosted push is the orchestrator's after merge.
+- Test first (watched red): #20 the label without "(s papirja)" (`getByLabelText` failed on the
+  old text); #12 `033_retention.sql` failed with `prune_cron_history() does not exist` before
+  the migration; #13 the data tests failed on the missing `./page` module and then on the
+  unpaged results, the page tests failed on every list before `PagedList`.
+- #12 measurements (local stack, demo data, 10,000 rows inserted per table in a rolled-back
+  transaction): appointments 269 B/row, credit_transactions 185, notifications 286,
+  cron.job_run_details 167, auth.audit_log_entries 289; `pg_database_size` 14 MB; pg_cron
+  1.6.4, pg_net 0.20.4 with `pg_net.ttl` 6 hours. Projection in ADR 0013: business data about
+  8 MB a year, the cron log 12 MB a year without pruning and about 0.5 MB with it.
+- Browser check (Vite dev server on 5178, local stack, agent-browser sessions `s8-ana`,
+  `s8-trainer`): `/c/zgodovina` and ana's customer detail at 390, 768 and 1440 px in both
+  themes, each with the button, after one **Pokaži več** and at the end of the list
+  (`t3-history-*`, `t3-detail-*`); at 360 px `scrollWidth` 360 and the button 48 px tall. By
+  keyboard with the ledger request aborted (agent-browser `network route --abort`): the button
+  shows "Nalaganje …" with `aria-disabled` and keeps focus; supabase-js retries a network
+  failure three times (1, 2, 4 s) before the error line appears; the ten rows stay; after
+  unrouting, Enter loads 20 and focus is on row 11 (`t3-history-loading`, `-failed`,
+  `-retried`). Screenshots in the gitignored `.superpowers/shots/`.
+- Demo data: for the check, 16 `cancelled` past appointments for ana (source `trainer`, no
+  template, 1-16 Sept 2026 at 18:00 Ljubljana) and 10 pairs of ledger rows with the note
+  "s8 test" (`topup` +1 at 10:00 and `adjustment` −1 at 10:01, every other day from 2 Sept) were
+  inserted in one transaction, ids recorded, and all 36 deleted again afterwards by id (no
+  notification rows were created: no push subscriptions locally). Ana is back at 9 past
+  appointments, 5 ledger rows, balance 4. **Opravljeni termini** for ana has 4 charged rows in
+  the last 30 days, so its button was not seen in a browser (charged rows were not on the
+  allowed list); it is covered by the Vitest page tests.
+- Judged beyond the issues:
+  - ADR 0013, not 0012: issue #11 reserves 0012 (Workers deploy), so the index has a gap until
+    it lands.
+  - The cron cleanup is a function (`prune_cron_history`, cron-only like
+    `charge_due_appointments`) rather than inline SQL, so pgTAP can test the rows it deletes.
+    03:07 UTC, off the quarter hour. 14 days as the issue says (Supabase's example keeps 7).
+  - `auth.audit_log_entries` is the one log nothing trims (Supabase Auth cleans refresh tokens
+    and expired sessions, not the audit log): 2 rows per token refresh, about 20-70 MB a year
+    depending on app opens. No job writes into `auth`; the runbook's threshold (50 MB) triggers
+    a new ADR.
+  - Paging: one extra row instead of a count, `id` as a tie-break after the time order (one
+    charge run gives equal `created_at`), the first page's `now`/`since` reused for later pages,
+    duplicates skipped by id. The trainer's **Opravljeni termini** keeps its 30-day window and is
+    paged inside it. After an action on customer detail the reload shows the first 10 again.
+  - Loading uses `aria-disabled` (styled like `:disabled`, also added to the hover rules), not
+    `disabled`, so focus stays on the button for a retry; after a page loads, focus moves to the
+    first new row (`tabindex="-1"` on rows), which also covers the button disappearing.
+  - The error line reuses `common.loadFailed`, the loading label `common.loading`; the only new
+    string is `common.showMore`.
+- Project `reviewer`: approve with fixes, no Critical or Important. All four Minor items done
+  in 7285d74: two links to `jobs.md#prune_cron_history-daily`, the docs index lists the new job,
+  ADR 0013 has the local size of every listed relation, and a page that arrives after a reload
+  no longer leaves a row waiting for focus.
+- Owner actions: none new. After merge the release checklist expects the fourth cron job
+  (`prune_cron_history`, `7 3 * * *`) on the hosted project; the first monthly "Database size
+  check" records the hosted baseline.
 
 ---
 
