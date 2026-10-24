@@ -5,7 +5,7 @@
 | [../CONTEXT.md](../CONTEXT.md) | Domain language and business rules |
 | [harness.md](harness.md) | Repo conventions and gates (docs 1:1, ADRs, diagrams, skills, reviewer, pgTAP and Deno testing) |
 | [pilot.md](pilot.md) | The trial week: owner prerequisites, the trainer's first-day setup and daily check (Slovenian), text for customers, what the owner watches, how to report problems |
-| [runbook.md](runbook.md) | Operations: unpause, bootstrap trainer, invite and re-link a customer, deploy migrations and the edge function, database size check, turn on push, Cloudflare Pages |
+| [runbook.md](runbook.md) | Operations: unpause, bootstrap trainer, invite and re-link a customer, deploy migrations and the edge function, database size check, turn on push, Cloudflare Workers deploy |
 | [adr/](adr/README.md) | Architecture decision records |
 | [schema.md](schema.md) | Tables (including the `notifications` log), columns, constraints, indexes, RLS, grants, views `customer_balances` and `slot_occupancy`, helpers, migrations list |
 | [rpcs.md](rpcs.md) | RPC reference: `book`, `cancel`, `top_up`, `adjust`, `create_invite`, `accept_invite`, `charge_due_appointments`, `materialize_recurring`, `activate_rule`, `deactivate_rule`, `send_cutoff_reminders`, `prune_cron_history`, `claim_notifications`, `save_push_subscription`, error tokens, helpers (including the notification triggers) |

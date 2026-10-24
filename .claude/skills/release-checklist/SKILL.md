@@ -1,6 +1,6 @@
 ---
 name: release-checklist
-description: Use after an AMRAP stage PR is merged to main, to release it to the hosted project - confirm the merge and CI, push migrations from main, verify migrations, cron and pg_net, deploy the send-push edge function when it changed, check the Cloudflare Pages deploy, smoke-test both roles at phone width, and record the release. Not for feature branches.
+description: Use after an AMRAP stage PR is merged to main, to release it to the hosted project - confirm the merge and CI, push migrations from main, verify migrations, cron and pg_net, deploy the send-push edge function when it changed, deploy and check the app on Cloudflare Workers, smoke-test both roles at phone width, and record the release. Not for feature branches.
 ---
 
 # Release checklist
@@ -86,18 +86,38 @@ The curl answers `{"error":"unauthorized"}` (the function's own 401). Any other 
 gateway: see the `apikey` note in runbook "Turn on push notifications". New function secrets,
 if the release needs any, are set before the deploy (runbook).
 
-## 6. Check the Cloudflare Pages deploy
+## 6. Deploy and check the app on Cloudflare Workers
 
-Cloudflare dashboard, the Pages project, Deployments: the production deployment for the merge
-commit has finished successfully. Then open the production URL on a phone (or at 360 px):
+Only after step 3: the new build calls the RPCs the pushed migrations add. Runbook "Cloudflare
+Workers deploy" has the build environment and the details; in short:
 
-- the app loads (no start-up error page);
-- a deep link such as `/invite/test` loads the app, not a 404;
+```sh
+cd "$(git rev-parse --show-toplevel)/app" && npm ci && npm run build   # needs app/.env.production.local
+grep -q etzkbwqgjuipihypokjp dist/assets/*.js \
+  || { echo "build is not for the hosted project: write app/.env.production.local first" >&2; false; }
+
+cd "$(git rev-parse --show-toplevel)/app/deploy" && npm ci
+cf auth whoami                             # the owner's account
+if grep -q etzkbwqgjuipihypokjp ../dist/assets/*.js; then
+  cf deploy --message "<stage> <merge commit>"
+else
+  echo "not deployed: the build is not for the hosted project" >&2
+fi
+```
+
+Never run `cf` project commands in `app/` itself, only in `app/deploy/`. Then check:
+
+- `curl -sI <url>/invite/test` is `200` (the app shell), `<url>/sw.js` has
+  `Cache-Control: public, max-age=0, must-revalidate`, and a hashed `/assets/*.js` is served as
+  JavaScript, not `text/html`;
+- on a phone (or at 360 px) the app loads (no start-up error page) and a deep link such as
+  `/invite/test` loads the app, not a 404;
 - after one reload the new service worker is active (Chrome DevTools, Application, Service
   workers, or simply: the change from this release is visible).
 
-If an environment variable changed in the release (`VITE_*`), it is set for Production and
-Preview and a new deployment was triggered (Vite inlines them at build time).
+If an environment variable changed in the release (`VITE_*`), it is in
+`app/.env.production.local` before the build (Vite inlines them at build time). If the deploy
+is bad, roll back to the previous version (runbook "Roll back").
 
 ## 7. Smoke-test both roles
 
@@ -119,7 +139,7 @@ Release <stage>, <date>
 - merge commit: <sha>
 - migrations pushed: <files> (verified: versions, cron.job, pg_net)
 - send-push deployed: yes/no (<why>)
-- Pages: <deployment id or URL>, deep link ok
+- Workers: <version id>, <url>, deep link and sw.js ok
 - smoke test: customer book/cancel ok, trainer +1/-1 ok, notifications ok/not checked
 - notes: <anything odd>
 ```

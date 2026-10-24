@@ -8,7 +8,7 @@ with an ADR.
 
 These constraints bind every task and are what the reviewer checks against (alongside `PLAN.md`).
 
-- Supabase Free Plan and Cloudflare Pages free tier only. No paid add-ons, no custom SMTP.
+- Supabase Free Plan and Cloudflare Workers Free plan only. No paid add-ons, no custom SMTP.
 - Ledger-first: no mutable balance column; balance = `SUM(credit_transactions.amount)`.
 - All credit and capacity mutations go through `SECURITY DEFINER` RPCs with explicit role checks.
 - Partial unique index on `credit_transactions(appointment_id) WHERE type IN ('session','late_cancel')`.
@@ -93,7 +93,8 @@ comments: its SQL statements stay byte-identical.
 
 One ADR per decision, in `docs/adr/NNNN-kebab-title.md`, with Status, Date, Context, Decision
 and Consequences. An ADR is never deleted: a changed decision gets a new ADR and the old one is
-marked `Superseded by NNNN`. Add the ADR to the index in `docs/adr/README.md`.
+marked `Superseded by NNNN` (`Superseded in part by NNNN` when only part changes). Add the ADR
+to the index in `docs/adr/README.md`.
 
 ## Diagram rule
 
@@ -115,7 +116,7 @@ Project skills live in `.claude/skills/<name>/SKILL.md`.
 | Skill | Use when |
 |---|---|
 | `new-migration` | Any change under `supabase/migrations/`: create the file with `supabase migration new`, failing pgTAP test first, `supabase db reset` + `supabase test db` + `supabase db lint`, update `docs/schema.md` / `docs/rpcs.md` / `docs/jobs.md` and the affected diagram, regenerate `app/src/lib/database.types.ts`, commit together. |
-| `release-checklist` | After a stage PR is merged to `main`: confirm the merge and CI, `supabase db push` from `main`, verify migrations, `cron.job` and pg_net, deploy `send-push` only when `supabase/functions/` changed, check the Pages deploy, smoke-test both roles at phone width, record the release on the PR. The steps' details stay in `docs/runbook.md`. |
+| `release-checklist` | After a stage PR is merged to `main`: confirm the merge and CI, `supabase db push` from `main`, verify migrations, `cron.job` and pg_net, deploy `send-push` only when `supabase/functions/` changed, deploy and check the app on Cloudflare Workers, smoke-test both roles at phone width, record the release on the PR. The steps' details stay in `docs/runbook.md`. |
 
 ## Reviewer gate
 

@@ -10,3 +10,5 @@ supabase/.branches/
 .DS_Store
 coverage/
 dev-dist/
+.cloudflare/
+.wrangler/

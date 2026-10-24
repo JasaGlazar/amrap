@@ -18,7 +18,16 @@ const noHardcodedUiStrings = [
 ];
 
 export default tseslint.config(
-  { ignores: ['dist', 'dev-dist', 'coverage', 'src/lib/database.types.ts'] },
+  {
+    ignores: [
+      'dist',
+      'dev-dist',
+      'coverage',
+      'src/lib/database.types.ts',
+      'deploy/.cloudflare',
+      'deploy/.wrangler',
+    ],
+  },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

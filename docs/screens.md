@@ -792,13 +792,13 @@ How the guards and the auth state work is in [auth.md](auth.md).
   Supabase Auth error code into Slovenian copy; anything else gets `genericError`.
 - **Environment.** `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are required. Without
   them `start.tsx` shows a start-up error page (`startupError`) naming the missing variable
-  instead of a blank page ([runbook.md](runbook.md#cloudflare-pages-build-settings)).
+  instead of a blank page ([runbook.md](runbook.md#cloudflare-workers-deploy)).
 - **PWA.** A custom service worker (`src/sw.ts`, vite-plugin-pwa `injectManifest`) precaches the
   build, serves `index.html` for every navigation (deep links work offline), updates itself
   (`skipWaiting` + `clientsClaim`, the `autoUpdate` behaviour) and shows push notifications
   ([notifications.md](notifications.md#service-worker)). `display: standalone`, manifest
   language `sl`, icons 192 and 512 px (the framed wordmark on black), the font precached so
   the app looks the same offline. The [install card](#install-card) guides installing it.
-  Cloudflare Pages falls back to `index.html` for unknown paths natively;
-  `app/public/_redirects` is a belt-and-braces measure
-  ([runbook.md](runbook.md#cloudflare-pages-build-settings)).
+  The Worker answers a path with no file with `index.html` (`notFoundHandling:
+  "single-page-application"`), so deep links work on the first visit too
+  ([runbook.md](runbook.md#cloudflare-workers-deploy)).

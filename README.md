@@ -12,7 +12,7 @@ The design is in [PLAN.md](PLAN.md); the domain vocabulary is in [CONTEXT.md](CO
 | Path | Contents |
 |---|---|
 | `supabase/` | migrations, seeds, pgTAP tests, edge functions |
-| `app/` | Vite + React + TypeScript PWA |
+| `app/` | Vite + React + TypeScript PWA; `app/deploy/` holds its Cloudflare Workers deploy config |
 | `docs/` | harness conventions, runbook, ADRs, architecture diagrams, component docs |
 | `.claude/agents/`, `.claude/skills/` | project reviewer agent and skills |
 | `scripts/` | repo scripts (`check-docs.sh`: migrations and functions must be documented; `test-functions.sh`: edge function checks) |
@@ -72,4 +72,4 @@ The local seed (`supabase/seeds/dev.sql`) signs in as `trainer@amrap.local` or
 ## Operations
 
 Unpausing the free-tier project, bootstrapping the trainer, deploying migrations and
-Cloudflare Pages settings are in [docs/runbook.md](docs/runbook.md).
+deploying the app to Cloudflare Workers are in [docs/runbook.md](docs/runbook.md).

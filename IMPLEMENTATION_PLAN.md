@@ -6,7 +6,7 @@ off stage N until it merges.
 
 ## Global Constraints
 
-- Supabase Free Plan and Cloudflare Pages free tier only. No paid add-ons, no custom SMTP.
+- Supabase Free Plan and Cloudflare Workers Free plan only. No paid add-ons, no custom SMTP.
 - Ledger-first: no mutable balance column; balance = `SUM(credit_transactions.amount)`.
 - All credit/capacity mutations go through `SECURITY DEFINER` RPCs with explicit role checks.
 - Partial unique index on `credit_transactions(appointment_id) WHERE type IN ('session','late_cancel')`.
@@ -222,6 +222,23 @@ only, trimmed, blank not sent), both history rows with and without a reason, the
 hidden on **Zaprto**, dialog content with and without charged bookings, reason passed, success
 line and **Zaprto**, empty occurrence, server error, Escape and focus).
 **Status**: Complete (PR open)
+
+## Stage 12: First release on Cloudflare Workers static assets
+**Goal**: Issue #11: host the app as an assets-only Cloudflare Worker on the free
+`*.workers.dev` address (Workers Free plan) instead of Cloudflare Pages, deploy it with the
+owner's `cf` login, and move the docs from Pages to Workers. Branch `stage-12-release` off
+`main` (84554c1, after Stage 11). No app feature work and no DB changes.
+**Success Criteria**: the deploy config is committed (`app/deploy/`: Worker `amrap`, assets from
+`app/dist`, SPA fallback, no script, no bindings); the production build carries only the public
+values from the gitignored `app/.env.production.local`; deep links (`/invite/test`) answer
+`200` with the app shell, `sw.js` and the hashed assets are served as JavaScript with
+revalidating cache headers; ADR 0012 (superseding the Pages part of ADR 0005), the runbook's
+"Cloudflare Workers deploy", the `release-checklist` step 6 and the constraint wording are
+updated; issue #2's Pages line points at #11; nothing billable was touched.
+**Tests**: no code under test changed. Lint, typecheck, Vitest, build and `check-docs.sh` as
+before; `cf deploy --dry-run` from `app/deploy/`; the build served locally by `cf dev`
+(Wrangler's local runtime) checked with curl and agent-browser.
+**Status**: Complete except the live deploy (PR open; see the handoff)
 
 ## Workflow (from 2026-10-23 evening)
 
@@ -1137,6 +1154,104 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
     Re-shot `f2-occurrence-overlap-390-dark.png` with a second throwaway booking for Marko
     Kranjc on Monday 2 Nov 07:07 (`9d0c9323-0302-4595-b4fa-c75f3fc3404f`), dialog closed with
     Escape, booking then cancelled with **Odpovej**; balances equal the snapshot.
+
+### Handoff state (2026-10-25, Stage 12)
+
+- Branch `stage-12-release` off `main` (84554c1, after Stage 11): one commit for the deploy
+  config and its docs (a4cc9cd), one for the constraint wording and the release checklist
+  (70cead4), a review-fix commit (ea77aea), this plan commit (fd36e78) and the fix list 1
+  commit; PR #26 open against `main`, not merged. Vitest 571, lint, typecheck, build and
+  `check-docs.sh` green; no migration, so pgTAP was not rerun.
+- **Not live yet.** `cf auth whoami` showed the owner's account, and `cf deploy --dry-run` in
+  `app/deploy/` passed (it read 16 entries, no bindings), but the session's permission system
+  refused the real `cf deploy` as a production deploy. It was not retried or worked around. The
+  orchestrator or the owner runs it (runbook "Cloudflare Workers deploy": write
+  `app/.env.production.local`, build, then `cf deploy` in `app/deploy/` behind the
+  hosted-project check), then the curl checks there. `cf workers list` was empty, so this is the
+  account's first Worker; whether it already has a workers.dev subdomain is unknown (`cf` has no
+  command for it), and if the deploy reports none, the owner registers the free one in the
+  dashboard and runs `cf workers triggers deploy`.
+- Research (Context7, Cloudflare docs; links in ADR 0012): SPA fallback is
+  `not_found_handling = "single-page-application"` (`assets.notFoundHandling` in `cf`'s
+  config), no Worker script needed; `_redirects`/`_headers` are honoured, and redirects apply
+  whether or not an asset matches, so the Pages-era `/* /index.html 200` was deleted; every
+  asset gets `Cache-Control: public, max-age=0, must-revalidate` plus an `ETag`, enough for
+  `index.html` and `sw.js`, so no `_headers`; static asset requests are free and unlimited,
+  Free allows 20,000 files of 25 MiB per version and errors rather than bills; custom domains
+  on Workers need the domain's nameservers on Cloudflare.
+- Why `app/deploy/` and not `app/wrangler.jsonc`: `cf deploy` reads only `cloudflare.config.ts`
+  (plus `wrangler.config.ts` for the Wrangler bundler). In `app/` it saw `vite.config.ts`, ran
+  `vite build` and failed waiting for the Cloudflare Vite plugin's Build Output ("no root
+  config found at .cloudflare/output/v0/config.json"), changing no files; adopting that beta
+  plugin would change the PWA build. A scratch probe showed `cf`'s automatic setup for a plain
+  static site (it installs `cf` and `wrangler`, writes both config files, turns observability
+  on). `app/deploy/` is that setup by hand, with the SPA setting added, observability left
+  off, the versions pinned exactly and `workerd`'s install script off like esbuild's. Wrangler
+  itself was not an option: it was not logged in, `cf` does not share its OAuth, and no token
+  may be created.
+- Build: the anon key went straight from `supabase projects api-keys -o json | jq` into
+  `app/.env.production.local` (only key names and the value's length were printed;
+  `git check-ignore` confirms the file is ignored). `VITE_VAPID_PUBLIC_KEY` is empty (push is
+  not live, #5). The bundle contains the hosted project URL and not the local stack's.
+- Test-first: this stage has no code target; the evidence is the checks against the served
+  build. `cf dev` in `app/deploy/` (on 8787: it does not forward `--port`): `/`,
+  `/invite/test`, `/c/zgodovina` 200 `text/html`; `/sw.js`, `/registerSW.js` and a hashed
+  `/assets/*.js` 200 `text/javascript`; manifest and icons 200; every response `public,
+  max-age=0, must-revalidate` with an `ETag`; `/_redirects` is not served (SPA fallback).
+  agent-browser (session `s12-release`): `/invite/test` renders **Nov račun**; a sign-in with
+  `nobody@example.com` and a wrong password went to
+  `etzkbwqgjuipihypokjp.supabase.co/auth/v1/token` and showed **Napačen e-poštni naslov ali
+  geslo.**; the service worker `/sw.js` is active; 360 px `scrollWidth` 360. Screenshots
+  `release-login-{390,1440}-{light,dark}.png` and `release-invite-390-light.png` in
+  `.superpowers/shots/` (local server, not the live URL).
+- Judged beyond the issue:
+  - `PLAN.md` (the owner's design source) still says Cloudflare Pages; ADR 0012 supersedes it
+    and the constraint lines changed, but the design doc was left as written.
+  - ADRs 0009 and 0010 mention Pages in passing and stay as written (ADRs are not edited).
+  - `app/src/lib/supabase.ts`: the developer error for missing variables named the Pages
+    dashboard; it now names `app/.env.production.local` (no test pins the text; the start-up
+    page copy in `sl.ts` is unchanged).
+  - The ADR index's status vocabulary gained `Superseded in part by NNNN`.
+  - `npm audit` in `app/deploy/` reports 8 advisories (undici, zod via `cf`/`miniflare`); they
+    are local deploy tooling only, nothing ships in the bundle.
+  - The runbook asks for the deploy only after `supabase db push`: a build of `main` calls the
+    RPCs of its own migrations.
+  - The Stage 3 and Stage 4 owner-action lists above still say "Cloudflare Pages" for
+    `VITE_VAPID_PUBLIC_KEY` and the deploy; they are kept as written (the brief limits this file
+    to the constraint wording), and the runbook's "Turn on push notifications" step 5 and
+    "Cloudflare Workers deploy" are the current steps.
+  - `.claude/agents/reviewer.md` still checks against `PLAN.md`, which says Pages; a one-line
+    pointer to ADR 0012 there is the owner's call.
+- Project `reviewer`: approve with fixes, no Critical. Done in the review-fix commit: the
+  `Superseded in part by NNNN` status in the ADR README intro and `harness.md`, the file count
+  (15) and the `_headers`/`_redirects` wording in ADR 0012, and a guard in the runbook so an
+  empty anon key stops the env file being written. Its other points are noted above (Stage
+  3/4 owner lists, `PLAN.md`); the PR says "Part of #11", not "Closes", since nothing is live.
+- Owner and orchestrator actions:
+  - Run the deploy above (or allow it in the session's permissions) and the checks; record the
+    workers.dev URL and version id in #11.
+  - Push the three pending migrations first (`20261024193349_data_retention`,
+    `20261024221416_trainer_cancel_reason`, `20261024222414_cancel_occurrence`): the build
+    calls `cancel` with `p_reason` and `cancel_occurrence`, which the hosted DB lacks until then.
+  - Supabase dashboard, Authentication, URL Configuration: Site URL and Redirect URLs to the
+    workers.dev URL.
+  - The rest of #2 (Confirm email off, trainer bootstrap, phone test) and #5 (VAPID secrets,
+    `send-push` deploy, Vault rows, then `VITE_VAPID_PUBLIC_KEY` and a new build).
+  - Choose a domain; it needs its nameservers on Cloudflare (a free zone) to become a custom
+    domain on the Worker.
+  - Optional: a Cloudflare API token as a repo secret for GitHub Actions deploys (runbook
+    "Later: deploy from GitHub Actions"); the workflow is documented, not added.
+- Fix list 1 done (`.superpowers/fixes-1.md`, docs only): every runbook block in "Cloudflare
+  Workers deploy" (env file, build, deploy, check, roll back) and the release-checklist step 6
+  starts with `cd "$(git rev-parse --show-toplevel)/…"`, so each pastes into a fresh terminal
+  (all five parse in zsh and bash); the build stops with a message when the bundle lacks the
+  hosted project ref, and the deploy runs only behind that check, so a missing
+  `app/.env.production.local` cannot ship a build aimed at `127.0.0.1`; the anon-key snippet
+  uses `if` instead of `exit 1` and names `jq` and `supabase login`; the runbook says the global
+  `cf` hands off to the pinned local one in `app/deploy/` and that re-running `cf deploy` after
+  registering the subdomain should work too. The owner's email and account id left this note
+  (they remain in the history of fd36e78). Issue #2's Auth line now names the workers.dev URL
+  (#11); the PR body no longer relies on this worktree's env file.
 
 ---
 

@@ -1,7 +1,8 @@
 # App structure
 
-The customer and trainer app in `app/`: a Vite + React single-page PWA, deployed to
-Cloudflare Pages ([runbook.md](runbook.md#cloudflare-pages-build-settings)). Routes and
+The customer and trainer app in `app/`: a Vite + React single-page PWA, served by an
+assets-only Cloudflare Worker ([runbook.md](runbook.md#cloudflare-workers-deploy),
+[ADR 0012](adr/0012-cloudflare-workers-static-assets.md)). Routes and
 screens are in [screens.md](screens.md), sign-in and role gating in [auth.md](auth.md).
 
 ## Folders
@@ -21,7 +22,8 @@ screens are in [screens.md](screens.md), sign-in and role gating in [auth.md](au
 | `src/lib/` | `supabase.ts` (the one client; retries a `PGRST303` answer once, [auth.md](auth.md#token-refused-as-issued-in-the-future)), `database.types.ts` (generated), `keepAlive.ts`, `time.ts` ([time.md](time.md)), `customerSearch.ts` (Stranke search and filters, [screens.md](screens.md#customers-tstranke)), `schedule.ts` (template minutes, the week grid's axis and lanes, the overlap check, [time.md](time.md#formatting)), `useMediaQuery.ts` (`useMediaQuery(query)` over `matchMedia`, false where it is missing as in jsdom; `wideScreen` is the 768 px query, `weekGrid` the 1024 px one that switches the trainer Koledar from its day view to its week grid; tests stub `window.matchMedia` to choose a view), `useLoad.ts`, `device.ts` (`deviceEnvironment()`: iOS, Android, standalone; used by push support and the install card). |
 | `src/test/` | `fakeSupabase.ts`, `fakePush.ts` (a fake `PushPlatform`), `fakeInstall.ts` (a fake `InstallPlatform`, a prompt event, in-memory storage) and the Vitest setup (`setup.ts`: jest-dom matchers; after each test it unmounts, clears `localStorage` and removes `data-theme` from `<html>`). |
 | `src/styles.css` | Plain CSS for the whole app: the two `@font-face` rules ([Font](#font)), the colour tokens and both themes, then the components. |
-| `public/` | The gym logo, the wordmark and the icons cut from it ([Brand assets](#brand-assets)), and `_redirects` (SPA fallback). |
+| `public/` | The gym logo, the wordmark and the icons cut from it ([Brand assets](#brand-assets)). The SPA fallback is a Worker setting, not a file. |
+| `deploy/` | The Cloudflare deploy package, apart from the app's own: `cloudflare.config.ts` (Worker `amrap`, the SPA setting), `wrangler.config.ts` (assets from `../dist`) and `package.json` pinning `cf` and `wrangler`. No Vite config here, so `cf deploy` uploads the app's build as it is ([runbook.md](runbook.md#cloudflare-workers-deploy)). |
 
 `start.tsx` takes `RouterProvider` from `react-router`, not `react-router/dom`, so the app and
 the tests render the same component (the `/dom` variant only adds `flushSync` for transitions).
