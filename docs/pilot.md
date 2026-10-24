@@ -47,13 +47,15 @@ Vse na telefonu, v aplikaciji AMRAP, prijavljeni kot trener. Papirnati list imej
    »Zgodovina kreditov« vrstica z opombo »Začetno stanje (papir)«. Če se pokaže sporočilo, da
    začetnega stanja ni bilo mogoče vpisati, sta število in opomba v razdelku »Krediti« že
    izpolnjena: tapnite »Dodaj kredite« (pozitivno) ali »Popravi stanje« (negativno).
-5. **Stalni termini** (na strani stranke): izberite termin in tapnite »Dodaj stalni termin«.
+5. **Stalni termini** (na strani stranke): tapnite »Dodaj stalni termin«, izberite termin in
+   znova tapnite »Dodaj stalni termin«.
    Aplikacija takoj rezervira ta termin za naslednje 4 tedne (sporočilo pove, koliko terminov).
 6. **Povabilo** (na strani stranke, za vsako stranko, ki bo uporabljala aplikacijo): »Ustvari
    povabilo«, nato »Kopiraj« in povezavo pošljite stranki (SMS, WhatsApp) skupaj z besedilom
    spodaj. Povezava velja 7 dni; novo povabilo razveljavi prejšnje.
 7. Stranke brez aplikacije ostanejo v aplikaciji kot zapis: njihove termine dodajate vi
-   (**Koledar**, izberite stranko pri terminu in »Dodaj«) in jih tudi odpoveste vi.
+   (**Koledar**, pri terminu »Dodaj stranko«, izberite stranko in »Dodaj«) in jih tudi
+   odpoveste vi.
 
 Na koncu primerjajte **Stranke** (stanje vsake stranke) s papirnatim listom.
 

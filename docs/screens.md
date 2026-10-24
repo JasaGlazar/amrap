@@ -292,7 +292,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 ## Forms on demand
 
 A form that creates something, or edits details that rarely change, is not on the screen
-until it is asked for (`pages/shared/OnDemand.tsx`). Where it is used: **Nov termin**
+until it is asked for (`pages/shared/OnDemand.tsx`,
+[ADR 0011](adr/0011-responsive-navigation-and-on-demand-forms.md)). Where it is used: **Nov termin**
 (Urnik), **Novo zaprto obdobje** (Zaprta obdobja), **Nova stranka** (Stranke, at the page
 title), **Nov termin po dogovoru** (Koledar, at the page title), **Dodaj stalni termin** and
 **Uredi podatke** (customer detail; the latter a secondary button without `+`), and **Dodaj
@@ -318,7 +319,8 @@ occurrence of the trainer calendar (a small secondary button at the right of the
 
 `AppShell` renders one `nav` (named `nav.customerLabel` or `nav.trainerLabel`) inside the top
 bar, between the wordmark and the account menu; CSS alone places it, so tests and screen
-readers find one navigation at every width.
+readers find one navigation at every width
+([ADR 0011](adr/0011-responsive-navigation-and-on-demand-forms.md)).
 
 - **From 768 px:** the links sit in the top bar on one line after the wordmark, left aligned;
   the account menu stays at the right end. The bar spans the window with a 1 px `--line` edge
