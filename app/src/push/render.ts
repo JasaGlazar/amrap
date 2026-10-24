@@ -59,6 +59,18 @@ export function renderNotification(kind: string, data: Data): Omit<RenderedNotif
         tag,
       };
     }
+    case 'appointment_cancelled_by_trainer': {
+      if (!when) break;
+      const cancelled = fill(sl.push.trainerCancelledBody, when);
+      const body =
+        data.refunded === true ? fill(sl.push.withRefund, { body: cancelled }) : cancelled;
+      const reason = textOf(data.reason);
+      return {
+        title: sl.push.trainerCancelledTitle,
+        body: reason ? fill(sl.push.withReason, { body, reason }) : body,
+        tag,
+      };
+    }
     case 'credit_topup':
     case 'credit_adjustment': {
       if (typeof data.amount !== 'number' || typeof data.balance !== 'number') break;
@@ -66,7 +78,7 @@ export function renderNotification(kind: string, data: Data): Omit<RenderedNotif
         amount: formatAmount(data.amount),
         balance: data.balance,
       });
-      const note = typeof data.note === 'string' && data.note.trim() !== '' ? data.note : null;
+      const note = textOf(data.note);
       return {
         title: kind === 'credit_topup' ? sl.push.topupTitle : sl.push.adjustmentTitle,
         body: note ? fill(sl.push.withNote, { body, note }) : body,
@@ -79,6 +91,10 @@ export function renderNotification(kind: string, data: Data): Omit<RenderedNotif
 
 function generic(): RenderedNotification {
   return { title: sl.push.genericTitle, body: sl.push.genericBody, tag: 'generic', url: '/' };
+}
+
+function textOf(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value : null;
 }
 
 function isData(value: unknown): value is Data {

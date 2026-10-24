@@ -78,8 +78,47 @@ describe('renderNotification', () => {
     });
   });
 
+  it('tells the customer the trainer cancelled, without a refund or a reason', () => {
+    const data = {
+      appointment_id: appointmentId,
+      starts_at: startsAt,
+      timezone: tz,
+      refunded: false,
+      reason: null,
+    };
+    expect(renderNotification('appointment_cancelled_by_trainer', data)).toEqual({
+      title: t.push.trainerCancelledTitle,
+      body: fill(t.push.trainerCancelledBody, when(startsAt)),
+      tag: `appointment_cancelled_by_trainer:${appointmentId}`,
+    });
+  });
+
+  it('adds the refund and then the reason to a trainer cancel', () => {
+    const data = {
+      appointment_id: appointmentId,
+      starts_at: startsAt,
+      timezone: tz,
+      refunded: true,
+      reason: 'Bolezen trenerja',
+    };
+    const body = fill(t.push.withRefund, {
+      body: fill(t.push.trainerCancelledBody, when(startsAt)),
+    });
+    expect(renderNotification('appointment_cancelled_by_trainer', data).body).toBe(
+      fill(t.push.withReason, { body, reason: 'Bolezen trenerja' }),
+    );
+  });
+
+  it('leaves out a blank reason', () => {
+    const data = { appointment_id: appointmentId, starts_at: startsAt, timezone: tz, reason: ' ' };
+    expect(renderNotification('appointment_cancelled_by_trainer', data).body).toBe(
+      fill(t.push.trainerCancelledBody, when(startsAt)),
+    );
+  });
+
   it.each([
     ['an unknown kind', 'something_new', { starts_at: startsAt }],
+    ['a trainer cancel without a start', 'appointment_cancelled_by_trainer', { refunded: true }],
     ['a reminder without dates', 'cutoff_reminder', { appointment_id: appointmentId }],
     ['a booking with a broken date', 'booking_created', { starts_at: 'yesterday' }],
     ['a top-up without a balance', 'credit_topup', { amount: 1 }],

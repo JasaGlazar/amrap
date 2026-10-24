@@ -419,6 +419,10 @@ is a question below.
 | `push.adjustmentTitle` | Popravek stanja kreditov |  |
 | `push.adjustmentBody` | Popravek: {amount}. Novo stanje: {balance}. |  |
 | `push.withNote` | {body} Opomba: {note} |  |
+| `push.trainerCancelledTitle` | Termin je odpovedan | Novo (Stage 11): naslov obvestila stranki, ko trener odpove njen termin. |
+| `push.trainerCancelledBody` | Trener je odpovedal termin {day} ob {time}. | Novo (Stage 11). Primer: »Trener je odpovedal termin ponedeljek, 26. oktober ob 07:00.« |
+| `push.withRefund` | {body} Kredit je vrnjen. | Novo (Stage 11): doda se, ko je bil termin že zaračunan in je kredit vrnjen. |
+| `push.withReason` | {body} Razlog: {reason} | Novo (Stage 11): doda se na konec, ko je trener vpisal razlog. |
 | `push.genericTitle` | AMRAP |  |
 | `push.genericBody` | Imate novo obvestilo. |  |
 | `pushToggle.title` | Obvestila |  |

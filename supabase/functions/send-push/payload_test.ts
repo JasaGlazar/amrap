@@ -23,6 +23,7 @@ Deno.test('every kind sends its kind, data and the screen to open', () => {
     ['booking_cancelled', '/t'],
     ['credit_topup', '/c/zgodovina'],
     ['credit_adjustment', '/c/zgodovina'],
+    ['appointment_cancelled_by_trainer', '/c/zgodovina'],
   ];
   for (const [kind, url] of cases) {
     const data = { appointment_id: appointmentId, cutoff_at: '2026-10-24T11:00:00Z', amount: 1 };
@@ -66,6 +67,7 @@ Deno.test('other kinds live a day at normal urgency without a topic', () => {
       'booking_cancelled',
       'credit_topup',
       'credit_adjustment',
+      'appointment_cancelled_by_trainer',
     ] as const
   ) {
     const push = buildPush(row(kind, { appointment_id: appointmentId }), now);

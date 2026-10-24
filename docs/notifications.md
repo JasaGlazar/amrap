@@ -66,7 +66,7 @@ The encrypted payload is JSON with no display text, so all copy stays in the app
 |---|---|---|---|---|
 | `cutoff_reminder` | `/c` | seconds until `data.cutoff_at` (0 when passed or missing) | `high` | the appointment id without dashes (32 characters), so a newer reminder replaces an undelivered older one |
 | `booking_created`, `booking_cancelled` | `/t` | 24 hours | `normal` | none |
-| `credit_topup`, `credit_adjustment` | `/c/zgodovina` | 24 hours | `normal` | none |
+| `credit_topup`, `credit_adjustment`, `appointment_cancelled_by_trainer` | `/c/zgodovina` (the trainer cancel's reason is shown there) | 24 hours | `normal` | none |
 
 A reminder that expires at the cutoff is never delivered after it, when it would be useless.
 
@@ -86,7 +86,9 @@ and registered by the plugin's `registerSW.js`:
   url}` and renders title and body from `sl.push.*` with the times in `data.timezone` (the
   device's zone if missing). A reminder shows the start and the cutoff (time only when the
   cutoff is the same day, else day and time); booking notifications the customer's name and
-  start, with a separate title for a late cancel; credit notifications the signed amount and the
+  start, with a separate title for a late cancel; a trainer cancel the start
+  (`push.trainerCancelledBody`), then `push.withRefund` when `refunded` and `push.withReason`
+  last when the reason is not blank; credit notifications the signed amount and the
   new balance, plus the note when there is one. An unknown kind, missing fields or a payload
   that is not JSON shows `push.genericTitle` / `push.genericBody`. The tag is
   `<kind>:<appointment or transaction id>`, so a repeated notification replaces the earlier one.
