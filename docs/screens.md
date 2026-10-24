@@ -236,8 +236,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Termini v tednu** (tab **Urnik**): each template as `{weekday} ob {time} · {minutes} min · {places}`, the
   capacity in its Slovenian plural form (`settings.places`: 1 mesto, 2 mesti, 3 mesta, 5 mest),
   inactive ones greyed with a `neaktiven` tag right after the text, each with **Uredi** (the
-  form inline). The form
-  (also **Nov termin** below the list): weekday, start time, duration in minutes, capacity and
+  form inline). **Nov termin** at the right of the section heading opens the same form empty
+  ([on demand](#forms-on-demand)): weekday, start time, duration in minutes, capacity and
   an active checkbox. Validation: start time required, duration and capacity positive whole
   numbers (`settings.durationInvalid`, `settings.capacityInvalid`). There is no delete: a
   template that has appointments or rules cannot be deleted, so it is deactivated (customers no
@@ -254,8 +254,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   more (`settings.cutoffInvalid`). It applies to every later cancel and to the customers'
   cancel dialog.
 - **Zaprta obdobja** (tab **Zaprta obdobja**): upcoming blocked periods with their range and reason, each with
-  **Uredi** and **Izbriši** (deletes at once) on one line at the right; the text wraps. The
-  form (also **Novo zaprto obdobje**): from date and time, to date and time (in the gym
+  **Uredi** and **Izbriši** (deletes at once) on one line at the right; the text wraps.
+  **Novo zaprto obdobje** at the right of the section heading opens the same form empty
+  ([on demand](#forms-on-demand)): from date and time, to date and time (in the gym
   timezone, via `zonedInstant`) and an optional reason; a time that does not exist that day or an end not after the start is rejected
   (`trainer.invalidTime`, `trainer.invalidRange`). A new block does not cancel appointments
   already booked in it; `book()` and materialization reject or skip later ones. So saving a new
@@ -267,6 +268,26 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   nothing; **Prekliči** on an edit clears the warning, so the next save counts again.
 - **Obvestila** (tab **Obvestila**): the notifications toggle with the trainer hint
   (`pushToggle.trainerHint`).
+
+## Forms on demand
+
+A form that creates something, or edits details that rarely change, is not on the screen
+until it is asked for (`pages/shared/OnDemand.tsx`). Where it is used: **Nov termin**
+(Urnik), **Novo zaprto obdobje** (Zaprta obdobja).
+
+- **Closed:** one button named after the action, at the right of the heading the form belongs
+  to (a primary button with a `+` for "new" actions). On a narrow screen it wraps below the
+  heading.
+- **Open:** pressing it replaces the button with the form, as a card under the heading,
+  above the list; focus moves to the form's first field. The form has **Prekliči** next to
+  its submit button.
+- **Prekliči** closes it, drops what was typed (the next open starts empty) and returns focus
+  to the button.
+- **A successful save** closes it, returns focus to the button and shows the screen's usual
+  result notice (`settings.saved`, …). A rejected save or a warning that asks for a second
+  **Shrani** keeps it open.
+- Closing one form because another opened (the trainer calendar's add control, one open at a
+  time) leaves focus in the form that opened.
 
 ## Main navigation
 

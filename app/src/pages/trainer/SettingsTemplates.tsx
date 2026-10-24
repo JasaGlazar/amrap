@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { weekdayName } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
 import { NoticeLine, type Notice } from '../shared/NoticeLine';
+import { OnDemand } from '../shared/OnDemand';
 import { TemplateForm } from './TemplateForm';
 
 const newTemplate: TemplateFields = {
@@ -23,7 +24,7 @@ export function SettingsTemplates() {
   const [notice, setNotice] = useState<Notice>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [stranded, setStranded] = useState<{ key: string; id: string; count: number } | null>(null);
-  const [formVersion, setFormVersion] = useState(0);
+  const [adding, setAdding] = useState(false);
 
   if (state.status === 'loading') return <p className="status">{t.common.loading}</p>;
   if (state.status === 'error') {
@@ -71,14 +72,25 @@ export function SettingsTemplates() {
     setBusy(false);
     if (result.ok) {
       setStranded(null);
-      setEditing(null);
-      setFormVersion((value) => value + 1);
+      if (id === null) setAdding(false);
+      else setEditing(null);
     }
   }
 
   return (
     <section aria-label={t.settings.templatesTitle}>
-      <h2>{t.settings.templatesTitle}</h2>
+      <div className="head">
+        <h2>{t.settings.templatesTitle}</h2>
+        <OnDemand label={t.settings.newTemplate} add open={adding} onOpen={() => setAdding(true)}>
+          <TemplateForm
+            title={t.settings.newTemplate}
+            initial={newTemplate}
+            busy={busy}
+            onSave={(fields) => void store(null, fields)}
+            onCancel={() => setAdding(false)}
+          />
+        </OnDemand>
+      </div>
       <NoticeLine notice={notice} />
       {templates.length === 0 ? (
         <p>{t.settings.noTemplates}</p>
@@ -128,13 +140,6 @@ export function SettingsTemplates() {
           )}
         </ul>
       )}
-      <TemplateForm
-        key={`new-template-${formVersion}`}
-        title={t.settings.newTemplate}
-        initial={newTemplate}
-        busy={busy}
-        onSave={(fields) => void store(null, fields)}
-      />
     </section>
   );
 }

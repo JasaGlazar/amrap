@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { formatDay, formatTime, localDateOf } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
 import { NoticeLine, type Notice } from '../shared/NoticeLine';
+import { OnDemand } from '../shared/OnDemand';
 import { BlockedForm } from './BlockedForm';
 
 export function SettingsBlocked() {
@@ -24,7 +25,7 @@ export function SettingsBlocked() {
   const [notice, setNotice] = useState<Notice>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [overlapKey, setOverlapKey] = useState<string | null>(null);
-  const [formVersion, setFormVersion] = useState(0);
+  const [adding, setAdding] = useState(false);
 
   if (state.status === 'loading') return <p className="status">{t.common.loading}</p>;
   if (state.status === 'error') {
@@ -72,8 +73,8 @@ export function SettingsBlocked() {
     }
     if (await run(() => saveBlocked(supabase, id, period))) {
       setOverlapKey(null);
-      setEditing(null);
-      setFormVersion((value) => value + 1);
+      if (id === null) setAdding(false);
+      else setEditing(null);
     }
   }
 
@@ -82,7 +83,24 @@ export function SettingsBlocked() {
 
   return (
     <section aria-label={t.settings.blockedTitle}>
-      <h2>{t.settings.blockedTitle}</h2>
+      <div className="head">
+        <h2>{t.settings.blockedTitle}</h2>
+        <OnDemand label={t.settings.newBlocked} add open={adding} onOpen={() => setAdding(true)}>
+          <BlockedForm
+            title={t.settings.newBlocked}
+            initial={null}
+            defaultDate={localDateOf(now, timeZone)}
+            timeZone={timeZone}
+            busy={busy}
+            onSave={(period) => void store(null, period)}
+            onCancel={() => {
+              setOverlapKey(null);
+              setNotice(null);
+              setAdding(false);
+            }}
+          />
+        </OnDemand>
+      </div>
       <NoticeLine notice={notice} />
       {blocked.length === 0 ? (
         <p>{t.settings.noBlocked}</p>
@@ -138,15 +156,6 @@ export function SettingsBlocked() {
           )}
         </ul>
       )}
-      <BlockedForm
-        key={`new-blocked-${formVersion}`}
-        title={t.settings.newBlocked}
-        initial={null}
-        defaultDate={localDateOf(now, timeZone)}
-        timeZone={timeZone}
-        busy={busy}
-        onSave={(period) => void store(null, period)}
-      />
     </section>
   );
 }

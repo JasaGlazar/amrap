@@ -258,6 +258,21 @@ input[type='checkbox'] {
   cursor: pointer;
 }
 
+.button svg {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: square;
+}
+
+.button:has(svg) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
 .button:not(:disabled):active {
   background: var(--press);
 }
@@ -966,6 +981,30 @@ section:not(.form, .card) > :is(h2, h3) + *,
 
 .card:not(.form) > * + :is(.form, .actions, .button, .ok, .error, .status, .chips) {
   margin-top: var(--space-3);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+}
+
+.page > .head {
+  row-gap: var(--space-5);
+}
+
+.head > .on-demand {
+  flex-basis: 100%;
+}
+
+section:not(.form, .card) > .head + * {
+  margin-top: var(--space-3);
+}
+
+.page > .head + * {
+  margin-top: var(--space-5);
 }
 
 .page > .overlay {
