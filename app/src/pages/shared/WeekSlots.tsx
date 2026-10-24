@@ -34,18 +34,18 @@ export function WeekSlots({ slots, timeZone, actions, details }: Props) {
                   >
                     <span className="slot-time">{time}</span>
                     <span className="slot-info">
-                      <span>{fill(t.slot.duration, { minutes: slot.durationMinutes })}</span>{' '}
                       <span>
-                        {'· '}
+                        {fill(t.slot.duration, { minutes: slot.durationMinutes })}
+                        {' ·'}
+                      </span>{' '}
+                      <span>
                         {fill(t.calendar.spots, { free: slot.free, capacity: slot.capacity })}
+                        {slot.blocked && ' ·'}
                       </span>
                       {slot.blocked && (
                         <>
                           {' '}
-                          <span>
-                            {'· '}
-                            {t.calendar.blocked}
-                          </span>
+                          <span>{t.calendar.blocked}</span>
                         </>
                       )}
                     </span>

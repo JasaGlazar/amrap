@@ -57,8 +57,9 @@ data.
   are left out; a week without any shows `calendar.noSlots`). A start time in the spring-forward
   gap has no occurrence that week. Each row shows the start time, duration and
   `Prosta mesta: {free} od {capacity}` with `free = capacity − booked_count` (an occurrence
-  without a `slot_occupancy` row has `booked_count` 0). The duration, the places and `· Zaprto`
-  are unbreakable parts: a narrow row wraps between them, never inside one.
+  without a `slot_occupancy` row has `booked_count` 0). The duration, the places and `Zaprto`
+  are unbreakable parts and each `·` separator ends the part before it: a narrow row wraps
+  between parts, never inside one, and a wrapped line never starts with `·`.
 - **States of a row:**
 
   | State | Shown |
