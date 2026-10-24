@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -134,11 +134,16 @@ describe('customer list', () => {
       data: null,
       error: { message: 'AMRAP_FORBIDDEN: not a trainer' },
     });
-    await createWithStart('Dora', '8');
+    const { router } = await createWithStart('Dora', '8');
     const credits = await screen.findByRole('region', { name: t.customerDetail.creditsTitle });
     expect(within(credits).getByRole('alert')).toHaveTextContent(
       fill(t.customerDetail.startingFailed, { error: t.errors.AMRAP_FORBIDDEN }),
     );
+    expect(within(credits).getByLabelText(t.customerDetail.amount)).toHaveValue(8);
+    expect(within(credits).getByLabelText(t.customerDetail.note)).toHaveValue(
+      t.customerDetail.startingNote,
+    );
+    await waitFor(() => expect(router.state.location.state).toBeNull());
     expect(db.tables.customers.filter((row) => row.name === 'Dora')).toHaveLength(1);
     expect(ledgerOf('Dora')).toEqual([]);
   });

@@ -40,7 +40,9 @@ export function TrainerCustomers() {
       if (!credit.ok) startingError = credit.message;
     }
     setBusy(false);
-    void navigate(`/t/stranke/${id}`, { state: startingError === null ? null : { startingError } });
+    void navigate(`/t/stranke/${id}`, {
+      state: startingError === null ? null : { startingError, startingBalance },
+    });
   }
 
   return (

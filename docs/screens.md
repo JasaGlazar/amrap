@@ -165,7 +165,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   recorded with `top_up`, a negative one with `adjust`, both with the note
   `customerDetail.startingNote`; empty or 0 records nothing. Then the detail page opens. If the
   credit call fails, the detail page still opens (the customer exists once) and its **Krediti**
-  section shows `customerDetail.startingFailed` with the error, so the trainer enters it there.
+  section shows `customerDetail.startingFailed` with the error, with the amount and the note
+  already filled in, so one tap records it. The message comes through the navigation state,
+  which the detail page clears at once, so a reload does not show it again.
 
 ### Customer detail (`/t/stranke/:id`)
 

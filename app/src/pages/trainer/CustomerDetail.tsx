@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { chargedSince, upcomingAppointments, type Appointment } from '../../data/appointments';
 import type { ActionResult } from '../../data/client';
 import { adjust, balanceOf, ledgerOf, topUp } from '../../data/credits';
@@ -37,7 +37,10 @@ export function TrainerCustomerDetail() {
     return { now, customer, settings, balance, ledger, upcoming, recent, rules, templates };
   }, [id]);
   const [state, reload] = useLoad(load);
-  const startingError = (useLocation().state as { startingError?: string } | null)?.startingError;
+  const location = useLocation();
+  const navigate = useNavigate();
+  const starting = location.state as { startingError?: string; startingBalance?: number } | null;
+  const startingError = starting?.startingError;
   const [busy, setBusy] = useState(false);
   const [notices, setNotices] = useState<Record<string, Notice>>((): Record<string, Notice> =>
     startingError === undefined
@@ -49,7 +52,9 @@ export function TrainerCustomerDetail() {
           },
         },
   );
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(() =>
+    starting?.startingBalance === undefined ? '' : String(starting.startingBalance),
+  );
   const [note, setNote] = useState<string | null>(null);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [chosenTemplate, setChosenTemplate] = useState('');
@@ -57,6 +62,10 @@ export function TrainerCustomerDetail() {
     appointment: Appointment;
     section: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (location.state !== null) void navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
 
   async function run<T>(
     section: string,
