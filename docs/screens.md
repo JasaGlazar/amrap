@@ -192,10 +192,12 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     disabled reason as long as **Ni strank za dodajanje** may wrap inside its card, the one
     exception to buttons never wrapping. A disabled button keeps the card's 1 px `--line`
     outline, the add control's select stays 16 px, and a card's focus ring is drawn inside it,
-    so the `wide` box never clips it. Each roster row in a card is a two-column grid (name,
-    then `opravljeno` under it, on the left; **Odpovej** on the right, centred against
-    them), so the button never drops under the name; the name wraps inside its column (13 px,
-    with a tighter card and button padding, so the demo names wrap between words at 1280 px).
+    so the `wide` box never clips it. Each roster row in a card is a two-column grid: the name
+    on the left, **Odpovej** on the right, centred against it, so the button never drops
+    under the name; the name wraps inside its column (13 px, with a tighter card and button
+    padding, so the demo names wrap between words at 1024 and 1280 px). `opravljeno` sits on
+    its own line under the row, across both columns, in the Urnik blocks' condensed tag, so it
+    never wraps.
     The open add control puts the select on its own line and **Dodaj** and **Prekliči** under
     it.
 - **Unchanged in both views:** **Dodaj stranko** and its disabled reasons, the cancel dialog,
