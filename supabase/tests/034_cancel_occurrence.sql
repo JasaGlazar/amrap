@@ -2,13 +2,14 @@
 -- booking in it (booked and charged → cancelled_by_trainer with the reason, charged ones
 -- refunded) and closes it with a blocked period, so book() and materialization skip it. It
 -- holds book()'s advisory lock, rejects customers, invalid occurrences and an occurrence that is
--- already closed, allows past and empty occurrences, and each customer is notified once.
+-- already closed, allows past and empty occurrences, and each customer is notified once. A
+-- live booking of another template that overlaps the closed period is left booked (ADR 0016).
 --
 -- Occurrence times are local wall-clock times in settings.timezone (the run crosses the
 -- 25 Oct 2026 DST change); expected counts and balances come from the fixtures.
 begin;
 
-select plan(36);
+select plan(39);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
@@ -59,6 +60,12 @@ with t as (
   select extract(isodow from today + 3)::smallint - 1, '11:00', false from gym
   returning id
 ) insert into fx select 't_inactive', id from t;
+-- Overlaps the first occurrence ([09:00, 10:15)) from 09:30.
+with t as (
+  insert into public.slot_templates (weekday, start_time)
+  select extract(isodow from today + 3)::smallint - 1, '09:30' from gym
+  returning id
+) insert into fx select 't_overlap', id from t;
 
 create temp table times (key text primary key, ts timestamptz not null) on commit drop;
 insert into times
@@ -66,7 +73,8 @@ insert into times
   from gym g,
        (values ('occ', 3, time '09:00'), ('past', -4, time '09:00'), ('next', 10, time '09:00'),
                ('empty', 17, time '09:00'), ('wrong_day', 4, time '09:00'),
-               ('wrong_time', 3, time '09:30'), ('inactive', 3, time '11:00')) v(key, days, at);
+               ('wrong_time', 3, time '09:30'), ('inactive', 3, time '11:00'), ('overlap', 3, time '09:30'),
+               ('later', 38, time '09:00')) v(key, days, at);
 
 -- The occurrence: A booked, B charged, C booked (no account), D already cancelled. Next week's
 -- occurrence (A booked) and an ad-hoc appointment at the same start (D) must stay untouched.
@@ -80,7 +88,8 @@ insert into appt_spec values
   ('occ_d', 'cust_d', 'occ', 't', 'cancelled'),
   ('next_a', 'cust_a', 'next', 't', 'booked'),
   ('adhoc_d', 'cust_d', 'occ', null, 'booked'),
-  ('past_a', 'cust_a', 'past', 't', 'charged');
+  ('past_a', 'cust_a', 'past', 't', 'charged'),
+  ('overlap_a', 'cust_a', 'overlap', 't_overlap', 'booked');
 
 with ins as (
   insert into public.appointments (customer_id, slot_template_id, starts_at, ends_at, status, source)
@@ -234,6 +243,24 @@ select set_eq(
     from live_before l where l.customer_id in (select id from fx where key in ('cust_a', 'cust_b'))$$,
   'each customer with a device is notified once, with refunded for the charged one and the reason');
 
+-- Another template overlapping the closed period ------------------------------------------
+
+select results_eq(
+  $$select status::text, cancel_reason from public.appointments where id = (select id from appts where key = 'overlap_a')$$,
+  $$values ('booked', null::text)$$,
+  'a live booking of an overlapping template stays booked, without a reason');
+select is_empty(
+  $$select 1 from public.credit_transactions where appointment_id = (select id from appts where key = 'overlap_a')
+    union all
+    select 1 from public.notifications where appointment_id = (select id from appts where key = 'overlap_a')$$,
+  'the overlapping booking gets no refund and no notification');
+select tests.authenticate_as((select id from fx where key = 'user_d'));
+select throws_matching(
+  $$select public.book((select id from fx where key = 'cust_d'), (select ts from times where key = 'overlap'),
+                       (select id from fx where key = 't_overlap'))$$,
+  '^AMRAP_BLOCKED:', 'the overlapping template''s occurrence is closed for new bookings too');
+select tests.clear_authentication();
+
 -- Closed afterwards ------------------------------------------------------------------------
 
 select tests.authenticate_as((select id from fx where key = 'user_d'));
@@ -321,7 +348,7 @@ select is((select status::text from public.appointments where id = (select id fr
 delete from public.settings where id = 1;
 select tests.authenticate_as((select id from fx where key = 'trainer_user'));
 select throws_matching(
-  $$select public.cancel_occurrence((select id from fx where key = 't'), (select ts from times where key = 'occ') + interval '35 days')$$,
+  $$select public.cancel_occurrence((select id from fx where key = 't'), (select ts from times where key = 'later'))$$,
   '^AMRAP_SETTINGS_MISSING:', 'cancel_occurrence fails closed when the settings row is missing');
 select tests.clear_authentication();
 

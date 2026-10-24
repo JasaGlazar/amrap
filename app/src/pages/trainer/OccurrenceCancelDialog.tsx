@@ -1,5 +1,5 @@
-import { useId, useRef, useState } from 'react';
-import type { Appointment } from '../../data/appointments';
+import { useEffect, useId, useRef, useState } from 'react';
+import { liveIdsOverlapping, type Appointment } from '../../data/appointments';
 import { cancelOccurrence } from '../../data/slots';
 import type { WeekSlot } from '../../data/week';
 import { fill, t } from '../../i18n';
@@ -32,9 +32,25 @@ export function OccurrenceCancelDialog({
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [overlapping, setOverlapping] = useState(0);
   const charged = appointments.some((appointment) => appointment.status === 'charged');
 
   useModal(dialogRef, onClose, { returnTo });
+
+  const ownIds = appointments.map((appointment) => appointment.id).join(',');
+  const { startsAt, endsAt } = slot;
+
+  useEffect(() => {
+    const own = new Set(ownIds.split(','));
+    let current = true;
+    liveIdsOverlapping(supabase, startsAt, endsAt).then(
+      (ids) => current && setOverlapping(ids.filter((id) => !own.has(id)).length),
+      (failure: unknown) => console.warn('overlapping bookings count failed', failure),
+    );
+    return () => {
+      current = false;
+    };
+  }, [startsAt, endsAt, ownIds]);
 
   async function confirm() {
     setBusy(true);
@@ -86,6 +102,11 @@ export function OccurrenceCancelDialog({
             {charged && <p className="notice late">{t.occurrenceDialog.refund}</p>}
             <p>{t.occurrenceDialog.notify}</p>
           </>
+        )}
+        {overlapping > 0 && (
+          <p className="notice late">
+            {fill(t.occurrenceDialog.overlapping, { count: overlapping })}
+          </p>
         )}
         <ReasonField value={reason} onChange={setReason} />
         <p className="detail">{t.occurrenceDialog.reopen}</p>

@@ -242,8 +242,12 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   layout and focus rules (`OccurrenceCancelDialog.tsx`): the title **Odpoved celega termina**,
   the occurrence (`{day} ob {time}`), `Prijavljenih strank: {count}` and their names
   (`opravljeno` on charged ones) or `Ni prijavljenih strank.`, the refund line
-  (`occurrenceDialog.refund`) when someone is charged, the notice that customers are told, the
-  optional **Razlog (neobvezno)** field (shared with the cancel dialog, `ReasonField.tsx`), how
+  (`occurrenceDialog.refund`) when someone is charged, the notice that customers are told, a
+  warning when live bookings of another slot overlap the period about to be closed
+  (`occurrenceDialog.overlapping`, counted with `liveIdsOverlapping` minus this occurrence's own;
+  they stay booked and are cancelled one by one with **Odpovej**; the demo's Monday 07:00 and
+  07:07 overlap; a failed count only logs a warning and shows no line), the optional
+  **Razlog (neobvezno)** field (shared with the cancel dialog, `ReasonField.tsx`), how
   to reopen (delete the period in **Nastavitve → Zaprta obdobja**; the bookings stay cancelled)
   and **Odpovej termin** (danger) with **Nazaj**. Confirming calls `cancel_occurrence(template,
   start, reason)`; the dialog stays open until the week has reloaded, then closes with

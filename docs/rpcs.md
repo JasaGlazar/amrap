@@ -175,7 +175,11 @@ Cancels one occurrence of a slot template with all its bookings and closes it (i
   auth.uid()`), exactly as `cancel()` does for the trainer. Booked first, so one the charge
   job charges meanwhile (its `for update skip locked` skips rows this call holds; if it held the
   row first, this update waits and skips it) is caught by the charged step. Appointments
-  already cancelled, other occurrences and ad-hoc appointments at the same time are untouched.
+  already cancelled, other occurrences and ad-hoc appointments at the same time are untouched,
+  and so are live bookings of **another template whose occurrence overlaps** the closed period:
+  they stay `booked`/`charged`, get no refund and no notification, and are cancelled one by
+  one with `cancel()`; the blocked period does close that occurrence for new bookings (the app
+  warns before confirming, [screens.md](screens.md#calendar-tkoledar)).
   Then inserts one `blocked_periods` row `[p_starts_at, p_starts_at + duration)` with the
   reason, so `book()` and materialization skip the occurrence. Each cancelled appointment
   notifies its customer through the trainer-cancel trigger

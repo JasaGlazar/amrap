@@ -908,6 +908,31 @@ describe.each<View>(['day', 'week'])('cancelling a whole occurrence in the %s vi
     );
   });
 
+  it('warns that bookings of an overlapping slot stay booked', async () => {
+    const overlapping = { ...todayTemplate, id: 'tpl-overlap', start_time: '18:30:00' };
+    const overlapStart = occurrenceInWeek(overlapping, weekStart(today), tz)!.startsAt;
+    db.tables.slot_templates = [todayTemplate, overlapping];
+    db.tables.appointments.push({
+      ...appointment('a-cvet', 'c-cvet', 'booked'),
+      slot_template_id: overlapping.id,
+      starts_at: postgrestTime(overlapStart),
+      ends_at: postgrestTime(new Date(overlapStart.getTime() + 3_600_000)),
+    });
+    const dialog = await openOccurrenceDialog();
+    expect(
+      await within(dialog).findByText(fill(t.occurrenceDialog.overlapping, { count: 1 })),
+    ).toBeVisible();
+    expect(within(dialog).getAllByRole('listitem')).toHaveLength(2);
+  });
+
+  it('does not warn when nothing else overlaps the occurrence', async () => {
+    const dialog = await openOccurrenceDialog();
+    await waitFor(() => expect(fakeSupabase.from).toHaveBeenLastCalledWith('appointments'));
+    expect(dialog).not.toHaveTextContent(
+      fill(t.occurrenceDialog.overlapping, { count: 0 }).split('0')[0],
+    );
+  });
+
   it('leaves out the refund line when nobody was charged', async () => {
     db.tables.appointments = [appointment('a-ana', 'c-ana', 'booked')];
     const dialog = await openOccurrenceDialog();

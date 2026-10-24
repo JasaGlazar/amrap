@@ -39,6 +39,7 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 | `rulesOf(client, customerId)` | `recurring_rules` | that customer's rules, oldest first |
 | `allTemplates(client)` | `slot_templates` | active and inactive, by `weekday`, `start_time` |
 | `upcomingBlocked(client, now)` | `blocked_periods` | `ends_at > now`, by start |
+| `liveIdsOverlapping(client, from, to)` | `appointments` | ids of live (`booked` or `charged`) appointments overlapping `[from, to)`: `starts_at < to` and `ends_at > from`, past or not |
 | `chargedSince(client, customerId, since, from?)` | `appointments` | that customer's `charged` appointments with `starts_at >= since`, newest first; [paged](#paged-reads) |
 | `futureBookedCount(client, templateId, now)` | `appointments` | the number of `booked` appointments of that template with `starts_at > now` |
 | `liveCountBetween(client, from, to, now)` | `appointments` | the number of live (`booked` or `charged`) appointments overlapping `[from, to)` that have not ended: `starts_at < to` and `ends_at` after both `from` and `now` |

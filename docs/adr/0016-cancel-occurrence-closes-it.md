@@ -34,7 +34,18 @@ cancelled, would have inserted a booking into the closed occurrence once the loc
   unchanged. Reopening is deleting that period; the bookings stay cancelled.
 - `book()` and `materialize_rule()` now take the advisory lock before the blocked-period check
   (`create or replace`, same grants, same lock key), so whoever waits for a cancel sees its
-  blocked period. Ad-hoc bookings take no lock and are not affected by a whole-session cancel.
+  blocked period. The lock is per template occurrence, so two bookings can still pass the
+  blocked check while a cancel of the same time runs, and keep their place once it commits: an
+  ad-hoc booking (no lock), and a booking of another template whose occurrence overlaps the
+  closed period (a different lock key). Both are rare races; such a booking stays booked and is
+  cancelled one by one with `cancel()`, like any booking a blocked period strands.
+- Only the given template's occurrence is cancelled. The blocked period closes its whole time
+  range, so an overlapping occurrence of another template (the demo has Monday 07:00 and 07:07)
+  is closed for new bookings too, but its live bookings are not cancelled, refunded or
+  notified: they stay booked, as with a blocked period added in Settings. The app's confirm
+  dialog counts them and says so; the trainer cancels them one by one with **Odpovej** (the
+  other occurrence now shows **Zaprto**, so it has no **Odpovej termin** of its own). Widening
+  the RPC to every overlapping template was left out: the owner asked to cancel one session.
 - An occurrence that already overlaps a blocked period is rejected (`AMRAP_BLOCKED`) instead of
   getting a second period: it is already closed, and its stranded bookings, if any, are
   cancelled one by one (the app hides **Odpovej termin** on a **Zaprto** occurrence).
