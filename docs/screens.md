@@ -138,8 +138,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   customers (names, `opravljeno` for charged), each with **Odpovej**, and an add control: a
   customer select (named `Stranka za termin {when}`; customers already booked there are left
   out) with **Dodaj**, disabled (neutral grey) until a customer is chosen and while the
-  occurrence is full or blocked or another booking is in flight. **Dodaj** calls `book(customer, startsAt, template)`; success shows `trainer.added`,
-  a rejection its `errors.AMRAP_*` copy.
+  occurrence is full or blocked or another booking is in flight. **Dodaj** calls
+  `book(customer, startsAt, template)`; success shows `trainer.added`, a rejection its
+  `errors.AMRAP_*` copy.
 - **Termini zunaj urnika:** the week's live appointments that match no shown occurrence
   (`appointmentsOutsideSlots`): ad-hoc ones (`po dogovoru`) and bookings left behind by a
   deactivated or moved template (`ni več v urniku`), with day, time range and name, each with
@@ -239,9 +240,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   more (`settings.cutoffInvalid`). It applies to every later cancel and to the customers'
   cancel dialog.
 - **Zaprta obdobja:** upcoming blocked periods with their range and reason, each with
-  **Uredi** and **Izbriši** (deletes at once) on one line at the right; the text wraps. The form (also **Novo zaprto obdobje**): from
-  date and time, to date and time (in the gym timezone, via `zonedInstant`) and an optional
-  reason; a time that does not exist that day or an end not after the start is rejected
+  **Uredi** and **Izbriši** (deletes at once) on one line at the right; the text wraps. The
+  form (also **Novo zaprto obdobje**): from date and time, to date and time (in the gym
+  timezone, via `zonedInstant`) and an optional reason; a time that does not exist that day or an end not after the start is rejected
   (`trainer.invalidTime`, `trainer.invalidRange`). A new block does not cancel appointments
   already booked in it; `book()` and materialization reject or skip later ones. So saving a new
   or edited period first counts the live appointments that overlap it and have not ended yet
