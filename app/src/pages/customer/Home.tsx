@@ -46,7 +46,7 @@ export function CustomerHome() {
   return (
     <>
       <h1>{t.nav.home}</h1>
-      <section className="card">
+      <section className="balance-panel">
         <p className="label">{t.customer.balanceLabel}</p>
         <p className="balance-row">
           <span className={balance < 0 ? 'balance negative' : 'balance'}>

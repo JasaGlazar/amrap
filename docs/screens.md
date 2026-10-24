@@ -35,8 +35,9 @@ data.
 ### Home (`/c`)
 
 - **Data:** `getSettings`, `balanceOf`, `upcomingAppointments` (mine, `booked`, in the future).
-- **Balance:** the number from `customer_balances` (a [signed number](#behaviour-shared-by-all-screens),
-  `−3`); when negative it is red with a `dolg` tag (`customer.debt`).
+- **Balance:** the label, then the number from `customer_balances` (a
+  [signed number](#behaviour-shared-by-all-screens), `−3`) in the frame, 3.5 rem condensed;
+  when negative it is red with a `dolg` tag (`customer.debt`).
 - **Next appointment:** the soonest upcoming one, `slot.when` (`ponedeljek, 26. oktober ob
   07:00`) and the time left (`čez 2 d 9 h`, computed when the page loaded). Hidden when there is
   none.
@@ -182,8 +183,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Data:** `getCustomer`, `getSettings`, `balanceOf`, `ledgerOf`, `upcomingAppointments`,
   `rulesOf`, `allTemplates`. A missing record (or the trainer's own id) shows the load error
   with the back link.
-- **Header:** name, then a card with the label `Stanje kreditov` and the invite status tag on
-  one line and the balance below (red with `dolg` when negative).
+- **Header:** name, then the label `Stanje kreditov` and the invite status tag on one line and
+  the framed balance below (red with `dolg` when negative), on the page rather than in a card.
 - **Krediti:** one amount field and a note. **Dodaj kredite** calls `top_up` (a positive whole
   number, else `customerDetail.topUpInvalid`); **Popravi stanje** calls `adjust` (any non-zero
   whole number, negative subtracts; else `customerDetail.adjustInvalid`). Waiving a late
@@ -371,6 +372,21 @@ How the guards and the auth state work is in [auth.md](auth.md).
   the plain "AMRAP" text: at the left of the top bar in both shells, and as the `h1` above the
   heading on `/login` and `/invite/:token`. It is black on white in the light theme and white on
   black in the dark theme.
+
+- **Type.** One family, Archivo ([app-structure.md](app-structure.md#font)), tabular figures
+  everywhere so times and amounts line up. Scale (tokens `--text-xs` to `--text-2xl`): 0.8125
+  rem tags, 0.875 secondary text, small buttons and the bottom navigation, 1 body and `h3`,
+  1.25 `h2` (weight 700) and slot times, 1.75 `h1` (2 from 768 px), 3.5 the balance. The
+  display treatment, width 75 and weight 800 in `--ink`, echoes the wordmark and is kept for
+  page titles (`h1`), the balance and slot times; everything else is width 100, weight 400 with
+  600 for emphasis (labels, buttons, amounts). Sentence case throughout: no all-caps or
+  letter-spaced labels.
+
+- **The frame.** The logo's rectangle, 2 px `--ink` with square corners, is the one strong
+  element: it is in the wordmark and around the balance on customer Home and customer detail
+  (the balance sits on the page, not in a card). Everything else is quiet: controls, cards,
+  tags and the dialog have a 6 px radius (`--radius`), only the dialog has a shadow, and there
+  are no gradients.
 
 - **Colour and themes.** Black, white and grey from the gym logo
   ([ADR 0010](adr/0010-visual-identity-and-themes.md)); red only for debt, late cancels and

@@ -73,7 +73,7 @@ black) with macOS `sips`, so no image tool is added to the build
 
 | File | Command | Used by |
 |---|---|---|
-| `brand-mark.png` (280 × 90) | `sips -c 90 280 --cropOffset 166 84 public/logo.png --out public/brand-mark.png` | `pages/shared/BrandMark.tsx`: the top bar (1.75 rem high) and the `h1` of `/login` and `/invite/:token` (3 rem), alt text `app.name` |
+| `brand-mark.png` (280 × 90) | `sips -c 90 280 --cropOffset 166 84 public/logo.png --out public/brand-mark.png` | `pages/shared/BrandMark.tsx`: the top bar (2 rem high) and the `h1` of `/login` and `/invite/:token` (3 rem), alt text `app.name` |
 | `icon-512.png` | `sips -Z 400 public/brand-mark.png --out public/icon-512.png && sips -p 512 512 --padColor 060807 public/icon-512.png` | the manifest (`any` and `maskable`) |
 | `icon-192.png` | `sips -Z 150 public/brand-mark.png --out public/icon-192.png && sips -p 192 192 --padColor 060807 public/icon-192.png` | the manifest, the favicon and `apple-touch-icon` |
 
