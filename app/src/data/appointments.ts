@@ -125,6 +125,17 @@ export async function futureBookedCount(
   return data.length;
 }
 
+export async function liveCountBetween(client: Client, from: Date, to: Date): Promise<number> {
+  const { data, error } = await client
+    .from('appointments')
+    .select('id')
+    .in('status', ['booked', 'charged'])
+    .lt('starts_at', to.toISOString())
+    .gt('ends_at', from.toISOString());
+  if (error) throw error;
+  return data.length;
+}
+
 export async function chargedSince(
   client: Client,
   customerId: string,

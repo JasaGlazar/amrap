@@ -1,5 +1,5 @@
 import { useCallback, useState, type FormEvent } from 'react';
-import { futureBookedCount } from '../../data/appointments';
+import { futureBookedCount, liveCountBetween } from '../../data/appointments';
 import type { ActionResult } from '../../data/client';
 import { getSettings, setLateCancelHours } from '../../data/settings';
 import {
@@ -46,6 +46,7 @@ export function TrainerSettings() {
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
   const [stranded, setStranded] = useState<{ key: string; id: string; count: number } | null>(null);
   const [editingBlocked, setEditingBlocked] = useState<string | null>(null);
+  const [overlapKey, setOverlapKey] = useState<string | null>(null);
   const [formVersion, setFormVersion] = useState(0);
   const [cutoff, setCutoff] = useState<string | null>(null);
 
@@ -128,7 +129,31 @@ export function TrainerSettings() {
   }
 
   async function storeBlocked(id: string | null, period: BlockedPeriod) {
+    const key = `${id}|${period.startsAt.toISOString()}|${period.endsAt.toISOString()}`;
+    if (overlapKey !== key) {
+      setBusy(true);
+      setNotice((current) => ({ ...current, blocked: null }));
+      let count: number;
+      try {
+        count = await liveCountBetween(supabase, period.startsAt, period.endsAt);
+      } catch (error) {
+        console.warn('blocked overlap count failed', error);
+        setNotice((current) => ({ ...current, blocked: { error: true, text: fromError(error) } }));
+        return;
+      } finally {
+        setBusy(false);
+      }
+      if (count > 0) {
+        setOverlapKey(key);
+        setNotice((current) => ({
+          ...current,
+          blocked: { error: true, text: fill(t.settings.blockedOverlapWarning, { count }) },
+        }));
+        return;
+      }
+    }
     if (await run('blocked', () => saveBlocked(supabase, id, period))) {
+      setOverlapKey(null);
       setEditingBlocked(null);
       setFormVersion((value) => value + 1);
     }

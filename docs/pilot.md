@@ -33,7 +33,9 @@ Vse na telefonu, v aplikaciji AMRAP, prijavljeni kot trener. Papirnati list imej
    začetek, trajanje (min) in število mest; »Aktiven« naj ostane označen. Tapnite »Shrani«.
    Ponovite za vse termine z whiteboarda.
 3. **Nastavitve → Zaprta obdobja → Novo zaprto obdobje:** dopust ali zaprtje, ki ga že poznate
-   (od, do, razlog). V tem času rezervacije niso mogoče.
+   (od, do, razlog). V tem času rezervacije niso mogoče. Novo zaprto obdobje ne odpove že
+   rezerviranih terminov; aplikacija pove, koliko jih je, odpovejte jih v **Koledarju**
+   (»Odpovej«).
 4. **Stranke → Nova stranka:** za vsako stranko s papirnatega lista vpišite ime in priimek,
    telefon, po želji e-poštni naslov, in **Začetno stanje kreditov (s papirja)**:
    - ima še kredite (npr. 5): vpišite `5`;
@@ -88,6 +90,8 @@ Vsak dan, nekaj minut:
 
 Popravki:
 
+- **Dopust ali zaprtje sredi tedna:** dodajte zaprto obdobje (**Nastavitve**). Že rezervirani
+  termini v njem ostanejo in bi se zaračunali; odpovejte jih v **Koledarju** (»Odpovej«).
 - **Termin odpoveste vi** (bolezen, dopust): **Koledar**, »Odpovej« pri stranki, »Odpovej
   termin«. Nikoli se ne zaračuna; že zaračunan termin se stranki vrne (+1).
 - **Pozna odpoved, ki je ne želite zaračunati:** na strani stranke v »Krediti« vpišite `1`,

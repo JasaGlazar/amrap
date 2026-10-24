@@ -233,6 +233,66 @@ describe('blocked periods', () => {
     });
   });
 
+  describe('bookings inside a new period', () => {
+    const period = {
+      [t.settings.fromDate]: '2026-12-24',
+      [t.settings.fromTime]: '00:00',
+      [t.settings.toDate]: '2026-12-27',
+      [t.settings.toTime]: '00:00',
+    };
+    const appointment = (id: string, startsAt: string, status: string) => ({
+      id,
+      customer_id: 'c-1',
+      slot_template_id: null,
+      starts_at: startsAt,
+      ends_at: new Date(new Date(startsAt).getTime() + 3_600_000).toISOString(),
+      status,
+    });
+
+    beforeEach(() => {
+      db.tables.appointments = [
+        appointment('inside-booked', '2026-12-24T08:00:00.000Z', 'booked'),
+        appointment('inside-charged', '2026-12-26T09:00:00.000Z', 'charged'),
+        appointment('inside-cancelled', '2026-12-25T09:00:00.000Z', 'cancelled'),
+        appointment('ends-at-start', '2026-12-23T22:00:00.000Z', 'booked'),
+        appointment('after', '2026-12-27T08:00:00.000Z', 'booked'),
+      ];
+    });
+
+    it('warns with the number of live bookings it does not cancel and saves on a second Shrani', async () => {
+      const live = db.tables.appointments.filter(
+        (row) => row.id === 'inside-booked' || row.id === 'inside-charged',
+      ).length;
+      renderSettings();
+      const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+      await fillTemplate(form, period);
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+
+      const section = screen.getByRole('region', { name: t.settings.blockedTitle });
+      expect(await within(section).findByRole('alert')).toHaveTextContent(
+        fill(t.settings.blockedOverlapWarning, { count: live }),
+      );
+      expect(db.tables.blocked_periods).toHaveLength(0);
+
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      expect(await within(section).findByRole('status')).toHaveTextContent(t.settings.saved);
+      expect(db.tables.blocked_periods).toHaveLength(1);
+    });
+
+    it('saves at once when no live booking overlaps', async () => {
+      db.tables.appointments = db.tables.appointments.filter(
+        (row) => !String(row.id).startsWith('inside-') || row.status === 'cancelled',
+      );
+      renderSettings();
+      const form = await screen.findByRole('form', { name: t.settings.newBlocked });
+      await fillTemplate(form, period);
+      await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+      const section = screen.getByRole('region', { name: t.settings.blockedTitle });
+      expect(await within(section).findByRole('status')).toHaveTextContent(t.settings.saved);
+      expect(db.tables.blocked_periods).toHaveLength(1);
+    });
+  });
+
   it('rejects an end before the start', async () => {
     renderSettings();
     const form = await screen.findByRole('form', { name: t.settings.newBlocked });

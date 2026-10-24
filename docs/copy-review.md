@@ -346,6 +346,7 @@ is a question below.
 | `settings.toDate` | Do (datum) |  |
 | `settings.toTime` | Do (ura) |  |
 | `settings.reason` | Razlog |  |
+| `settings.blockedOverlapWarning` | V tem obdobju je rezerviranih terminov: {count}. Zaprto obdobje jih ne odpove; ostanejo rezervirani in bodo zaračunani, dokler jih ne odpoveste v »Koledarju« (»Odpovej«). Za potrditev znova tapnite »Shrani«. | Novo (Task 18 review). Razumljivo? |
 | `settings.delete` | Izbriši |  |
 
 ### Obvestila na telefonu in stikalo za obvestila

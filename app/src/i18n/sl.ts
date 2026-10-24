@@ -200,6 +200,8 @@ export const sl = {
     toDate: 'Do (datum)',
     toTime: 'Do (ura)',
     reason: 'Razlog',
+    blockedOverlapWarning:
+      'V tem obdobju je rezerviranih terminov: {count}. Zaprto obdobje jih ne odpove; ostanejo rezervirani in bodo zaračunani, dokler jih ne odpoveste v »Koledarju« (»Odpovej«). Za potrditev znova tapnite »Shrani«.',
     delete: 'Izbriši',
   },
   appointmentStatus: {

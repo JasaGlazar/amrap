@@ -1315,6 +1315,7 @@ Branch `stage-4-pilot` off `main` (Stage 3 merged as #4). Rulings proposed for t
    offer the trainer's own name, phone or email (autofill is turned off best effort); the trial
    week with the pilot guide; Stage 3 owner actions still open.
 4. Open product questions for the owner (not decided here): should a trainer cancel notify the
-   customer; does the trainer want a veto over self-bookings (`PLAN.md` open question 1); any
-   copy question the trainer leaves open.
+   customer; does the trainer want a veto over self-bookings (`PLAN.md` open question 1); should
+   adding a blocked period cancel the live bookings inside it (`cancelled_by_trainer`, refund if
+   charged) instead of only warning; any copy question the trainer leaves open.
 5. `supabase stop`.
