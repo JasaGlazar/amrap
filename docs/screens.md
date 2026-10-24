@@ -302,15 +302,23 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     `section`, so a screen reader can move day by day), and a time axis on the left from the
     earliest start to the latest end, rounded out to the hour (`axisRange` in
     `lib/schedule.ts`), with a hairline per hour. Each template is a block placed by its start
-    and sized by its duration (4.5 rem an hour, so a 60-minute block holds its text), showing
+    and sized by its duration (5 rem an hour, so a 60-minute block holds its text), showing
     `settings.timeRange` ("07:00–08:00", breaking only after the dash) and the places
     (`settings.places`). Blocks that overlap in time sit side by side within the column
     (`dayLanes`: a group of slots that overlap one another shares the column in lanes, a lane
     is reused once it is free; touching slots do not share). An inactive template is muted
     (paper background, `--line` edge, muted text) with the `neaktiven` tag. Each block is a
     `button` whose name says everything its position shows (`settings.blockLabel`:
-    "Ponedeljek 07:00, 60 min, 5 mest, uredi", with ", neaktiven" when inactive). The axis is
-    `aria-hidden`. From 1024 px the grid is a [wide view](#behaviour-shared-by-all-screens);
+    "Ponedeljek 07:00, 60 min, 5 mest, uredi", with ", neaktiven" when inactive and
+    ", prekrivanje" when it overlaps). The axis is `aria-hidden`.
+  - **Overlap mark:** an active template that overlaps another active one on the same day
+    (`overlappingIds`, the same rule as the warning below) has a 2 px dashed `--ink` edge
+    instead of the solid one and the tag `settings.overlapping` ("prekrivanje"), in both
+    themes and not by colour. While any slots overlap, a line above the grid explains the
+    edge (`settings.overlapLegend`). The block's tags are set in the condensed cut; a lane too
+    narrow for them (under 4.75 rem, for example two or three overlapping slots at
+    768-1023 px) hides its tags by a container query, and the dashed edge, the muted look of
+    an inactive block and the button's name still carry them. From 1024 px the grid is a [wide view](#behaviour-shared-by-all-screens);
     below that (768-1023 px) its columns keep at least 7 rem and the grid scrolls sideways
     inside its own box, the hours column staying in place, so the page itself never scrolls
     sideways.
@@ -325,7 +333,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   - **Below 768 px, day groups** (`DayGroups`): one `h3` per day that has templates
     (**Ponedeljek** first, days without templates left out), then compact rows by start time:
     the start in the display type, `settings.slotDetails` ("60 min · 5 mest", capacity in its
-    plural form: 1 mesto, 2 mesti, 3 mesta, 5 mest), the `neaktiven` tag next to the text, and
+    plural form: 1 mesto, 2 mesti, 3 mesta, 5 mest), the `neaktiven` or `prekrivanje` tag next
+    to the text, and
     **Uredi** (named like the grid's block), which opens the form in place of the row.
 - **Nov termin** at the right of the section heading opens the same form empty
   ([on demand](#forms-on-demand)): weekday, start time, duration in minutes, capacity and
@@ -334,6 +343,19 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   template that has appointments or rules cannot be deleted, so it is deactivated (customers no
   longer see or book it, materialization skips it). Changing a template's time or weekday does
   not move appointments already booked.
+- **Overlapping slots:** saving a template (new or edited) that is active first looks for
+  other active templates on the same weekday whose range `[start, start + duration)`
+  intersects its own (`overlapsWith` in `lib/schedule.ts`, over the templates already loaded;
+  there is no database rule, since two groups at once can be intended). Touching ranges
+  (07:00-08:00 and 08:00-09:00) do not overlap, inactive templates are ignored on both sides,
+  and an edited template is never compared with itself. An edit warns only about overlaps
+  the save would add: a slot that already overlapped another keeps that without asking
+  again, so changing the capacity of an intended overlap saves at once. If there are any, the
+  form shows `settings.overlapWarning` naming the other slots (`settings.overlapSlot`,
+  "ponedeljek ob 07:00 (60 min)", joined with `Intl.ListFormat('sl')`; `single`, `pair` or
+  `several` for terminom, terminoma, termini) and saves only when **Shrani** is clicked again
+  with the same values; changed values are checked again. Together with stranded bookings
+  (below) both warnings show at once, overlap first, and one more **Shrani** saves.
 - **Stranded bookings:** saving a deactivation, or a weekday or start-time change, of an
   active template first counts its future `booked` appointments (`futureBookedCount`). If there
   are any, the form shows `settings.strandedWarning` with the count (they stay booked and

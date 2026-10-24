@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { axisRange, clock, dayLanes, endOf, minutesOf } from './schedule';
+import {
+  axisRange,
+  clock,
+  dayLanes,
+  endOf,
+  minutesOf,
+  overlappingIds,
+  overlapsWith,
+} from './schedule';
 
 const slot = (id: string, start_time: string, duration_minutes = 60, weekday = 0) => ({
   id,
@@ -73,5 +81,63 @@ describe('dayLanes', () => {
     expect(lanes.get('b')).toEqual({ lane: 1, lanes: 2 });
     expect(lanes.get('c')).toEqual({ lane: 1, lanes: 2 });
     expect(lanes.get('d')).toEqual({ lane: 0, lanes: 1 });
+  });
+});
+
+describe('overlapsWith', () => {
+  const active = (id: string, start_time: string, duration_minutes = 60, weekday = 0) => ({
+    ...slot(id, start_time, duration_minutes, weekday),
+    active: true,
+  });
+  const others = [
+    active('mon-7', '07:00'),
+    active('mon-9', '09:00', 30),
+    active('tue-7', '07:00', 60, 1),
+    { ...active('mon-off', '07:15'), active: false },
+  ];
+  const candidate = (start_time: string, duration_minutes = 60, weekday = 0) => ({
+    weekday,
+    start_time,
+    duration_minutes,
+    active: true,
+  });
+  const ids = (found: { id: string }[]) => found.map((template) => template.id);
+
+  it('finds active slots on the same weekday whose range intersects', () => {
+    expect(ids(overlapsWith(candidate('07:30'), null, others))).toEqual(['mon-7']);
+    expect(ids(overlapsWith(candidate('07:30', 120), null, others))).toEqual(['mon-7', 'mon-9']);
+  });
+
+  it('does not count touching ranges', () => {
+    expect(overlapsWith(candidate('08:00'), null, others)).toEqual([]);
+    expect(overlapsWith(candidate('06:00'), null, others)).toEqual([]);
+    expect(overlapsWith(candidate('08:00', 60), null, others)).toEqual([]);
+  });
+
+  it('ignores other weekdays and inactive slots', () => {
+    expect(ids(overlapsWith(candidate('07:10', 10, 1), null, others))).toEqual(['tue-7']);
+    expect(ids(overlapsWith(candidate('07:15', 5), null, others))).toEqual(['mon-7']);
+  });
+
+  it('warns about nothing when the slot being saved is inactive', () => {
+    expect(overlapsWith({ ...candidate('07:30'), active: false }, null, others)).toEqual([]);
+  });
+
+  it('does not count the slot being edited against itself', () => {
+    expect(overlapsWith(candidate('07:00'), 'mon-7', others)).toEqual([]);
+    expect(ids(overlapsWith(candidate('08:50'), 'mon-7', others))).toEqual(['mon-9']);
+  });
+});
+
+describe('overlappingIds', () => {
+  it('marks active slots that overlap another active slot on the same day', () => {
+    const marked = overlappingIds([
+      { ...slot('a', '07:00'), active: true },
+      { ...slot('b', '07:07'), active: true },
+      { ...slot('c', '08:07'), active: true },
+      { ...slot('d', '07:30'), active: false },
+      { ...slot('e', '07:00', 60, 1), active: true },
+    ]);
+    expect([...marked].sort()).toEqual(['a', 'b']);
   });
 });

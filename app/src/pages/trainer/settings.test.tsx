@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fill, plural, t } from '../../i18n';
-import { weekdayHeading } from '../../lib/time';
+import { weekdayHeading, weekdayName } from '../../lib/time';
 import { routes } from '../../routes';
 import { db, holdTable, makeCustomer, makeSession, resetFake } from '../../test/fakeSupabase';
 
@@ -46,14 +46,50 @@ async function fillTemplate(form: HTMLElement, values: Record<string, string>) {
 
 type Template = typeof existing;
 
+const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+
+function overlapsInTable(template: Template) {
+  const start = minutes(template.start_time);
+  const end = start + template.duration_minutes;
+  return (
+    template.active &&
+    (db.tables.slot_templates as Template[]).some(
+      (other) =>
+        other.id !== template.id &&
+        other.active &&
+        other.weekday === template.weekday &&
+        minutes(other.start_time) < end &&
+        start < minutes(other.start_time) + other.duration_minutes,
+    )
+  );
+}
+
 function blockName(template: Template) {
+  const marks = [
+    ...(template.active ? [] : [t.settings.inactive]),
+    ...(overlapsInTable(template) ? [t.settings.overlapping] : []),
+  ];
   return fill(t.settings.blockLabel, {
     day: weekdayHeading(template.weekday),
     time: template.start_time.slice(0, 5),
     minutes: template.duration_minutes,
     places: plural(t.settings.places, template.capacity),
-    marks: template.active ? '' : `, ${t.settings.inactive}`,
+    marks: marks.map((mark) => `, ${mark}`).join(''),
   });
+}
+
+function overlapWarning(others: Template[]) {
+  const slots = new Intl.ListFormat('sl', { type: 'conjunction' }).format(
+    others.map((other) =>
+      fill(t.settings.overlapSlot, {
+        weekday: weekdayName(other.weekday),
+        time: other.start_time.slice(0, 5),
+        minutes: other.duration_minutes,
+      }),
+    ),
+  );
+  const form = others.length === 1 ? 'single' : others.length === 2 ? 'pair' : 'several';
+  return fill(t.settings.overlapWarning[form], { slots });
 }
 
 function wideScreen() {
@@ -279,6 +315,15 @@ describe('week grid from 768 px', () => {
     }
   });
 
+  it('explains the dashed edge only when some slots overlap', async () => {
+    db.tables.slot_templates = week
+      .filter((template) => template.id !== 'tpl-mon-730')
+      .map((template) => ({ ...template }));
+    renderSettings('urnik');
+    await screen.findByRole('region', { name: t.settings.templatesTitle });
+    expect(screen.queryByText(t.settings.overlapLegend)).not.toBeInTheDocument();
+  });
+
   it('mutes an inactive template and tags it', async () => {
     renderSettings('urnik');
     const sunday = await screen.findByRole('region', { name: weekdayHeading(6) });
@@ -336,6 +381,172 @@ describe('week grid from 768 px', () => {
     const section = await screen.findByRole('region', { name: t.settings.templatesTitle });
     await userEvent.click(within(section).getByRole('button', { name: t.settings.newTemplate }));
     expect(within(section).getByRole('form', { name: t.settings.newTemplate })).toBeVisible();
+  });
+});
+
+describe('overlapping slots', () => {
+  const save = (form: HTMLElement) =>
+    userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
+
+  it('warns about a new slot that overlaps, naming the other, and saves on the second Shrani', async () => {
+    const before = db.tables.slot_templates.length;
+    const form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '07:30' });
+    await save(form);
+    expect(within(form).getByRole('alert')).toHaveTextContent(overlapWarning([existing]));
+    expect(db.tables.slot_templates).toHaveLength(before);
+    await save(form);
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    expect(db.tables.slot_templates).toHaveLength(before + 1);
+  });
+
+  it('names both slots when it overlaps two', async () => {
+    const second = { ...existing, id: 'tpl-2', start_time: '07:30:00' };
+    db.tables.slot_templates.push({ ...second });
+    const form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '07:15' });
+    await save(form);
+    expect(within(form).getByRole('alert')).toHaveTextContent(overlapWarning([existing, second]));
+  });
+
+  it('checks changed values again before saving', async () => {
+    const before = db.tables.slot_templates.length;
+    const form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '07:30' });
+    await save(form);
+    await fillTemplate(form, { [t.settings.startTime]: '07:45' });
+    await save(form);
+    expect(within(form).getByRole('alert')).toHaveTextContent(overlapWarning([existing]));
+    expect(db.tables.slot_templates).toHaveLength(before);
+  });
+
+  it('saves touching ranges without a warning', async () => {
+    const form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '08:00' });
+    await save(form);
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+  });
+
+  it('saves an inactive slot over an active one without a warning', async () => {
+    const form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '07:30' });
+    await userEvent.click(within(form).getByLabelText(t.settings.active));
+    await save(form);
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+  });
+
+  it('ignores an inactive slot when saving an active one over it', async () => {
+    db.tables.slot_templates = [{ ...existing, active: false }];
+    const form = await newTemplateForm();
+    await fillTemplate(form, { [t.settings.startTime]: '07:30' });
+    await save(form);
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+  });
+
+  it('does not count a slot being edited as overlapping itself', async () => {
+    renderSettings('urnik');
+    const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    await userEvent.click(within(list).getByRole('button', { name: blockName(existing) }));
+    const form = await screen.findByRole('form', { name: t.settings.editTemplate });
+    await fillTemplate(form, { [t.settings.startTime]: '07:30' });
+    await save(form);
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    expect(db.tables.slot_templates[0].start_time).toBe('07:30');
+  });
+
+  it('does not warn again about an overlap the slot already had', async () => {
+    const second = { ...existing, id: 'tpl-2', start_time: '07:30:00' };
+    db.tables.slot_templates.push({ ...second });
+    renderSettings('urnik');
+    const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    await userEvent.click(within(list).getByRole('button', { name: blockName(existing) }));
+    const form = await screen.findByRole('form', { name: t.settings.editTemplate });
+    await fillTemplate(form, { [t.settings.capacity]: String(existing.capacity + 1) });
+    await save(form);
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    expect(db.tables.slot_templates[0].capacity).toBe(existing.capacity + 1);
+  });
+
+  it('warns when an edit reaches a slot it did not overlap before', async () => {
+    const second = { ...existing, id: 'tpl-2', start_time: '07:30:00' };
+    const third = { ...existing, id: 'tpl-3', start_time: '08:30:00' };
+    db.tables.slot_templates.push({ ...second }, { ...third });
+    renderSettings('urnik');
+    const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    await userEvent.click(within(list).getByRole('button', { name: blockName(existing) }));
+    const form = await screen.findByRole('form', { name: t.settings.editTemplate });
+    await fillTemplate(form, { [t.settings.duration]: '120' });
+    await save(form);
+    expect(within(form).getByRole('alert')).toHaveTextContent(overlapWarning([third]));
+  });
+
+  it('shows the overlap and the stranded bookings together and saves on one more Shrani', async () => {
+    const other = { ...existing, id: 'tpl-other', weekday: 1 };
+    db.tables.slot_templates.push({ ...other });
+    db.tables.appointments = [
+      {
+        id: 'future-1',
+        customer_id: 'c-1',
+        slot_template_id: existing.id,
+        starts_at: new Date(now.getTime() + 3 * 86_400_000).toISOString(),
+        ends_at: new Date(now.getTime() + 3 * 86_400_000 + 3_600_000).toISOString(),
+        status: 'booked',
+      },
+    ];
+    renderSettings('urnik');
+    const list = await screen.findByRole('region', { name: t.settings.templatesTitle });
+    await userEvent.click(within(list).getByRole('button', { name: blockName(existing) }));
+    const form = await screen.findByRole('form', { name: t.settings.editTemplate });
+    await userEvent.selectOptions(within(form).getByLabelText(t.settings.weekday), '1');
+    await save(form);
+    const alerts = await within(form).findAllByRole('alert');
+    expect(alerts.map((alert) => alert.textContent)).toEqual([
+      overlapWarning([other]),
+      fill(t.settings.strandedWarning, { count: db.tables.appointments.length }),
+    ]);
+    await save(form);
+    expect(await screen.findByRole('status')).toHaveTextContent(t.settings.saved);
+    expect(db.tables.slot_templates[0].weekday).toBe(1);
+  });
+
+  describe('marks', () => {
+    const week: Template[] = [
+      { ...existing },
+      { ...existing, id: 'tpl-707', start_time: '07:07:00' },
+      { ...existing, id: 'tpl-807', start_time: '08:07:00' },
+      { ...existing, id: 'tpl-off', start_time: '07:30:00', active: false },
+      { ...existing, id: 'tpl-tue', weekday: 1 },
+    ];
+    const marked = () => week.filter(overlapsInTable).map((template) => template.id);
+
+    beforeEach(() => {
+      db.tables.slot_templates = week.map((template) => ({ ...template }));
+    });
+
+    it('marks overlapping blocks in the week grid, in text and in their names', async () => {
+      wideScreen();
+      renderSettings('urnik');
+      await screen.findByRole('region', { name: t.settings.templatesTitle });
+      expect(marked().length).toBeGreaterThan(0);
+      expect(screen.getByText(t.settings.overlapLegend)).toBeVisible();
+      for (const template of week) {
+        const block = screen.getByRole('button', { name: blockName(template) });
+        const overlapping = marked().includes(template.id);
+        expect(block.classList.contains('overlap')).toBe(overlapping);
+        expect(block.textContent?.includes(t.settings.overlapping)).toBe(overlapping);
+      }
+    });
+
+    it('marks overlapping rows in the day groups', async () => {
+      renderSettings('urnik');
+      await screen.findByRole('region', { name: t.settings.templatesTitle });
+      for (const template of week) {
+        const row = screen.getByRole('button', { name: blockName(template) }).closest('li');
+        expect(row?.textContent?.includes(t.settings.overlapping)).toBe(
+          marked().includes(template.id),
+        );
+      }
+    });
   });
 });
 

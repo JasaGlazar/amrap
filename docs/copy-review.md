@@ -352,12 +352,18 @@ is a question below.
 | `settings.noTemplates` | Ni terminov. |  |
 | `settings.timeRange` | {start}–{end} | Novo: čas v bloku tedenskega urnika (»07:00–08:00«). |
 | `settings.slotDetails` | {minutes} min · {places} | Novo: vrstica pod dnevom na telefonu (»60 min · 5 mest«). |
-| `settings.blockLabel` | {day} {time}, {minutes} min, {places}{marks}, uredi | Novo: ime gumba za bralnik zaslona (»Ponedeljek 07:00, 60 min, 5 mest, uredi«; pri neaktivnem še », neaktiven«). |
+| `settings.blockLabel` | {day} {time}, {minutes} min, {places}{marks}, uredi | Novo: ime gumba za bralnik zaslona (»Ponedeljek 07:00, 60 min, 5 mest, uredi«; pri neaktivnem še », neaktiven«, pri prekrivanju », prekrivanje«). |
 | `settings.places.one` | {count} mesto |  |
 | `settings.places.two` | {count} mesti |  |
 | `settings.places.few` | {count} mesta |  |
 | `settings.places.other` | {count} mest |  |
 | `settings.inactive` | neaktiven |  |
+| `settings.overlapping` | prekrivanje | Novo: oznaka termina, ki se prekriva z drugim aktivnim terminom istega dne. V redu, ali »se prekriva«? |
+| `settings.overlapLegend` | Črtkan rob: termin se prekriva z drugim. | Novo: razlaga nad tedenskim urnikom, ko se kakšna termina prekrivata. |
+| `settings.overlapSlot` | {weekday} ob {time} ({minutes} min) | Novo: termin v opozorilu (»ponedeljek ob 07:00 (60 min)«). |
+| `settings.overlapWarning.single` | Prekriva se s terminom {slots}. Za potrditev znova tapnite »Shrani«. | Novo: opozorilo pri shranjevanju termina, ki se prekriva z enim drugim. |
+| `settings.overlapWarning.pair` | Prekriva se s terminoma {slots}. Za potrditev znova tapnite »Shrani«. | Novo: z dvema (»… s terminoma ponedeljek ob 07:00 (60 min) in ponedeljek ob 07:30 (60 min)«). |
+| `settings.overlapWarning.several` | Prekriva se s termini {slots}. Za potrditev znova tapnite »Shrani«. | Novo: s tremi ali več. |
 | `settings.newTemplate` | Nov termin |  |
 | `settings.editTemplate` | Uredi termin |  |
 | `settings.weekday` | Dan |  |

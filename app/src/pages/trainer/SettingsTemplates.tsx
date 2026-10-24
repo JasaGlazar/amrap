@@ -2,7 +2,9 @@ import { useCallback, useState } from 'react';
 import { futureBookedCount } from '../../data/appointments';
 import { allTemplates, saveTemplate, type TemplateFields } from '../../data/slots';
 import { fill, fromError, t } from '../../i18n';
+import { overlapsWith } from '../../lib/schedule';
 import { supabase } from '../../lib/supabase';
+import { weekdayName } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
 import { useMediaQuery, wideScreen } from '../../lib/useMediaQuery';
 import { NoticeLine, type Notice } from '../shared/NoticeLine';
@@ -19,13 +21,20 @@ const newTemplate: TemplateFields = {
   active: true,
 };
 
+type Warnings = {
+  key: string;
+  id: string | null;
+  others: WeekTemplate[];
+  count: number;
+};
+
 export function SettingsTemplates() {
   const load = useCallback(() => allTemplates(supabase), []);
   const [state, reload] = useLoad(load);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const [editing, setEditing] = useState<string | null>(null);
-  const [stranded, setStranded] = useState<{ key: string; id: string; count: number } | null>(null);
+  const [warnings, setWarnings] = useState<Warnings | null>(null);
   const [adding, setAdding] = useState(false);
   const wide = useMediaQuery(wideScreen);
 
@@ -51,18 +60,24 @@ export function SettingsTemplates() {
     const key = `${id}|${JSON.stringify(fields)}`;
     setBusy(true);
     setNotice(null);
-    if (strands && id !== null && stranded?.key !== key) {
-      let count: number;
-      try {
-        count = await futureBookedCount(supabase, id, new Date());
-      } catch (error) {
-        console.warn('stranded booking count failed', error);
-        setNotice({ error: true, text: fromError(error) });
-        setBusy(false);
-        return;
+    if (warnings?.key !== key) {
+      const already = before === undefined ? [] : overlapsWith(before, id, templates);
+      const others = overlapsWith(fields, id, templates).filter(
+        (other) => !already.includes(other),
+      );
+      let count = 0;
+      if (strands && id !== null) {
+        try {
+          count = await futureBookedCount(supabase, id, new Date());
+        } catch (error) {
+          console.warn('stranded booking count failed', error);
+          setNotice({ error: true, text: fromError(error) });
+          setBusy(false);
+          return;
+        }
       }
-      if (count > 0) {
-        setStranded({ key, id, count });
+      if (others.length > 0 || count > 0) {
+        setWarnings({ key, id, others, count });
         setBusy(false);
         return;
       }
@@ -74,10 +89,31 @@ export function SettingsTemplates() {
     await reload();
     setBusy(false);
     if (result.ok) {
-      setStranded(null);
+      setWarnings(null);
       if (id === null) setAdding(false);
       else setEditing(null);
     }
+  }
+
+  function warningLines(id: string | null): string[] {
+    if (warnings === null || warnings.id !== id) return [];
+    const lines: string[] = [];
+    if (warnings.others.length > 0) {
+      const slots = new Intl.ListFormat('sl', { type: 'conjunction' }).format(
+        warnings.others.map((other) =>
+          fill(t.settings.overlapSlot, {
+            weekday: weekdayName(other.weekday),
+            time: other.start_time.slice(0, 5),
+            minutes: other.duration_minutes,
+          }),
+        ),
+      );
+      const count = warnings.others.length;
+      const form = count === 1 ? 'single' : count === 2 ? 'pair' : 'several';
+      lines.push(fill(t.settings.overlapWarning[form], { slots }));
+    }
+    if (warnings.count > 0) lines.push(fill(t.settings.strandedWarning, { count: warnings.count }));
+    return lines;
   }
 
   function openEdit(id: string) {
@@ -86,7 +122,7 @@ export function SettingsTemplates() {
   }
 
   function closeEdit() {
-    setStranded(null);
+    setWarnings(null);
     setEditing(null);
   }
 
@@ -97,11 +133,7 @@ export function SettingsTemplates() {
         initial={template}
         busy={busy}
         framed={framed}
-        warning={
-          stranded?.id === template.id
-            ? fill(t.settings.strandedWarning, { count: stranded.count })
-            : null
-        }
+        warnings={warningLines(template.id)}
         onSave={(fields) => void store(template.id, fields)}
         onCancel={closeEdit}
       />
@@ -126,7 +158,9 @@ export function SettingsTemplates() {
             initial={newTemplate}
             busy={busy}
             onSave={(fields) => void store(null, fields)}
+            warnings={warningLines(null)}
             onCancel={() => {
+              setWarnings(null);
               setNotice(null);
               setAdding(false);
             }}

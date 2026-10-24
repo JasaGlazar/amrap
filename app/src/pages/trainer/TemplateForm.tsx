@@ -7,7 +7,7 @@ type Props = {
   title: string;
   initial: TemplateFields;
   busy: boolean;
-  warning?: string | null;
+  warnings?: string[];
   framed?: boolean;
   onSave: (fields: TemplateFields) => void;
   onCancel?: () => void;
@@ -24,7 +24,7 @@ export function TemplateForm({
   title,
   initial,
   busy,
-  warning,
+  warnings = [],
   framed = true,
   onSave,
   onCancel,
@@ -101,11 +101,11 @@ export function TemplateForm({
           {error}
         </p>
       )}
-      {warning !== undefined && warning !== null && (
-        <p role="alert" className="notice late">
+      {warnings.map((warning) => (
+        <p key={warning} role="alert" className="notice late">
           {warning}
         </p>
-      )}
+      ))}
       <div className="actions">
         <button type="submit" className="button" disabled={busy}>
           {t.settings.save}

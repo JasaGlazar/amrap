@@ -1,4 +1,4 @@
-type Timed = { id: string; start_time: string; duration_minutes: number };
+type Timed = { start_time: string; duration_minutes: number };
 
 const DAY_MINUTES = 24 * 60;
 
@@ -26,7 +26,9 @@ export function axisRange(templates: Timed[]): { from: number; to: number } {
   };
 }
 
-export function dayLanes(templates: Timed[]): Map<string, { lane: number; lanes: number }> {
+export function dayLanes(
+  templates: (Timed & { id: string })[],
+): Map<string, { lane: number; lanes: number }> {
   const sorted = [...templates].sort(
     (a, b) => minutesOf(a.start_time) - minutesOf(b.start_time) || endOf(b) - endOf(a),
   );
@@ -51,4 +53,34 @@ export function dayLanes(templates: Timed[]): Map<string, { lane: number; lanes:
   }
   close();
   return result;
+}
+
+type Slot = Timed & { weekday: number; active: boolean };
+type Placed = Slot & { id: string };
+
+function intersects(a: Slot, b: Slot): boolean {
+  return (
+    a.weekday === b.weekday &&
+    minutesOf(a.start_time) < endOf(b) &&
+    minutesOf(b.start_time) < endOf(a)
+  );
+}
+
+export function overlapsWith<T extends Placed>(
+  candidate: Slot,
+  id: string | null,
+  templates: T[],
+): T[] {
+  if (!candidate.active) return [];
+  return templates.filter(
+    (other) => other.id !== id && other.active && intersects(candidate, other),
+  );
+}
+
+export function overlappingIds(templates: Placed[]): Set<string> {
+  return new Set(
+    templates
+      .filter((template) => overlapsWith(template, template.id, templates).length > 0)
+      .map((template) => template.id),
+  );
 }
