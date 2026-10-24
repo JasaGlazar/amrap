@@ -196,7 +196,7 @@ How to write a test:
    example into a temp table, `grant select` on it to `authenticated`), then switch with
    `tests.authenticate_as(...)` and compare (`set_eq`, `is`, `results_eq`). Never hardcode a
    total: the dev seed data is present in the database while tests run. A test whose
-   fixture slots must be bookable deletes `blocked_periods` first (`021`, `032`): a dev
+   fixture slots must be bookable deletes `blocked_periods` first (`021`, `032`, `034`): a dev
    database's blocked periods would block them, and the rollback restores them.
 4. Assert failures by SQLSTATE: `throws_ok(sql, '42501', null, ...)` for privilege and RLS
    insert violations, `'23505'` for unique, `'23514'` for check constraints. An update or

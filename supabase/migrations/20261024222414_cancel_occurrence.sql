@@ -78,7 +78,6 @@ begin
 
   if p_slot_template_id is not null then
     -- Epoch, not p_starts_at::text, so the key does not depend on the session TimeZone.
-    -- Taken before the blocked check, so a concurrent cancel_occurrence() is seen once it commits.
     perform pg_advisory_xact_lock(
       hashtext(p_slot_template_id::text || '@' || extract(epoch from p_starts_at)::text));
   end if;
@@ -161,8 +160,7 @@ begin
 
     continue when v_starts_at <= now();
     continue when (v_starts_at at time zone v_tz)::time <> v_template.start_time;
-    -- The same key as book(), so a run and a booking of one occurrence are serialized; the
-    -- blocked check follows it, so a concurrent cancel_occurrence() is seen once it commits.
+    -- The same key as book(), so a run and a booking of one occurrence are serialized.
     perform pg_advisory_xact_lock(
       hashtext(v_template.id::text || '@' || extract(epoch from v_starts_at)::text));
 

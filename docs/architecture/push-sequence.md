@@ -22,7 +22,7 @@ sequenceDiagram
     participant A as App (notifications toggle, /logout)
     participant S as push_subscriptions
     participant Cron as pg_cron (every 15 min)
-    participant T as book, cancel, deactivate_rule, top_up, adjust
+    participant T as book, cancel, cancel_occurrence, deactivate_rule, top_up, adjust
     participant J as send_cutoff_reminders()
     participant E as enqueue_notification()
     participant N as notifications
@@ -49,7 +49,7 @@ sequenceDiagram
         J->>D: dispatch_notifications(new ids)
         J-->>Cron: number inserted, commit
     else event trigger
-        T->>E: notify_* trigger (customer booking or cancel, trainer cancel with refunded and reason, top-up, adjustment)
+        T->>E: notify_* trigger (customer booking or cancel, trainer cancel or cancel_occurrence with refunded and reason, top-up, adjustment)
         E->>E: push_config(), recipient linked with a device, else return
         E->>N: insert the event row, on conflict do nothing
         E->>D: dispatch_notifications(new id)

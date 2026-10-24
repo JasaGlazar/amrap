@@ -1,12 +1,13 @@
 -- Event notifications and save_push_subscription(). A customer's own booking notifies the
 -- trainer (booking_created), a customer's cancel notifies the trainer (booking_cancelled, with
 -- late), a top-up or adjustment notifies the customer (credit_topup / credit_adjustment, with
--- the new balance), a trainer cancel notifies the customer (appointment_cancelled_by_trainer,
--- with refunded and the reason; deactivate_rule too, once per instance). Trainer bookings,
--- materialization, charges and refunds notify nobody; nor does anything for a recipient
--- without a subscription or account, or without push config. With two trainers only one (the earliest with a device) is notified. A
--- failing notification never fails the action. save_push_subscription
--- moves a device's endpoint to whoever saved it last.
+-- the new balance), a trainer cancel notifies the customer
+-- (appointment_cancelled_by_trainer, with refunded and the reason; deactivate_rule too, once
+-- per instance). Trainer bookings, materialization, charges and refunds notify nobody; nor
+-- does anything for a recipient without a subscription or account, or without push config.
+-- With two trainers only one (the earliest with a device) is notified. A failing notification
+-- never fails the action. save_push_subscription moves a device's endpoint to whoever saved it
+-- last.
 --
 -- Fixture starts are built from now() and today's date in settings.timezone; expected data is
 -- derived from the fixtures and the ledger.

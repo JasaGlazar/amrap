@@ -243,12 +243,14 @@ select throws_matching(
   '^AMRAP_BLOCKED:', 'book() rejects the closed occurrence');
 select tests.clear_authentication();
 
+create temp table blocked_before as select count(*)::int as n from public.blocked_periods;
 select tests.authenticate_as((select id from fx where key = 'trainer_user'));
 select throws_matching(
   $$select public.cancel_occurrence((select id from fx where key = 't'), (select ts from times where key = 'occ'))$$,
   '^AMRAP_BLOCKED:', 'a second cancel of the closed occurrence is rejected');
 select tests.clear_authentication();
-select is((select count(*)::int from public.blocked_periods), 1, 'the second call added no blocked period');
+select is((select count(*)::int from public.blocked_periods), (select n from blocked_before),
+  'the second call added no blocked period');
 
 -- Past and empty occurrences ---------------------------------------------------------------
 
@@ -262,7 +264,9 @@ insert into results select 'empty',
   public.cancel_occurrence((select id from fx where key = 't'), (select ts from times where key = 'empty'), E' \t ');
 select tests.clear_authentication();
 
-select is((select n from results where key = 'past'), 1, 'a past occurrence with one charged booking can be cancelled');
+select is((select n from results where key = 'past'),
+  (select count(*)::int from appt_spec where at_key = 'past' and status in ('booked', 'charged')),
+  'a past occurrence with a charged booking can be cancelled');
 select results_eq(
   $$select status::text, cancel_reason from public.appointments where id = (select id from appts where key = 'past_a')$$,
   $$values ('cancelled_by_trainer', null::text)$$, 'the past charged booking is cancelled without a reason');
