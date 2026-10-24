@@ -177,7 +177,7 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Data:** `listCustomers` (customer records only, not the trainer's own row) and
   `allBalances`.
 - **List:** by name; each row links to the detail page and shows the balance (red when
-  negative, green when positive, neutral at 0). A tag shows the invite status only while the
+  negative; a positive or zero balance is plain ink, so debtors stand out). A tag shows the invite status only while the
   customer has no account (`customers.inviteStatus`: pending = an unexpired token, none); a
   linked account is the normal end state and has no tag.
 - **Nova stranka:** a button at the right of the page title opens, under the title, a form
@@ -526,7 +526,9 @@ How the guards and the auth state work is in [auth.md](auth.md).
 - **Signed numbers.** Balances and ledger amounts are formatted with `Intl.NumberFormat('sl-SI')`,
   which writes the minus as U+2212 (`−3`), never a hyphen: `formatBalance` for a balance (`4`,
   `0`, `−3`) and `formatAmount` for a change (`+8`, `−1`), both in `i18n/fill.ts`. The shared
-  `Amount` span colours them: negative `--debt`, positive `--done`, zero neutral.
+  `Amount` span colours them: negative `--debt`; a positive change (`+8`, added credits)
+  `--done`; a balance of 0 or more stays plain ink, since green is kept for opravljeno, added
+  credits and saved notices.
 
 - **Keep-alive.** Once per signed-in user per page load, `AuthProvider` runs
   `select id from settings limit 1` (ADR 0005). A failure is logged with `console.warn` and

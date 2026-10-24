@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fill, formatBalance, t } from '../../i18n';
+import { fill, formatAmount, formatBalance, t } from '../../i18n';
 import { weekdayName } from '../../lib/time';
 import { routes } from '../../routes';
 import { RECENT_DAYS } from './CustomerDetail';
@@ -97,7 +97,7 @@ describe('customer list', () => {
     expect(linked).not.toHaveTextContent(t.customers.inviteStatus.linked);
   });
 
-  it('marks positive balances only, leaving zero neutral', async () => {
+  it('marks only negative balances, leaving zero and positive in plain ink', async () => {
     renderAt('/t/stranke');
     const list = await screen.findByRole('region', { name: t.customers.listTitle });
     for (const row of db.tables.customer_balances) {
@@ -106,7 +106,7 @@ describe('customer list', () => {
       if (typeof name !== 'string') throw new Error(`no customer ${String(row.customer_id)}`);
       const item = within(list).getByRole('link', { name }).closest('li') as HTMLElement;
       const amount = within(item).getByText(formatBalance(balance));
-      expect(amount.classList.contains('positive')).toBe(balance > 0);
+      expect(amount).not.toHaveClass('positive');
       expect(amount.classList.contains('negative')).toBe(balance < 0);
     }
   });
@@ -269,6 +269,13 @@ describe('customer detail', () => {
         created_at: new Date().toISOString(),
       },
     ];
+  });
+
+  it('keeps added credits green in the ledger', async () => {
+    renderAt(`/t/stranke/${ana.id}`);
+    const ledger = await screen.findByRole('region', { name: t.customerDetail.ledgerTitle });
+    const topUp = db.tables.credit_transactions.find((row) => row.customer_id === ana.id);
+    expect(within(ledger).getByText(formatAmount(Number(topUp?.amount)))).toHaveClass('positive');
   });
 
   it('tops up with the amount and note', async () => {
