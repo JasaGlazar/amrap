@@ -822,22 +822,23 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
     navigation state for **Nazaj na stranke**; the detail page keeps it when it clears its
     starting-balance message.
   - Grid vs day groups is chosen in script (`useMediaQuery`, false in jsdom), not by CSS, so
-    only one is in the page (ADR 0011's reasoning). Only the grid widens: `.wide` /
-    `--content-wide` 80 rem from 1024 px, centred on the column, so the title, tabs and top bar
-    never move between settings tabs (ADR 0014; Stage 10's calendar can reuse it). At
-    768-1023 px the grid keeps 7 rem columns and scrolls inside its box with the hour column
-    sticky.
+    only one is in the page (ADR 0011's reasoning). Only the grid widens (`.wide`, ADR 0014;
+    Stage 10's calendar can reuse it): from 1024 px it starts at the title's left edge and
+    grows right to `--content-wide` (80 rem) or one gutter from the window (1056 px at 1440),
+    so the title, tabs and top bar never move between settings tabs. `.wide` also scrolls
+    sideways inside its own box whenever its content needs more (768-1023 px), with the hour
+    column sticky. (Fix list 2 replaced the first, centred rule.)
   - Editing from a block opens a dialog (portal to `body`) with the cancel dialog's focus
     rules, now a shared `useModal` (`pages/shared/modal.ts`); focus returns to the block, found
     by template id when a save moved it to another day. Day groups keep the inline form.
     No empty-cell click.
-  - Blocks: time range in the display cut (condensed 800), an hour 5 rem, at least 44 px
-    tall; lanes include inactive templates so nothing sits on top of anything. Overlap mark:
-    2 px dashed ink edge plus the condensed "prekrivanje" tag; inactive: dotted edge, muted,
-    "neaktiven". A container query hides block tags in lanes under 4.75 rem (overlaps at
-    768-1023 px, or three lanes), and a legend line above the grid names the edges. Lanes
-    narrower than 44 px with three or more overlaps at tablet width are a documented
-    exception.
+  - Blocks: time range in the display cut (condensed 800), an hour 5 rem, every block at
+    least 44 × 44 px (a short slot is drawn 44 px tall; day columns are at least the most
+    lanes on any day × 48 px, `--max-lanes`); lanes include inactive templates so nothing
+    sits on top of anything. Overlap mark: 2 px dashed ink edge plus the condensed
+    "prekrivanje" tag; inactive: dotted edge, muted, "neaktiven". A container query hides
+    block tags in lanes under 4.75 rem (now also the two Monday lanes at 1440, 67.5 px), and
+    a legend line above the grid names the edges.
   - The overlap check warns only about overlaps a save adds (an edit of an intended overlap,
     for example its capacity, saves at once), shares one confirmation with the stranded
     warning (both shown at once, one more **Shrani**), and its copy is keyed
@@ -853,7 +854,28 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   either inactive or already subtracted as an existing overlap), so `schedule.test.ts` is
   what covers it; "386" alone matching phones with a 0 while typing (nit).
 - Owner actions: none. Open copy questions for the trainer are in `copy-review.md`
-  (`customers.shown` wording, `settings.overlapping`).
+  (`customers.shown` wording, `settings.overlapping`, the empty-list copy when only a filter
+  empties it).
+- Fix list 2 done (`.superpowers/fixes-2.md`, items 1-10): the wide grid starts at the
+  title's edge and grows right, `.wide` carries its own sideways scroll and the grid's classes
+  are `template-*` (item 1); 44 × 44 px blocks with `--max-lanes`, the exception dropped (2);
+  `closeEdit` clears the notice (3); `useModal` falls back to `returnTo` when the opener is
+  `body` or gone, as after a Safari tap (4); day groups move focus into the form on **Uredi**
+  and back to **Uredi** on Prekliči or save (5); `+386`/`00386` → 0 only after `+` or `00`
+  (6); the duplicate `.dialog` and `li` rules merged (7); the filter-only empty copy is open
+  question 7 in `copy-review.md` (8); the search shows only once the list loaded (9). Test
+  first: the 386 cases, the search while loading (holding `customer_balances`; holding
+  `customers` stalls the sign-in lookup too), `--max-lanes`, the Safari-style click
+  (`block.click()` without focus), the failed save's error after Prekliči (new
+  `db.writeErrors` in the fake client) and the day-group focus all failed before the change.
+  Browser (`f2-*` in `.superpowers/shots/`): grid at 1024x768 and 1440x900 with its left edge
+  on the title's (160/160, 368/368) and no page scroll, 768x1024 scrolling 832 in 704, both
+  themes; the narrowest overlapping block 51.5 × 76 px at 768; a temporary 15-minute
+  inactive template (Wednesday 06:00, id `40419b6e-c068-43fa-ae82-9f9fb59230f9`, added
+  through the UI, deleted by id) measured 109.3 × 44 px; at 390 Uredi then Prekliči by
+  keyboard leaves the ring on that **Uredi**; Stranke "386" shows the empty state, "+386 41"
+  three customers. One keyboard run pressed Enter in a number field instead of Prekliči and
+  saved Monday 07:07 with unchanged values. Demo data back to 11 templates.
 
 ---
 
