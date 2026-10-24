@@ -117,9 +117,14 @@ input[type='checkbox'] {
   cursor: pointer;
 }
 
-.button:not(:disabled):hover,
 .button:not(:disabled):active {
   filter: brightness(0.92);
+}
+
+@media (hover: hover) {
+  .button:not(:disabled):hover {
+    filter: brightness(0.92);
+  }
 }
 
 .button:disabled {
@@ -162,7 +167,7 @@ input[type='checkbox'] {
   inset: auto 0 0 0;
   display: flex;
   height: calc(var(--nav-height) + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   background: var(--bg);
   border-top: 1px solid var(--border);
 }
@@ -346,7 +351,7 @@ input[type='checkbox'] {
 }
 
 .week-nav .button {
-  min-width: 2.75rem;
+  min-width: var(--tap);
   font-size: 1.25rem;
   line-height: 1;
 }
@@ -439,9 +444,8 @@ input[type='checkbox'] {
 select {
   font: inherit;
   padding: 0.375rem 0.5rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 0.5rem;
-  border-color: var(--control-border);
   background: var(--bg);
   color: var(--text);
   min-height: var(--tap);
