@@ -87,10 +87,10 @@ sign-out control links to `/logout`: the top bar of both shells, `NotLinkedPage`
 
 PostgREST answers a request whose JWT `iat` lies more than 30 seconds after its own clock with
 HTTP 401 and the code `PGRST303` ("JWT issued at future"; `allowedSkewSeconds = 30` in
-PostgREST's `Auth/Jwt.hs`, read on the main branch, not checked against the v16.2 image). In the Stage 4 browser check on the local stack (PostgREST v16.2,
-Auth v2.196.0) this hit the first requests right after a sign-in or sign-up (the customer
-lookup, `accept_invite`, the keep-alive), with the body
-`{"code":"PGRST303",…,"message":"JWT issued at future"}`.
+PostgREST's `Auth/Jwt.hs`, read on the main branch, not checked against the v16.2 image). In the
+Stage 4 browser check on the local stack (PostgREST v16.2, Auth v2.196.0) this hit the first
+requests right after a sign-in or sign-up (the customer lookup, `accept_invite`, the
+keep-alive), with the body `{"code":"PGRST303",…,"message":"JWT issued at future"}`.
 
 Cause: not found (a capped check, 2026-10-24). Auth and PostgREST run on the same Docker VM
 clock, and fresh tokens had `iat` equal to the host time; a fresh token used at once, after 10

@@ -303,22 +303,21 @@ the two Stage 3 migrations (Workflow); exact steps in `docs/runbook.md`.
   branch and a wiring test without a real wait, Auth note in auth.md, »Koledar« quoted,
   "Rezervacija za ta termin že obstaja.".
 - Task 17 done (UI polish and accessibility). `web-design-guidelines` findings and decisions:
-  - fixed: no `:focus-visible` style (3 px accent ring added); tap targets under 44 px
-    (from the stylesheet: `.button.small` about 33 px, selects about 36 px, top-bar
-    **Odjava**, customer list links, debtor chips, the checkbox row; measured: **Nazaj na
-    stranke** 18 px; all now `--tap` 44 px); muted text on
-    cards 4.39:1 (`--muted` #6b7280 → #4b5563: 7.56 on white, 6.87 on cards); greyed slot rows
-    by opacity 0.5 (3.38:1 time, 1.98:1 info; now the muted colour); input and select borders
-    1.47:1 (`--control-border` #6b7280, 4.83:1); the credits amount used `inputMode="numeric"`,
-    so an iPhone had no minus key for a negative adjustment (removed); trainer forms about
-    other people autofilled the trainer's own details (`autoComplete="off"`, best effort:
-    browsers may ignore it; real-phone check in Task 19); the cancel
-    dialog let Tab leave it and dropped focus on close (trap and focus return); the page
-    behind the dialog could scroll (first an `overscroll-behavior` rule that did nothing; after
-    the Task 17 review the dialog sets `overflow: hidden` on the root element while open); no tabular numbers on balances, amounts
-    and times; safe-area insets missing on the top bar and page sides; no hover/active
-    feedback on buttons; long text in rows could overflow (wraps anywhere now, buttons and
-    amounts never wrap).
+  - fixed: no `:focus-visible` style (3 px accent ring added); tap targets under 44 px (from the
+    stylesheet: `.button.small` about 33 px, selects about 36 px, top-bar **Odjava**, customer
+    list links, debtor chips, the checkbox row; measured: **Nazaj na stranke** 18 px; all now
+    `--tap` 44 px); muted text on cards 4.39:1 (`--muted` #6b7280 → #4b5563: 7.56 on white, 6.87
+    on cards); greyed slot rows by opacity 0.5 (3.38:1 time, 1.98:1 info; now the muted colour);
+    input and select borders 1.47:1 (`--control-border` #6b7280, 4.83:1); the credits amount
+    used `inputMode="numeric"`, so an iPhone had no minus key for a negative adjustment
+    (removed); trainer forms about other people autofilled the trainer's own details
+    (`autoComplete="off"`, best effort: browsers may ignore it; real-phone check in Task 19);
+    the cancel dialog let Tab leave it and dropped focus on close (trap and focus return); the
+    page behind the dialog could scroll (first an `overscroll-behavior` rule that did nothing;
+    after the Task 17 review the dialog sets `overflow: hidden` on the root element while open);
+    no tabular numbers on balances, amounts and times; safe-area insets missing on the top bar
+    and page sides; no hover/active feedback on buttons; long text in rows could overflow (wraps
+    anywhere now, buttons and amounts never wrap).
   - won't fix: Title Case for headings and buttons (Slovenian uses sentence case); skip link
     (the bottom nav comes after `main` in the DOM, so Tab reaches content first); `name`
     attributes on inputs (no native form posts); confirmation before deleting a blocked period

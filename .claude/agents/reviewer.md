@@ -41,13 +41,12 @@ confirmed) and the "Binding constraints" section of `docs/harness.md`.
    `docs/jobs.md`). A comment is at most one line giving a non-obvious *why*. A migration
    already on `main` changes in comments only.
 10. **Process.** Small commit that compiles and passes tests, message explains why and ends
-   with the Co-Authored-By line; `.superpowers/`, `supabase/.temp/` and
-   `.claude/settings*.json` are not committed.
-
+    with the Co-Authored-By line; `.superpowers/`, `supabase/.temp/` and
+    `.claude/settings*.json` are not committed.
 11. **Phone UI.** A new or changed screen keeps the rules in `docs/screens.md` "Behaviour
-   shared by all screens" (no horizontal scroll at 360 px, tap targets ≥ 44 px, focus ring,
-   contrast, no opacity for greyed text, 16 px inputs, minus key for negative numbers, no
-   autofill of the trainer's details).
+    shared by all screens" (no horizontal scroll at 360 px, tap targets ≥ 44 px, focus ring,
+    contrast, no opacity for greyed text, 16 px inputs, minus key for negative numbers, no
+    autofill of the trainer's details).
 
 ## Output format
 
