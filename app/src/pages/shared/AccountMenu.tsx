@@ -34,7 +34,8 @@ export function AccountMenu({ storage = browserStorage }: { storage?: StorageAcc
   }, [open]);
 
   function onBlur(event: FocusEvent) {
-    if (!root.current?.contains(event.relatedTarget as Node | null)) setOpen(false);
+    const next = event.relatedTarget;
+    if (next instanceof Node && !root.current?.contains(next)) setOpen(false);
   }
 
   function choose(next: Theme) {

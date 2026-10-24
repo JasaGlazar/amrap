@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
@@ -14,6 +14,7 @@ function renderMenu() {
           <>
             <AccountMenu />
             <p>{t.common.loading}</p>
+            <button type="button">{t.common.continue}</button>
           </>
         ),
       },
@@ -93,11 +94,22 @@ describe('AccountMenu', () => {
     expect(appearance()).not.toBeInTheDocument();
   });
 
+  it('closes on its button when the browser does not focus buttons on click', async () => {
+    renderMenu();
+    await userEvent.click(menuButton());
+    fireEvent.focusOut(screen.getByRole('radio', { name: t.account.theme.system }), {
+      relatedTarget: null,
+    });
+    fireEvent.click(menuButton());
+    expect(appearance()).not.toBeInTheDocument();
+  });
+
   it('closes when focus moves out of it', async () => {
     renderMenu();
     await userEvent.click(menuButton());
     await userEvent.tab();
     await userEvent.tab();
+    expect(screen.getByRole('button', { name: t.common.continue })).toHaveFocus();
     expect(appearance()).not.toBeInTheDocument();
   });
 
