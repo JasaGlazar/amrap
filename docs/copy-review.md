@@ -236,7 +236,7 @@ is a question below.
 | `trainer.noDebtors` | Nihče nima negativnega stanja. |  |
 | `trainer.nobodyBooked` | Ni prijavljenih strank. | »prijavljenih« ali »rezerviranih« strank? |
 | `trainer.chargedTag` | opravljeno | Isto vprašanje kot »Opravljeno« zgoraj. |
-| `trainer.addCustomer` | Dodaj stranko | Gumb pri terminu v koledarju; odpre izbiro stranke. Ko je termin poln ali zaprt, gumb namesto tega pokaže »Polno« ali »Zaprto«. |
+| `trainer.addCustomer` | Dodaj stranko | Gumb pri terminu v koledarju; odpre izbiro stranke. Ko je termin poln ali zaprt, gumb namesto tega pokaže »Polno« ali »Zaprto«. Enako besedilo ima gumb, ki ustvari novo stranko (`customers.create`), čeprav gre za drugo dejanje: je to v redu, ali naj bo tukaj »Prijavi stranko« ali »Dodaj v termin«? |
 | `trainer.noneToAdd` | Ni strank za dodajanje | Onemogočen gumb pri terminu, ko ni nobene stranke, ki bi jo lahko dodali (vse so že prijavljene ali pa strank še ni). |
 | `trainer.addTo` | Stranka za termin {when} |  |
 | `trainer.chooseCustomer` | Izberi stranko |  |
@@ -266,7 +266,7 @@ is a question below.
 | `customers.name` | Ime in priimek |  |
 | `customers.phone` | Telefon |  |
 | `customers.email` | E-poštni naslov |  |
-| `customers.create` | Dodaj stranko |  |
+| `customers.create` | Dodaj stranko | Enako besedilo kot gumb pri terminu v koledarju (`trainer.addCustomer`), ki stranko doda v termin. Je to v redu, ali naj bo tukaj »Ustvari stranko«? |
 | `customers.startingBalance` | Začetno stanje kreditov (s papirja) | Novo (Stage 4). Razumljivo? |
 | `customers.startingHint` | Neobvezno. Pozitivno število doda kredite, negativno vpiše dolg. | Novo. |
 | `customers.startingInvalid` | Začetno stanje mora biti celo število (lahko negativno) ali prazno. | Novo. |

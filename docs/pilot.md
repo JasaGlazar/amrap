@@ -93,7 +93,7 @@ Vsak dan, nekaj minut:
 
 Popravki:
 
-- **Dopust ali zaprtje sredi tedna:** dodajte zaprto obdobje (**Nastavitve**). Že rezervirani
+- **Dopust ali zaprtje sredi tedna:** dodajte zaprto obdobje (**Nastavitve → Zaprta obdobja**). Že rezervirani
   termini v njem ostanejo in bi se zaračunali; odpovejte jih v **Koledarju** (»Odpovej«).
 - **Termin odpoveste vi** (bolezen, dopust): **Koledar**, »Odpovej« pri stranki, »Odpovej
   termin«. Nikoli se ne zaračuna; že zaračunan termin se stranki vrne (+1).
