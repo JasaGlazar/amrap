@@ -20,6 +20,7 @@ import { routes } from '../../routes';
 import {
   db,
   fakeSupabase,
+  holdTable,
   makeCustomer,
   makeSession,
   postgrestTime,
@@ -89,10 +90,13 @@ function showView(view: View) {
   );
 }
 
+function dayButtonName(date: LocalDate) {
+  const part = (options: Intl.DateTimeFormatOptions) => formatLocalDate(date, options);
+  return `${part({ weekday: 'short' })} ${part({ day: 'numeric' })} ${part({ month: 'long' })}`;
+}
+
 function dayButton(date: LocalDate) {
-  return screen.getByRole('button', {
-    name: formatLocalDate(date, { weekday: 'long', day: 'numeric', month: 'long' }),
-  });
+  return screen.getByRole('button', { name: dayButtonName(date) });
 }
 
 function dayColumnName(date: LocalDate) {
@@ -233,6 +237,8 @@ describe('appointments outside the slot grid', () => {
 });
 
 describe('trainer calendar', () => {
+  beforeEach(() => showView('day'));
+
   function holdBook() {
     let release = () => {};
     const original = fakeSupabase.rpc.getMockImplementation();
@@ -498,21 +504,16 @@ describe('trainer calendar day view', () => {
     db.tables.slot_templates = [todayTemplate, thursday];
   });
 
-  it('shows the seven days of the week as buttons, Monday first', async () => {
+  it('shows the seven days of the week as buttons, Monday first, named by their visible text', async () => {
     renderAt('/t/koledar');
     const strip = await screen.findByRole('group', { name: t.trainer.days });
-    const names = within(strip)
-      .getAllByRole('button')
-      .map((button) => button.getAttribute('aria-label'));
-    expect(names).toEqual(
-      [0, 1, 2, 3, 4, 5, 6].map((offset) =>
-        formatLocalDate(addDays(monday, offset), {
-          weekday: 'long',
-          day: 'numeric',
-          month: 'long',
-        }),
-      ),
-    );
+    const buttons = within(strip).getAllByRole('button');
+    const days = [0, 1, 2, 3, 4, 5, 6].map((offset) => addDays(monday, offset));
+    expect(buttons).toHaveLength(days.length);
+    days.forEach((date, index) => {
+      expect(buttons[index]).toHaveAccessibleName(dayButtonName(date));
+      expect(buttons[index]).not.toHaveAttribute('aria-label');
+    });
   });
 
   it('selects today by default when today is in the shown week and marks it as today', async () => {
@@ -543,6 +544,31 @@ describe('trainer calendar day view', () => {
     expect(screen.queryByRole('listitem', { name: slotLabel(startsAt) })).not.toBeInTheDocument();
   });
 
+  it('changes the day in the shown week without reloading it or losing focus', async () => {
+    renderAt('/t/koledar');
+    await screen.findByRole('group', { name: t.trainer.days });
+    const reads = () =>
+      fakeSupabase.from.mock.calls.filter(([table]) => table === 'slot_templates').length;
+    const before = reads();
+    await userEvent.click(dayButton(addDays(monday, 3)));
+    expect(screen.queryByText(t.common.loading)).not.toBeInTheDocument();
+    expect(dayButton(addDays(monday, 3))).toHaveFocus();
+    await userEvent.click(dayButton(addDays(monday, 4)));
+    expect(dayButton(addDays(monday, 4))).toHaveFocus();
+    expect(reads()).toBe(before);
+  });
+
+  it('keeps the week arrows disabled until the first week has loaded', async () => {
+    const release = holdTable('slot_templates');
+    renderAt('/t/koledar');
+    expect(await screen.findByRole('button', { name: t.calendar.nextWeek })).toBeDisabled();
+    expect(screen.getByRole('button', { name: t.calendar.previousWeek })).toBeDisabled();
+    release();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: t.calendar.nextWeek })).toBeEnabled(),
+    );
+  });
+
   it('opens the day and the week named in the URL', async () => {
     const day = addDays(monday, 10);
     renderAt(`/t/koledar?dan=${day}`);
@@ -565,7 +591,7 @@ describe('trainer calendar day view', () => {
     await screen.findByRole('group', { name: t.trainer.days });
     await userEvent.click(screen.getByRole('button', { name: t.calendar.nextWeek }));
     expect(await screen.findByRole('button', { pressed: true })).toHaveAccessibleName(
-      formatLocalDate(addDays(monday, 7), { weekday: 'long', day: 'numeric', month: 'long' }),
+      dayButtonName(addDays(monday, 7)),
     );
     expect(router.state.location.search).toBe(`?dan=${addDays(monday, 7)}`);
     expect(router.state.historyAction).toBe('REPLACE');

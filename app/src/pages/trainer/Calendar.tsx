@@ -91,17 +91,18 @@ export function TrainerCalendar() {
   const [params, setParams] = useSearchParams();
   const chosen = parseLocalDate(params.get(dayParam));
   const shownStart = chosen === null ? null : weekStart(chosen);
+  const [loadedWeek, setLoadedWeek] = useState(shownStart);
   const knownToday = useRef<LocalDate | null>(null);
   const load = useCallback(async () => {
     const now = new Date();
     const [week, customers] = await Promise.all([
-      loadWeek(supabase, { now, weekOffset: 0, start: shownStart ?? undefined }),
+      loadWeek(supabase, { now, weekOffset: 0, start: loadedWeek ?? undefined }),
       listCustomers(supabase),
     ]);
     const today = localDateOf(now, week.settings.timeZone);
     knownToday.current = today;
     return { week, customers, today };
-  }, [shownStart]);
+  }, [loadedWeek]);
   const [state, reload] = useLoad(load);
   const wide = useMediaQuery(weekGrid);
   const [message, setMessage] = useState<Notice>(null);
@@ -123,6 +124,9 @@ export function TrainerCalendar() {
   }
 
   const data = state.status === 'ok' ? state.data : null;
+  const sameWeek =
+    shownStart === loadedWeek || (loadedWeek === null && shownStart === data?.week.start);
+  if (!sameWeek) setLoadedWeek(shownStart);
 
   function selectDay(day: LocalDate) {
     setMessage(null);
@@ -201,6 +205,7 @@ export function TrainerCalendar() {
       </div>
       <WeekNav
         start={data?.week.start ?? shownStart}
+        disabled={shownStart === null && data === null}
         canGoBack
         onPrevious={() => goToWeek(-1)}
         onNext={() => goToWeek(1)}

@@ -17,13 +17,13 @@ export function DayStrip({ start, selected, today, onSelect }: Props) {
           key={date}
           type="button"
           className="day-button"
-          aria-label={formatLocalDate(date, { weekday: 'long', day: 'numeric', month: 'long' })}
           aria-pressed={date === selected}
           aria-current={date === today ? 'date' : undefined}
           onClick={() => onSelect(date)}
         >
-          <span>{formatLocalDate(date, { weekday: 'short' })}</span>
-          <span className="day-button-date">{formatLocalDate(date, { day: 'numeric' })}</span>
+          <span>{formatLocalDate(date, { weekday: 'short' })}</span>{' '}
+          <span className="day-button-date">{formatLocalDate(date, { day: 'numeric' })}</span>{' '}
+          <span className="visually-hidden">{formatLocalDate(date, { month: 'long' })}</span>
         </button>
       ))}
     </div>

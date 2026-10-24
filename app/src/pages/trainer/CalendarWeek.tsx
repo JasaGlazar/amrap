@@ -117,12 +117,12 @@ export function CalendarWeek({ week, today, names, roster, onCancel }: Props) {
               aria-labelledby={`${id}-${weekday}`}
             >
               <div className="week-day-head">
-                <h3 id={`${id}-${weekday}`} aria-current={isToday ? 'date' : undefined}>
+                <h2 id={`${id}-${weekday}`} aria-current={isToday ? 'date' : undefined}>
                   {weekdayHeading(weekday)}{' '}
                   <span className="week-day-date">
                     {formatLocalDate(date, { day: 'numeric', month: 'numeric' })}
                   </span>
-                </h3>
+                </h2>
                 {isToday && <span className="tag">{t.trainer.todayTag}</span>}
               </div>
               {items.length > 0 && (
