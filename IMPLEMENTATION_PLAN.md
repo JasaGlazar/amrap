@@ -238,17 +238,19 @@ updated; issue #2's Pages line points at #11; nothing billable was touched.
 **Tests**: no code under test changed. Lint, typecheck, Vitest, build and `check-docs.sh` as
 before; `cf deploy --dry-run` from `app/deploy/`; the build served locally by `cf dev`
 (Wrangler's local runtime) checked with curl and agent-browser.
-**Status**: Complete except the live deploy (PR open; see the handoff)
+**Status**: Complete except the live deploy (PR #26 merged; the deploy is an owner action, #11)
 
 ## Workflow (from 2026-10-23 evening)
 
 - Orchestrator session runs on Opus. Per stage: a Herdr worktree with a fresh session does the
   stage; the orchestrator reviews each task with the project `reviewer` agent.
-- PR per stage (`--label patch --assignee @me`), based on the previous stage branch. Merge
-  automatically when CI is green; no owner review needed. After a stage merges to `main`, run
+- PR per stage (`--label patch --assignee @me`). Since Stage 8 each stage branches off the
+  latest `origin/main` after the previous one merged (no stacking). Merge automatically when
+  CI is green; no owner review needed. After a stage merges to `main`, run
   `supabase db push` and report it (owner approved on 2026-10-23).
-- Only one worktree runs the local Supabase stack at a time (fixed ports): `supabase stop`
-  before switching.
+- Since Stage 8 the local Supabase stack runs from the main checkout and serves every worktree
+  (same `project_id`, fixed ports): never `supabase stop` or `db reset` during a run; a stage
+  applies its new migrations with `supabase migration up --local`.
 - Code comments are kept to a minimum (a non-obvious *why* only). What a layer does lives in
   `docs/<layer>.md` (auth, data layer, time/calendar, RPCs, jobs). See Task 9.
 - The SDD ledger (`.superpowers/`) is gitignored; this file is the committed handoff.
@@ -1252,6 +1254,28 @@ Found (pre-existing, not Task 15 code; not fixed, for the orchestrator to schedu
   registering the subdomain should work too. The owner's email and account id left this note
   (they remain in the history of fd36e78). Issue #2's Auth line now names the workers.dev URL
   (#11); the PR body no longer relies on this worktree's env file.
+
+### Run handoff (2026-10-25, Stages 8-12, tracking issue #21)
+
+- Merged to `main`: #22 (Stage 8: #20, #12, #13), #23 (Stage 9: #14, #15, #16), #24 (Stage
+  10: #17), #25 (Stage 11: #18, #19), #26 (Stage 12: #11 without the live deploy). Every PR
+  had the project `reviewer` twice (the stage session's own pass, then the orchestrator's) and
+  one or two fix lists; CI green on each merge.
+- **Hosted DB is behind `main`.** `supabase db push` from `main` after #22 was refused by the
+  Claude Code auto-mode permission check, so none of the three new migrations are on the
+  hosted project: `20261024193349_data_retention`, `20261024221416_trainer_cancel_reason`,
+  `20261024222414_cancel_occurrence`. Owner action: push them (release-checklist steps 3-4,
+  including `select public.prune_cron_history();` once in the SQL editor).
+- **The app is not live.** The stage session's `cf deploy` was refused by the same check.
+  Owner action: the runbook's "Cloudflare Workers deploy", after the migrations (the build
+  calls `cancel` with `p_reason` and `cancel_occurrence`). #11 stays open until then.
+- `send-push` changed in Stage 11 (new notification kind); deploying it stays an owner action
+  with the rest of #5.
+- Local demo data: balances are as at the start of the run. Stage 11's browser checks left
+  three demo bookings as "Odpovedal trener" with a reason (Ana Novak and Eva Kos on Thu 29 Oct
+  19:00, Marko Kranjc on Mon 2 Nov 07:07); their closed periods were deleted.
+- Open copy questions for the trainer were added to `docs/copy-review.md` (Stranke count line,
+  "prekrivanje", the empty-filter wording, "obveščenih strank" counting cancelled bookings).
 
 ---
 
