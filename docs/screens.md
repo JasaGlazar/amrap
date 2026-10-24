@@ -160,7 +160,7 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Data:** `listCustomers` (customer records only, not the trainer's own row) and
   `allBalances`.
 - **List:** by name; each row links to the detail page and shows the balance (red when
-  negative, accent when positive, neutral at 0). A tag shows the invite status only while the
+  negative, green when positive, neutral at 0). A tag shows the invite status only while the
   customer has no account (`customers.inviteStatus`: pending = an unexpired token, none); a
   linked account is the normal end state and has no tag.
 - **Nova stranka:** name (required, `customers.nameRequired`), phone and email (empty becomes
@@ -329,10 +329,10 @@ How the guards and the auth state work is in [auth.md](auth.md).
   - no horizontal scroll at 360 px wide; the fixed bottom navigation never covers the last item;
   - every tap target (buttons, links outside running text, inputs, selects, checkbox labels)
     is at least 44 × 44 px (`--tap` in `styles.css`);
-  - everything focusable shows a 3 px accent ring on `:focus-visible` (not the dialog box
+  - everything focusable shows a 3 px `--ink` ring on `:focus-visible` (not the dialog box
     itself, which only receives focus so screen readers start there);
-  - text contrast at least 4.5:1, control borders at least 3:1 (`--muted` #4b5563,
-    `--control-border` #6b7280); greyed rows use the muted colour, never opacity;
+  - text contrast at least 4.5:1, control borders at least 3:1, in both themes (see
+    [Colour and themes](#colour-and-themes)); greyed rows use the muted colour, never opacity;
   - inputs are 16 px, so iOS does not zoom on focus; a number that may be negative uses
     `type="number"` without `inputMode="numeric"` (the iOS numeric pad has no minus key);
     fields the trainer fills in about someone else (customer name, phone, email, credit note,
@@ -340,13 +340,33 @@ How the guards and the auth state work is in [auth.md](auth.md).
     managers ignore it;
   - in a row, text wraps anywhere but buttons and amounts never wrap or shrink; a row's
     buttons stay on one line together, and a tag sits next to the text it describes;
-  - links are the accent colour (never the browser's default blue);
+  - links are `--ink` and underlined (never the browser's default blue);
   - a disabled button is neutral, whatever its kind: surface background, muted text, no
-    outline and no opacity; on a card it keeps a 1 px `--border` outline so it still reads as a
-    button. An enabled secondary button has a 1 px `--control-border` outline, so an enabled
+    outline and no opacity; on a card it keeps a 1 px `--line` outline so it still reads as a
+    button. An enabled secondary button has a 1 px `--control-line` outline, so an enabled
     and a disabled one are told apart (for example the week arrows);
   - safe-area insets on the top bar, the page sides, the bottom navigation and the dialog;
   - errors are `role="alert"`, results `role="status"`.
+
+- **Colour and themes.** Black, white and grey from the gym logo
+  ([ADR 0010](adr/0010-visual-identity-and-themes.md)); red only for debt, late cancels and
+  destructive buttons, green only for "opravljeno", added credits and saved notices. Every
+  colour is a token on `:root` in `styles.css`; no component sets a colour of its own. The dark
+  values apply under `prefers-color-scheme: dark` unless `<html data-theme="light">`, and
+  always under `data-theme="dark"`; `color-scheme` follows, so native controls and scroll
+  bars match. Contrast of the pairs the app uses (WCAG ratio, light / dark):
+
+  | Pair | Light | Dark | Needs |
+  |---|---|---|---|
+  | `--text` on `--paper` / `--surface` | 17.0 / 15.4 | 17.9 / 15.5 | 4.5 |
+  | `--ink` on `--paper` / `--surface` (headings, primary button text reversed) | 21 / 18.9 | 21 / 18.1 | 4.5 |
+  | `--muted` on `--paper` / `--surface` | 6.4 / 5.8 | 8.3 / 7.2 | 4.5 |
+  | `--debt` on `--paper` / `--surface` / `--debt-bg` | 6.1 / 5.5 / 5.4 | 8.3 / 7.2 / 6.4 | 4.5 |
+  | `--paper` on `--debt` (destructive button) | 6.1 | 8.3 | 4.5 |
+  | `--done` on `--paper` / `--surface` / `--done-bg` | 5.4 / 4.8 / 4.7 | 10.3 / 8.8 / 7.6 | 4.5 |
+  | `--control-line` on `--paper` / `--surface` (input, select and secondary button edges) | 3.7 / 3.3 | 4.4 / 3.8 | 3 |
+
+  `--line` (row dividers, card and dialog edges, tags) is decorative and needs no ratio.
 
 - **Spacing.** One scale in `styles.css`, `--space-1` to `--space-7` (4, 8, 12, 16, 24, 32,
   48 px). Components carry no outer margins; the context sets the gap:
@@ -367,7 +387,7 @@ How the guards and the auth state work is in [auth.md](auth.md).
 - **Signed numbers.** Balances and ledger amounts are formatted with `Intl.NumberFormat('sl-SI')`,
   which writes the minus as U+2212 (`−3`), never a hyphen: `formatBalance` for a balance (`4`,
   `0`, `−3`) and `formatAmount` for a change (`+8`, `−1`), both in `i18n/fill.ts`. The shared
-  `Amount` span colours them: negative red, positive accent, zero neutral.
+  `Amount` span colours them: negative `--debt`, positive `--done`, zero neutral.
 
 - **Keep-alive.** Once per signed-in user per page load, `AuthProvider` runs
   `select id from settings limit 1` (ADR 0005). A failure is logged with `console.warn` and
