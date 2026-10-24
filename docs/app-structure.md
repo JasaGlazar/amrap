@@ -125,7 +125,10 @@ Copy conventions:
   (`{ one, two, few, other }`, each a template with `{count}`) and the component calls
   `plural(forms, count)` from `i18n/fill.ts`, which picks the form with
   `Intl.PluralRules('sl')` (1 mesto, 2 mesti, 3 mesta, 5 mest). Copy that avoids the noun
-  ("Novih terminov: {count}") needs no plural.
+  ("Novih terminov: {count}") needs no plural. A noun that agrees with a list rather than a
+  shown count ("s terminom …", "s terminoma … in …", "s termini …") is an object keyed
+  `single` / `pair` / `several` without `{count}` (`settings.overlapWarning`), picked by the
+  list's length, so `sl.test.ts` does not take it for a `Plural`.
 - Punctuation: `…` after a space for "in progress" lines, en dash for ranges, `»«` around the
   names of buttons and screens quoted in a sentence. Dates and times as in [time.md](time.md).
 

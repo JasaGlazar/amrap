@@ -779,6 +779,17 @@ input[type='checkbox'] {
   box-shadow: 0 -0.5rem 2rem var(--shadow);
 }
 
+.dialog {
+  max-height: calc(100dvh - var(--space-5));
+  overflow-y: auto;
+}
+
+@media (min-width: 48rem) {
+  .dialog {
+    max-height: calc(100dvh - 2 * var(--space-5));
+  }
+}
+
 .dialog:focus-visible {
   outline: none;
 }
@@ -1143,14 +1154,6 @@ input::placeholder {
   font-size: var(--text-sm);
 }
 
-.empty > * {
-  margin: 0;
-}
-
-.empty > * + * {
-  margin-top: var(--space-3);
-}
-
 @media (min-width: 64rem) {
   .wide {
     --wide: min(var(--content-wide), 100vw - 2 * var(--space-4));
@@ -1286,7 +1289,8 @@ section:not(.form, .card) > .day-group {
 }
 
 .week-block.inactive {
-  border-color: var(--line);
+  border-style: dotted;
+  border-color: var(--control-line);
   background: var(--paper);
   color: var(--muted);
 }
@@ -1302,6 +1306,15 @@ section:not(.form, .card) > .day-group {
 
 .week-blocks li {
   container-type: inline-size;
+  min-height: var(--tap);
+}
+
+.week-blocks li:focus-within {
+  z-index: 2;
+}
+
+.week-block:focus-visible {
+  outline-offset: -1px;
 }
 
 @container (max-width: 4.75rem) {
@@ -1311,6 +1324,9 @@ section:not(.form, .card) > .day-group {
 }
 
 .legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-4);
   color: var(--muted);
   font-size: var(--text-sm);
 }

@@ -199,16 +199,18 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   `--ink` on paper, not filled, so the screen keeps one black button.
 - **Count and empty state:** above the list, `customers.total` ("9 strank") or, while a
   search or filter narrows it, `customers.shown` ("Prikazanih 7 od 9"), both plural forms of
-  the shown count, in a `role="status"` line. When nothing matches, `customers.noMatches`
-  and **Počisti iskanje**, which empties the search, returns to **Vsi** and puts focus in
+  the shown count, in a `role="status"` line that stays in place, so a screen reader hears
+  the new count as the trainer types. When nothing matches, the same line says
+  `customers.noMatches`, with **Počisti iskanje** under it, which empties the search, returns to **Vsi** and puts focus in
   the search field. With no customers at all the list says `customers.noCustomers`.
 - **List state in the URL:** the search is `q` and the filter `f` (`dolzniki`, `brez`; none
   for **Vsi**), written with `replace`, so typing never adds history entries and the browser's
   back button leaves the list as a whole. Each row link carries the list's query string in its
   navigation state, so both the browser's back button and **Nazaj na stranke** on the detail
   page return to the same search and filter. The field keeps its own value while typing (the
-  URL follows), so the caret stays where the trainer types; a navigation the search did not
-  make (for example **Stranke** in the main navigation) resets it from the URL.
+  URL follows), so the caret stays where the trainer types; any navigation other than the
+  field's own replace (for example **Stranke** in the main navigation, or the browser's back
+  button to a list that was searched) sets it from the URL.
 - **Nova stranka:** a button at the right of the page title opens, under the title, a form
   ([on demand](#forms-on-demand)): name (required, `customers.nameRequired`), phone and email (empty becomes
   null), and an optional starting balance from the paper sheet (`customers.startingBalance`, a
@@ -307,18 +309,25 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     (`settings.places`). Blocks that overlap in time sit side by side within the column
     (`dayLanes`: a group of slots that overlap one another shares the column in lanes, a lane
     is reused once it is free; touching slots do not share). An inactive template is muted
-    (paper background, `--line` edge, muted text) with the `neaktiven` tag. Each block is a
+    (paper background, a dotted edge, muted text) with the `neaktiven` tag. Each block is a
     `button` whose name says everything its position shows (`settings.blockLabel`:
     "Ponedeljek 07:00, 60 min, 5 mest, uredi", with ", neaktiven" when inactive and
     ", prekrivanje" when it overlaps). The axis is `aria-hidden`.
   - **Overlap mark:** an active template that overlaps another active one on the same day
     (`overlappingIds`, the same rule as the warning below) has a 2 px dashed `--ink` edge
     instead of the solid one and the tag `settings.overlapping` ("prekrivanje"), in both
-    themes and not by colour. While any slots overlap, a line above the grid explains the
-    edge (`settings.overlapLegend`). The block's tags are set in the condensed cut; a lane too
+    themes and not by colour. A line above the grid explains the edges that are in it:
+    `settings.overlapLegend` while any slots overlap, `settings.inactiveLegend` while any
+    template is inactive. The block's tags are set in the condensed cut; a lane too
     narrow for them (under 4.75 rem, for example two or three overlapping slots at
-    768-1023 px) hides its tags by a container query, and the dashed edge, the muted look of
-    an inactive block and the button's name still carry them. From 1024 px the grid is a [wide view](#behaviour-shared-by-all-screens);
+    768-1023 px) hides its tags by a container query, and the dashed or dotted edge and the
+    button's name still carry them.
+  - **Tap size:** a block is at least 44 px tall (`--tap`), so a 30-minute slot is taller
+    than its time and may cover the top of a slot right after it; the focused block is drawn
+    above its neighbours. Three or more overlapping slots at 768-1023 px make lanes narrower
+    than 44 px: an accepted exception for a rare case on a laptop or tablet view, where each
+    block's name still carries everything and the day groups on a phone have full-width
+    rows. From 1024 px the grid is a [wide view](#behaviour-shared-by-all-screens);
     below that (768-1023 px) its columns keep at least 7 rem and the grid scrolls sideways
     inside its own box, the hours column staying in place, so the page itself never scrolls
     sideways.
@@ -328,7 +337,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     **Prekliči** or Escape closes it (not while a save or count runs) and focus returns to
     the block; a successful save closes it, the section shows `settings.saved` and focus is on
     the block again (found by its template id if the save moved it to another day). A
-    rejected save shows its error inside the dialog. Empty cells do nothing; **Nov termin**
+    rejected save shows its error inside the dialog only (not again behind it). The dialog
+    never grows past the window (`max-height` with its own scroll), so **Shrani** stays
+    reachable with both warnings on a phone held sideways, which is past 768 px. Empty cells do nothing; **Nov termin**
     stays the way to add a template.
   - **Below 768 px, day groups** (`DayGroups`): one `h3` per day that has templates
     (**Ponedeljek** first, days without templates left out), then compact rows by start time:
@@ -353,9 +364,11 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   again, so changing the capacity of an intended overlap saves at once. If there are any, the
   form shows `settings.overlapWarning` naming the other slots (`settings.overlapSlot`,
   "ponedeljek ob 07:00 (60 min)", joined with `Intl.ListFormat('sl')`; `single`, `pair` or
-  `several` for terminom, terminoma, termini) and saves only when **Shrani** is clicked again
-  with the same values; changed values are checked again. Together with stranded bookings
-  (below) both warnings show at once, overlap first, and one more **Shrani** saves.
+  `several` for terminom, terminoma, termini), followed by `settings.confirmAgain`, and saves
+  only when **Shrani** is clicked again with the same values; changed values are checked
+  again. Together with stranded bookings (below) both warnings show at once, overlap first,
+  and one more **Shrani** saves; the "tap Shrani again" sentence then comes once, at the end
+  of the stranded warning.
 - **Stranded bookings:** saving a deactivation, or a weekday or start-time change, of an
   active template first counts its future `booked` appointments (`futureBookedCount`). If there
   are any, the form shows `settings.strandedWarning` with the count (they stay booked and

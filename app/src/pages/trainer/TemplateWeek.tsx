@@ -46,11 +46,21 @@ export function WeekGrid({ templates, onEdit }: Props) {
   const id = useId();
   const { from, to } = axisRange(templates);
   const overlapping = overlappingIds(templates);
+  const legend = [
+    ...(overlapping.size > 0 ? [t.settings.overlapLegend] : []),
+    ...(templates.some((template) => !template.active) ? [t.settings.inactiveLegend] : []),
+  ];
   const hours: number[] = [];
   for (let hour = from; hour < to; hour += 60) hours.push(hour);
   return (
     <>
-      {overlapping.size > 0 && <p className="legend">{t.settings.overlapLegend}</p>}
+      {legend.length > 0 && (
+        <p className="legend">
+          {legend.map((line) => (
+            <span key={line}>{line}</span>
+          ))}
+        </p>
+      )}
       <div className="week wide">
         <div className="week-grid" style={{ '--span': to - from } as CSSProperties}>
           <div className="week-axis" aria-hidden="true">

@@ -1,5 +1,12 @@
 import { useCallback, useId, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
+import {
+  Link,
+  NavigationType,
+  useLocation,
+  useNavigate,
+  useNavigationType,
+  useSearchParams,
+} from 'react-router';
 import { adjust, allBalances, topUp } from '../../data/credits';
 import {
   createCustomer,
@@ -36,6 +43,7 @@ export function TrainerCustomers() {
   const [adding, setAdding] = useState(false);
   const [params, setParams] = useSearchParams();
   const location = useLocation();
+  const navigationType = useNavigationType();
   const searchId = useId();
   const searchField = useRef<HTMLInputElement>(null);
   const urlQuery = params.get('q') ?? '';
@@ -44,7 +52,8 @@ export function TrainerCustomers() {
   const [seenKey, setSeenKey] = useState(location.key);
   if (location.key !== seenKey) {
     setSeenKey(location.key);
-    if ((location.state as { fromSearch?: boolean } | null)?.fromSearch !== true) {
+    const typed = (location.state as { fromSearch?: boolean } | null)?.fromSearch === true;
+    if (navigationType !== NavigationType.Replace || !typed) {
       setQuery(urlQuery);
     }
   }
@@ -185,40 +194,41 @@ function CustomerList({
     <section aria-label={t.customers.listTitle}>
       {customers.length === 0 ? (
         <p>{t.customers.noCustomers}</p>
-      ) : shown.length === 0 ? (
-        <div className="empty">
-          <p>{t.customers.noMatches}</p>
-          <button type="button" className="button secondary" onClick={onClear}>
-            {t.customers.clearSearch}
-          </button>
-        </div>
       ) : (
         <>
-          <p role="status" className="count">
-            {narrowed
-              ? fill(plural(t.customers.shown, shown.length), { total: customers.length })
-              : plural(t.customers.total, customers.length)}
+          <p role="status" className={shown.length === 0 ? undefined : 'count'}>
+            {shown.length === 0
+              ? t.customers.noMatches
+              : narrowed
+                ? fill(plural(t.customers.shown, shown.length), { total: customers.length })
+                : plural(t.customers.total, customers.length)}
           </p>
-          <ul className="list">
-            {shown.map((customer) => {
-              const status = inviteStatus(customer, now);
-              return (
-                <li key={customer.id} className="row">
-                  <Link
-                    to={`/t/stranke/${customer.id}`}
-                    state={{ listSearch }}
-                    className="row-link"
-                  >
-                    {customer.name}
-                  </Link>
-                  {status !== 'linked' && (
-                    <span className="tag">{t.customers.inviteStatus[status]}</span>
-                  )}
-                  <Amount value={customer.balance} />
-                </li>
-              );
-            })}
-          </ul>
+          {shown.length === 0 ? (
+            <button type="button" className="button secondary" onClick={onClear}>
+              {t.customers.clearSearch}
+            </button>
+          ) : (
+            <ul className="list">
+              {shown.map((customer) => {
+                const status = inviteStatus(customer, now);
+                return (
+                  <li key={customer.id} className="row">
+                    <Link
+                      to={`/t/stranke/${customer.id}`}
+                      state={{ listSearch }}
+                      className="row-link"
+                    >
+                      {customer.name}
+                    </Link>
+                    {status !== 'linked' && (
+                      <span className="tag">{t.customers.inviteStatus[status]}</span>
+                    )}
+                    <Amount value={customer.balance} />
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </>
       )}
     </section>

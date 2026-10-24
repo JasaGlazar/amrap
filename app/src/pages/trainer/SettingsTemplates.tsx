@@ -110,7 +110,8 @@ export function SettingsTemplates() {
       );
       const count = warnings.others.length;
       const form = count === 1 ? 'single' : count === 2 ? 'pair' : 'several';
-      lines.push(fill(t.settings.overlapWarning[form], { slots }));
+      const text = fill(t.settings.overlapWarning[form], { slots });
+      lines.push(warnings.count > 0 ? text : `${text} ${t.settings.confirmAgain}`);
     }
     if (warnings.count > 0) lines.push(fill(t.settings.strandedWarning, { count: warnings.count }));
     return lines;
@@ -167,7 +168,7 @@ export function SettingsTemplates() {
           />
         </OnDemand>
       </div>
-      <NoticeLine notice={notice} />
+      <NoticeLine notice={wide && editedTemplate !== undefined ? null : notice} />
       {templates.length === 0 ? (
         <p>{t.settings.noTemplates}</p>
       ) : wide ? (

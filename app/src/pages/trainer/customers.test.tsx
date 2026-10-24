@@ -376,7 +376,7 @@ describe('customer search and filters', () => {
     const region = await list();
     const search = screen.getByRole('searchbox', { name: t.customers.search });
     await userEvent.type(search, 'nobody here');
-    expect(within(region).getByText(t.customers.noMatches)).toBeVisible();
+    expect(within(region).getByRole('status')).toHaveTextContent(t.customers.noMatches);
     expect(within(region).queryByRole('list')).toBeNull();
     await userEvent.click(within(region).getByRole('button', { name: t.customers.clearSearch }));
     expect(search).toHaveValue('');
@@ -405,6 +405,17 @@ describe('customer search and filters', () => {
     await userEvent.click(within(nav).getByRole('link', { name: t.nav.customers }));
     expect(screen.getByRole('searchbox', { name: t.customers.search })).toHaveValue('');
     expect(shownNames(region)).toHaveLength(crowd.length);
+  });
+
+  it('shows the search again when going back to it after the main navigation reset it', async () => {
+    const router = renderAt('/t/stranke');
+    const region = await list();
+    await userEvent.type(screen.getByRole('searchbox', { name: t.customers.search }), 'novak');
+    const nav = screen.getByRole('navigation', { name: t.nav.trainerLabel });
+    await userEvent.click(within(nav).getByRole('link', { name: t.nav.customers }));
+    await act(() => router.navigate(-1));
+    expect(screen.getByRole('searchbox', { name: t.customers.search })).toHaveValue('novak');
+    expect(shownNames(region)).toEqual(expectedNames((row) => row.name.endsWith('Novak')));
   });
 
   it('keeps the search and filter in the URL without a history entry per keystroke', async () => {
