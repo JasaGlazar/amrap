@@ -174,10 +174,21 @@ describe('appointments outside the slot grid', () => {
 });
 
 describe('trainer calendar', () => {
-  it('books the chosen customer into an occurrence', async () => {
+  it('shows one Dodaj stranko button per occurrence and no customer select', async () => {
     renderAt('/t/koledar');
     const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
-    const select = within(row).getByRole('combobox');
+    expect(within(row).queryByRole('combobox')).not.toBeInTheDocument();
+    expect(within(row).getAllByRole('button', { name: t.trainer.addCustomer })).toHaveLength(1);
+  });
+
+  it('books the chosen customer into an occurrence and closes the add control', async () => {
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await userEvent.click(within(row).getByRole('button', { name: t.trainer.addCustomer }));
+    const select = within(row).getByRole('combobox', {
+      name: fill(t.trainer.addTo, { when: slotLabel(startsAt) }),
+    });
+    expect(select).toHaveFocus();
     expect(within(select).queryByRole('option', { name: 'Ana' })).not.toBeInTheDocument();
     await userEvent.selectOptions(select, 'c-bor');
     await userEvent.click(within(row).getByRole('button', { name: t.trainer.add }));
@@ -187,6 +198,66 @@ describe('trainer calendar', () => {
       p_slot_template_id: todayTemplate.id,
     });
     expect(await screen.findByRole('status')).toHaveTextContent(t.trainer.added);
+    await waitFor(() => expect(within(row).queryByRole('combobox')).not.toBeInTheDocument());
+    expect(within(row).getByRole('button', { name: t.trainer.addCustomer })).toHaveFocus();
+  });
+
+  it('closes the add control on Prekliči and puts focus back on Dodaj stranko', async () => {
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    await userEvent.click(within(row).getByRole('button', { name: t.trainer.addCustomer }));
+    await userEvent.selectOptions(within(row).getByRole('combobox'), 'c-bor');
+    await userEvent.click(within(row).getByRole('button', { name: t.common.cancel }));
+    expect(within(row).queryByRole('combobox')).not.toBeInTheDocument();
+    const button = within(row).getByRole('button', { name: t.trainer.addCustomer });
+    expect(button).toHaveFocus();
+    await userEvent.click(button);
+    expect(within(row).getByRole('combobox')).toHaveValue('');
+    expect(fakeSupabase.rpc).not.toHaveBeenCalledWith('book', expect.anything());
+  });
+
+  it('keeps one add control open at a time', async () => {
+    const later = { ...todayTemplate, id: 'tpl-later', weekday: 3, start_time: '08:00:00' };
+    const laterStart = occurrenceInWeek(later, weekStart(today), tz)!.startsAt;
+    db.tables.slot_templates = [todayTemplate, later];
+    renderAt('/t/koledar');
+    const first = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    const second = screen.getByRole('listitem', { name: slotLabel(laterStart) });
+    await userEvent.click(within(first).getByRole('button', { name: t.trainer.addCustomer }));
+    await userEvent.click(within(second).getByRole('button', { name: t.trainer.addCustomer }));
+    expect(within(first).queryByRole('combobox')).not.toBeInTheDocument();
+    expect(within(first).getByRole('button', { name: t.trainer.addCustomer })).toBeVisible();
+    expect(within(second).getByRole('combobox')).toHaveFocus();
+  });
+
+  it('disables the add button with Polno when the occurrence is full', async () => {
+    db.tables.slot_occupancy = [
+      {
+        slot_template_id: todayTemplate.id,
+        starts_at: postgrestTime(startsAt),
+        booked_count: todayTemplate.capacity,
+      },
+    ];
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    expect(within(row).getByRole('button', { name: t.calendar.full })).toBeDisabled();
+    expect(
+      within(row).queryByRole('button', { name: t.trainer.addCustomer }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('disables the add button with Zaprto when the occurrence is blocked', async () => {
+    db.tables.blocked_periods = [
+      {
+        id: 'b-1',
+        starts_at: postgrestTime(new Date(startsAt.getTime() - 3_600_000)),
+        ends_at: postgrestTime(new Date(startsAt.getTime() + 3_600_000)),
+        reason: null,
+      },
+    ];
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    expect(within(row).getByRole('button', { name: t.calendar.blocked })).toBeDisabled();
   });
 
   it('warns that cancelling a charged appointment refunds the credit', async () => {

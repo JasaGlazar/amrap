@@ -2,16 +2,54 @@ import { useState } from 'react';
 import type { Appointment } from '../../data/appointments';
 import type { Customer } from '../../data/customers';
 import { t } from '../../i18n';
+import { OnDemand } from '../shared/OnDemand';
+
+type Add = {
+  label: string;
+  customers: Customer[];
+  open: boolean;
+  unavailable: string | null;
+  pending: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  onAdd: (id: string) => void;
+};
 
 type Props = {
   appointments: Appointment[];
   names: Map<string, string>;
   onCancel?: (appointment: Appointment) => void;
-  add?: { label: string; customers: Customer[]; disabled: boolean; onAdd: (id: string) => void };
+  add?: Add;
 };
 
-export function SlotRoster({ appointments, names, onCancel, add }: Props) {
+function AddControl({ add, choices }: { add: Add; choices: Customer[] }) {
   const [chosen, setChosen] = useState('');
+  return (
+    <div className="roster-add">
+      <select aria-label={add.label} value={chosen} onChange={(e) => setChosen(e.target.value)}>
+        <option value="">{t.trainer.chooseCustomer}</option>
+        {choices.map((customer) => (
+          <option key={customer.id} value={customer.id}>
+            {customer.name}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className="button small"
+        disabled={add.pending || chosen === ''}
+        onClick={() => add.onAdd(chosen)}
+      >
+        {t.trainer.add}
+      </button>
+      <button type="button" className="button secondary small" onClick={add.onClose}>
+        {t.common.cancel}
+      </button>
+    </div>
+  );
+}
+
+export function SlotRoster({ appointments, names, onCancel, add }: Props) {
   const bookedIds = new Set(appointments.map((appointment) => appointment.customerId));
   const choices = add?.customers.filter((customer) => !bookedIds.has(customer.id)) ?? [];
 
@@ -41,27 +79,16 @@ export function SlotRoster({ appointments, names, onCancel, add }: Props) {
         </ul>
       )}
       {add !== undefined && (
-        <div className="roster-add">
-          <select aria-label={add.label} value={chosen} onChange={(e) => setChosen(e.target.value)}>
-            <option value="">{t.trainer.chooseCustomer}</option>
-            {choices.map((customer) => (
-              <option key={customer.id} value={customer.id}>
-                {customer.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="button small"
-            disabled={add.disabled || chosen === ''}
-            onClick={() => {
-              add.onAdd(chosen);
-              setChosen('');
-            }}
-          >
-            {t.trainer.add}
-          </button>
-        </div>
+        <OnDemand
+          label={add.unavailable ?? t.trainer.addCustomer}
+          className="button secondary small"
+          add={add.unavailable === null}
+          disabled={add.unavailable !== null || add.pending}
+          open={add.open}
+          onOpen={add.onOpen}
+        >
+          <AddControl add={add} choices={choices} />
+        </OnDemand>
       )}
     </div>
   );

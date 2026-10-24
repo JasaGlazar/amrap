@@ -19,8 +19,8 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/c/koledar` | customer | Week calendar: book open slots, cancel own bookings. | `customer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
 | `/t` | trainer | Trainer shell: the same top bar with the [account menu](#account-menu), the [install card](#install-card), the [main navigation](#main-navigation) (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `account`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
-| `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
-| `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; create a customer. | `trainer`, `customers` | Stage 2 |
+| `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. | `trainer`, `calendar`, `slot`, `cancelDialog`, `common` | Stage 2, add control and forms on demand Stage 7 |
+| `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; create a customer. | `trainer`, `customers`, `common` | Stage 2, form on demand Stage 7 |
 | `/t/stranke/:id` | trainer | One customer: credits, invite link, recurring rules, upcoming appointments, details, ledger. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType` | Stage 2 |
 | `/t/nastavitve` | trainer | Settings, one tab per topic ([Settings](#settings-tnastavitve)); the bare path redirects to `/t/nastavitve/urnik`. | `settings` | Stage 2, tabs Stage 7 |
 | `/t/nastavitve/urnik` | trainer | Tab **Urnik**: slot templates. | `settings`, `trainer` | Stage 2, own route Stage 7 |
@@ -140,12 +140,18 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 - **Data:** `loadWeek` without a customer id (all customers' live appointments) and
   `listCustomers`.
 - **Occurrence row:** start, duration, remaining capacity, blocked state, then the booked
-  customers (names, `opravljeno` for charged), each with **Odpovej**, and an add control: a
-  customer select (named `Stranka za termin {when}`; customers already booked there are left
-  out) with **Dodaj**, disabled (neutral grey) until a customer is chosen and while the
-  occurrence is full or blocked or another booking is in flight. **Dodaj** calls
-  `book(customer, startsAt, template)`; success shows `trainer.added`, a rejection its
-  `errors.AMRAP_*` copy.
+  customers (names, `opravljeno` for charged), each with **Odpovej**, and one small **Dodaj
+  stranko** (`trainer.addCustomer`) at the right, on the same line as `Ni prijavljenih strank.`
+  when nobody is booked. Pressing it replaces it with the add control ([on
+  demand](#forms-on-demand)): a customer select (named `Stranka za termin {when}`, focused;
+  customers already booked there are left out), **Dodaj** (disabled, neutral grey, until a
+  customer is chosen and while another booking is in flight) and **Prekliči**. One add control
+  is open at a time: opening another closes the first, and so does moving to another week.
+  **Dodaj** calls `book(customer, startsAt, template)`; success closes the control and shows
+  `trainer.added`, a rejection keeps it open and shows its `errors.AMRAP_*` copy. When the
+  occurrence cannot take anyone, the button is disabled and says why instead: **Zaprto**
+  (`calendar.blocked`, it overlaps a blocked period) or **Polno** (`calendar.full`, no free
+  place). Past occurrences keep the button (the trainer records a session after the fact).
 - **Termini zunaj urnika:** the week's live appointments that match no shown occurrence
   (`appointmentsOutsideSlots`): ad-hoc ones (`po dogovoru`) and bookings left behind by a
   deactivated or moved template (`ni več v urniku`), with day, time range and name, each with
@@ -277,7 +283,8 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
 A form that creates something, or edits details that rarely change, is not on the screen
 until it is asked for (`pages/shared/OnDemand.tsx`). Where it is used: **Nov termin**
 (Urnik), **Novo zaprto obdobje** (Zaprta obdobja), **Nova stranka** (Stranke, at the page
-title), **Nov termin po dogovoru** (Koledar, at the page title).
+title), **Nov termin po dogovoru** (Koledar, at the page title), and **Dodaj stranko** on each
+occurrence of the trainer calendar (a small secondary button at the right of the occurrence).
 
 - **Closed:** one button named after the action, at the right of the heading the form belongs
   to (a primary button with a `+` for "new" actions). On a narrow screen it wraps below the

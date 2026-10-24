@@ -236,6 +236,7 @@ is a question below.
 | `trainer.noDebtors` | Nihče nima negativnega stanja. |  |
 | `trainer.nobodyBooked` | Ni prijavljenih strank. | »prijavljenih« ali »rezerviranih« strank? |
 | `trainer.chargedTag` | opravljeno | Isto vprašanje kot »Opravljeno« zgoraj. |
+| `trainer.addCustomer` | Dodaj stranko | Gumb pri terminu v koledarju; odpre izbiro stranke. Ko je termin poln ali zaprt, gumb namesto tega pokaže »Polno« ali »Zaprto«. |
 | `trainer.addTo` | Stranka za termin {when} |  |
 | `trainer.chooseCustomer` | Izberi stranko |  |
 | `trainer.add` | Dodaj |  |

@@ -29,6 +29,7 @@ export function TrainerCalendar() {
   const [pending, setPending] = useState(false);
   const [cancelling, setCancelling] = useState<Appointment | null>(null);
   const [addingAdHoc, setAddingAdHoc] = useState(false);
+  const [addingTo, setAddingTo] = useState<string | null>(null);
 
   async function addBooking(booking: Booking) {
     setPending(true);
@@ -44,6 +45,7 @@ export function TrainerCalendar() {
 
   function goToWeek(offset: number) {
     setMessage(null);
+    setAddingTo(null);
     setWeekOffset(offset);
   }
 
@@ -109,13 +111,21 @@ export function TrainerCalendar() {
                     }),
                   }),
                   customers: data.customers,
-                  disabled: pending || slot.free === 0 || slot.blocked,
+                  open: addingTo === slot.key,
+                  unavailable: slot.blocked
+                    ? t.calendar.blocked
+                    : slot.free === 0
+                      ? t.calendar.full
+                      : null,
+                  pending,
+                  onOpen: () => setAddingTo(slot.key),
+                  onClose: () => setAddingTo(null),
                   onAdd: (customerId) =>
                     void addBooking({
                       customerId,
                       startsAt: slot.startsAt,
                       slotTemplateId: slot.templateId,
-                    }),
+                    }).then((ok) => ok && setAddingTo(null)),
                 }}
               />
             )}
