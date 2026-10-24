@@ -88,6 +88,39 @@ checklist skill. Branch `stage-4-pilot`.
 **Status**: Complete (PR open; trial week pending). Owner actions: "Stage 4 owner actions"
 below; open questions: "Stage 4 open questions".
 
+## Stage 5: UI fixes
+**Goal**: Fix the bugs, spacing and alignment problems found in the 2026-10-24 UI review
+(laptop, tablet and phone widths) without changing the look or the structure yet. Branch
+`stage-5-ui-fixes` off `main`.
+**Success Criteria**: every item in "Stage 5 tasks" is fixed and seen in a browser at 390,
+768 and 1440 px; `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` green.
+**Tests**: Vitest for the changed labels and states (refund button label on charged
+appointments, minus sign on debtor chips, zero balance not marked positive, linked customers
+without a status tag).
+**Status**: Not Started
+
+## Stage 6: Brand and theme
+**Goal**: The AMRAP visual identity from the gym logo: black, white and grey tokens, light and
+dark themes (system default, owner-selectable), the logo in the app and in the PWA icons, one
+typeface. Branch `stage-6-brand-theme` off `stage-5-ui-fixes`.
+**Success Criteria**: no teal left; both themes pass the contrast rules in `docs/screens.md`;
+the theme choice persists per device and applies before first paint; the logo shows in the
+top bar and on the sign-in screens; installed icons show the framed wordmark.
+**Tests**: Vitest for the theme preference store (read, write, storage failure) and the
+appearance control.
+**Status**: Not Started
+
+## Stage 7: Navigation and structure
+**Goal**: Navigation in the top bar from tablet width up (bottom tabs stay on phones);
+Nastavitve split into sub-tabs; every "new X" form opens on demand. Branch
+`stage-7-nav-structure` off `stage-6-brand-theme`.
+**Success Criteria**: at 1440 px there is no bottom bar and nav sits next to the logo; no
+screen shows a "new X" form until its button is pressed; a trainer week in the calendar is
+no longer one long column of customer pickers.
+**Tests**: routing tests for the settings sub-routes; Vitest for open/close of each
+on-demand form and for the per-slot add control.
+**Status**: Not Started
+
 ## Workflow (from 2026-10-23 evening)
 
 - Orchestrator session runs on Opus. Per stage: a Herdr worktree with a fresh session does the
@@ -1410,3 +1443,148 @@ Branch `stage-4-pilot` off `main` (Stage 3 merged as #4). Rulings proposed for t
    adding a blocked period cancel the live bookings inside it (`cancelled_by_trainer`, refund if
    charged) instead of only warning; any copy question the trainer leaves open.
 5. `supabase stop`.
+
+## UI refresh (Stages 5-7, from 2026-10-24)
+
+The owner tested the app on a laptop and found it hard to use: the bottom navigation looks
+odd on a wide screen, Nastavitve puts everything on one page, and the spacing is off in many
+places. An audit at 1440, 768 and 390 px with demo data confirmed it; the findings are the
+Stage 5 tasks. Owner rulings (2026-10-24): responsive navigation (top bar from tablet width,
+bottom tabs on phones); sub-tabs in Nastavitve and every "new X" form on demand; black, white
+and grey with red only for debt and late cancel and a muted green only for "opravljeno" and
+added credits; light by default following the system, with a switch; three stacked PRs.
+
+PRs stay open for the owner to look at (this is visual work); they merge in order.
+
+### Design system
+
+**Colour.** From the logo (white on black, grey tagline). Pure black is the brand ink; no
+tinted near-black stands in for it.
+
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `--paper` | `#ffffff` | `#000000` | page background, top bar, dialog |
+| `--surface` | `#f3f3f3` | `#161616` | quiet panels, secondary buttons, open forms |
+| `--ink` | `#000000` | `#ffffff` | headings, primary buttons (text in `--paper`), active nav, the frame |
+| `--text` | `#1c1c1c` | `#ededed` | body text |
+| `--muted` | `#5f5f5f` | `#a3a3a3` | secondary text, greyed rows (≥ 4.5:1 on paper and surface) |
+| `--line` | `#dcdcdc` | `#2b2b2b` | row dividers, card edges |
+| `--control-line` | `#858585` | `#737373` | input and select borders (≥ 3:1) |
+| `--debt` / `--debt-bg` | `#c01b2c` / `#fdecee` | `#ff7a7a` / `#3a1418` | negative balance, debt, late cancel, destructive buttons |
+| `--done` / `--done-bg` | `#1d7a46` / `#e5f3ea` | `#62c98d` / `#10291b` | opravljeno, added credits, saved notices |
+
+**Type.** One family: Archivo (variable, `wdth` 62-125 and `wght`), self-hosted from
+`@fontsource-variable/archivo` so it works offline and has č, š, ž. Display: width 75,
+weight 800, sentence case, for page titles, the balance number and slot times; it echoes the
+heavy condensed wordmark. Body: width 100, weight 400, 600 for emphasis. Scale: 0.8125,
+0.875, 1, 1.25, 1.75 rem (h1 2 rem from 768 px), balance 3.5 rem. Tabular figures for
+numbers and times. No all-caps labels, no letter-spaced eyebrows.
+
+**Shape.** The logo's rectangular frame (2 px `--ink`, square corners) is the one strong
+element: the wordmark in the top bar and the balance on customer Home and customer detail.
+Everything else is quiet: controls and panels 6 px radius, no shadows except the dialog, no
+gradients.
+
+**Layout.** Content column `--content` 46 rem, the top bar uses the same column so its left
+edge lines up with the page. Spacing scale 4/8/12/16/24/32/48 px (`--space-1..7`); sections
+are separated by `--space-6` and their headings sit `--space-3` above their content. Text is
+left aligned; row actions align right.
+
+```
+ ≥ 768 px                                          < 768 px
+ ┌[AMRAP]  Danes  Koledar  Stranke  Nastavitve   (•)┐   ┌[AMRAP]                (•)┐
+ │──────                                            │   │ Nastavitve                │
+ │ Nastavitve                                       │   │ Urnik  Odpoved  Zaprto …  │
+ │ Urnik   Odpoved   Zaprta obdobja   Obvestila     │   │ …                         │
+ │ ─────                                            │   │                           │
+ │ pon 07:00   60 min · 5 mest              Uredi   │   ├───────────────────────────┤
+ │ …                               [+ Nov termin]   │   │ Danes Koledar Stranke Nas │
+ └──────────────────────────────────────────────────┘   └───────────────────────────┘
+ (•) account menu: Videz (Sistem / Svetlo / Temno), Odjava
+```
+
+### Stage 5 tasks
+
+Each item was seen in the 2026-10-24 audit. Keep the current colours; Stage 6 replaces them.
+
+1. `.back-link` ("Nazaj na stranke") shows the browser's default blue: give links a defined
+   colour.
+2. A balance of `0` is coloured like a positive balance on Stranke (and anywhere `.amount`
+   is used): zero is neutral.
+3. Customer detail, "Opravljeni termini": charged sessions have **Odpovej**, but the action
+   cancels with a refund. Give it its own label (for example **Vrni kredit**), add it to
+   `sl.ts` and `docs/copy-review.md`.
+4. Debtor chips on Danes show `-3` with a hyphen; the ledger shows `−1` (U+2212). Use one
+   signed-number formatter for both.
+5. The cancel dialog is a bottom sheet at every width. From 768 px: centred, all corners
+   rounded, a margin from the edges. Phone stays a bottom sheet.
+6. Disabled buttons look like faded primary buttons, so a slot with free places looks the
+   same as a full one (every **Dodaj** in the trainer calendar is disabled until a customer is
+   picked). Disabled = neutral (surface background, muted text, no opacity).
+7. Week navigation: the disabled `‹` looks the same as the enabled `›`.
+8. Sign-in: the page says "Prijava" twice (heading and button). Keep the heading; the
+   button says **Prijavi se**. Check the invite page for the same.
+9. Calendar rows at 390 px wrap "Prosta mesta: 5 od 5" in the middle; keep duration and
+   places as unbreakable parts that wrap between each other, not inside.
+10. Blocked periods at 390 px stack **Uredi** and **Izbriši** vertically, out of line with the
+    text; keep row actions on one line and let the text wrap.
+11. Template rows: the "neaktiven" tag floats in the middle of the row; it belongs next to
+    the text.
+12. Balance card (customer detail): the account tag sits beside the big number at its
+    mid-height; put it on the label line.
+13. Stranke: "Povezan račun" is the normal end state; show a tag only for "Brez računa" and
+    "Povabilo čaka".
+14. Spacing: introduce the spacing scale from "Design system" and use it for section gaps,
+    heading gaps, list and card margins (today `.list` ends 1.5 rem, `.card` 1 rem, `h1`→`h2`
+    has no gap on Nastavitve); one rule for submit buttons (full width below 480 px, natural
+    width above) instead of a mix per form.
+15. `docs/screens.md`: update the shared behaviour section and every screen whose labels or
+    states changed.
+
+### Stage 6 tasks
+
+1. Tokens from "Design system" on `:root`; dark values under
+   `@media (prefers-color-scheme: dark)` for `:root:not([data-theme="light"])` and under
+   `:root[data-theme="dark"]`; `color-scheme` follows. Replace every hardcoded colour
+   (`#ccfbf1`, `#fee2e2`, `#ffffff` on buttons, the overlay) with tokens.
+2. Theme preference per device: `amrap.theme` = `system | light | dark` in localStorage,
+   every access in try/catch (like `install/flags.ts`); applied to `<html data-theme>` by a
+   small inline script in `index.html` before first paint, and by the app when it changes.
+3. Account menu in the top bar (both roles): a button that opens a small menu with
+   "Videz" (Sistem / Svetlo / Temno, a radio group) and **Odjava** (replaces the bare sign-out
+   link). Keyboard: opens with Enter/Space, Escape closes, focus returns to the button.
+4. Logo: crop the framed wordmark from `app/public/logo.png` with `sips` (no new tools) into
+   `public/brand-mark.png` (white on black). Light theme shows it with `filter: invert(1)`
+   on `--paper` white; dark shows it as is. Top bar and sign-in/invite pages; alt text
+   "AMRAP" from `sl.ts`.
+5. PWA icons: replace the placeholder "A" with the framed wordmark on black, inside the
+   maskable safe zone (`sips` crop + pad); `theme_color` / `background_color` in
+   `vite.config.ts` and `<meta name="theme-color">` (one per colour scheme) to the new
+   paper and ink. Retire or rewrite `scripts/generate-icons.mjs` and its docs.
+6. Archivo via `@fontsource-variable/archivo` (pinned), Latin and Latin Extended only;
+   precached by the service worker.
+7. Type scale, display treatment and the frame on the balance per "Design system".
+8. ADR 0010 "Visual identity and themes" (palette from the logo, two themes, one typeface,
+   no new image tools) and its README index row; `docs/app-structure.md` (theme store,
+   assets) and `docs/screens.md` (contrast values in the shared rules, account menu).
+
+### Stage 7 tasks
+
+1. Top-bar navigation from 768 px: wordmark, nav links, account menu on one line; active
+   link marked with a 2 px `--ink` underline; the bottom bar is hidden from 768 px and the
+   page bottom padding follows. Below 768 px: bottom tabs as today, restyled to the tokens,
+   active tab marked by a bar on top.
+2. Nastavitve sub-routes: `/t/nastavitve/urnik` (slot templates), `/t/nastavitve/odpoved`
+   (cutoff), `/t/nastavitve/zaprto` (blocked periods), `/t/nastavitve/obvestila`
+   (notifications); `/t/nastavitve` redirects to `urnik`; sub-tabs as a nav under the title.
+3. Forms on demand: **Nov termin** (templates), **Novo zaprto obdobje**, **Nova stranka**
+   (a button in the Stranke page header), **Nov termin po dogovoru** (calendar), **Dodaj
+   stalni termin** and **Uredi podatke** (customer detail). Each opens in place with
+   **Prekliči**; after a successful save it closes and the result notice shows.
+4. Trainer calendar: each occurrence shows its roster and one small **Dodaj stranko**
+   button; the customer select and **Dodaj** appear only after it is pressed (one open at a
+   time). Disabled with the reason ("Polno", "Zaprto") when the slot cannot take more.
+5. Customer detail order: name, framed balance with the credits form beside it from 768 px,
+   then upcoming, recurring, recent, ledger; invite and details lower down.
+6. ADR 0011 "Responsive navigation and on-demand forms"; `docs/screens.md` route table
+   (settings sub-routes) and every changed screen; `docs/app-structure.md` (shell).
