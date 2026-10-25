@@ -18,7 +18,6 @@ export type WeekSlot = {
   date: LocalDate;
   startsAt: Date;
   endsAt: Date;
-  durationMinutes: number;
   capacity: number;
   booked: number;
   free: number;
@@ -65,7 +64,6 @@ export async function loadWeek(
         date: occurrence.date,
         startsAt: occurrence.startsAt,
         endsAt: occurrence.endsAt,
-        durationMinutes: template.duration_minutes,
         capacity: template.capacity,
         booked,
         free: Math.max(0, template.capacity - booked),

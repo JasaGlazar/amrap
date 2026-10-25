@@ -21,9 +21,10 @@ of it changes).
 | [0011](0011-responsive-navigation-and-on-demand-forms.md) | Responsive navigation and on-demand forms | Accepted |
 | [0012](0012-cloudflare-workers-static-assets.md) | Cloudflare Workers static assets instead of Cloudflare Pages | Accepted |
 | [0013](0013-data-retention.md) | Data retention | Accepted |
-| [0014](0014-wide-week-views.md) | Wide week views | Accepted |
+| [0014](0014-wide-week-views.md) | Wide week views | Superseded in part by 0017 |
 | [0015](0015-trainer-cancel-notifies-customer.md) | A trainer cancel notifies the customer, with an optional reason | Accepted |
 | [0016](0016-cancel-occurrence-closes-it.md) | Cancelling a whole session closes it with a blocked period | Accepted |
+| [0017](0017-centred-wide-views.md) | Centred wide views | Accepted |
 
 ## Template
 

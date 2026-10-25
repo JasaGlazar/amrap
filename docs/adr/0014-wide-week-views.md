@@ -1,6 +1,6 @@
 # 0014. Wide week views
 
-Status: Accepted
+Status: Superseded in part by 0017
 Date: 2026-10-25
 
 ## Context

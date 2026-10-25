@@ -28,12 +28,10 @@ export function SlotRow({
       })}
       className={slot.blocked || slot.past ? 'row slot muted' : 'row slot'}
     >
-      <span className="slot-time">{time}</span>
+      <span className="slot-time">
+        {fill(t.slot.timeRange, { from: time, to: formatTime(slot.endsAt, timeZone) })}
+      </span>
       <span className="slot-info">
-        <span>
-          {fill(t.slot.duration, { minutes: slot.durationMinutes })}
-          {' ·'}
-        </span>{' '}
         <span>
           {fill(t.calendar.spots, { free: slot.free, capacity: slot.capacity })}
           {slot.blocked && ' ·'}

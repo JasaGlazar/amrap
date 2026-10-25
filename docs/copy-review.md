@@ -53,6 +53,7 @@ is a question below.
 | `customerDetail.refund` (new) | Odpovej (`slot.cancel`) | Vrni kredit | Stage 5: on a charged session the action cancels with a refund; "Odpovej" hid that |
 | `customers.startingBalance` | Začetno stanje kreditov (s papirja) | Začetno stanje kreditov | Stage 8 (issue #20): the owner removed "(s papirja)"; the hint under the field is unchanged |
 | `settings.templateLine` (removed) | {weekday} ob {time} · {minutes} min · {places} | `settings.slotDetails` ({minutes} min · {places}) under a day heading, `settings.timeRange` in the week grid | Stage 9 (issue #16): the list of lowercase lines became day groups on a phone and a week grid from 768 px; the day is now the heading |
+| `slot.duration` + `trainer.timeRange` | {minutes} min (under the start) | `slot.timeRange` {from}–{to} in place of the start | The owner asked for a session's time as from–to, not start and duration; one key for every from–to |
 
 ## Open questions for the trainer
 
@@ -175,7 +176,7 @@ is a question below.
 | `customer.calendarTitle` | Koledar |  |
 | `customer.historyTitle` | Zgodovina |  |
 | `slot.when` | {day} ob {time} | Ura kot »07:00« ali »7.00«? |
-| `slot.duration` | {minutes} min |  |
+| `slot.timeRange` | {from}–{to} |  |
 | `slot.cancel` | Odpovej |  |
 | `time.inDaysHours` | čez {days} d {hours} h | »čez 2 d 9 h«: je okrajšava »d« razumljiva, ali raje »čez 2 dni in 9 ur«? |
 | `time.inHoursMinutes` | čez {hours} h {minutes} min |  |
@@ -268,7 +269,6 @@ is a question below.
 | `trainer.otherTitle` | Termini zunaj urnika |  |
 | `trainer.adHocTag` | po dogovoru |  |
 | `trainer.offGridTag` | ni več v urniku |  |
-| `trainer.timeRange` | {from}–{to} |  |
 | `trainer.unknownCustomer` | Neznana stranka |  |
 | `trainer.adHocFormTitle` | Nov termin po dogovoru |  |
 | `trainer.customer` | Stranka |  |

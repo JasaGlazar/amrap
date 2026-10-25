@@ -75,7 +75,7 @@ export const sl = {
   },
   slot: {
     when: '{day} ob {time}',
-    duration: '{minutes} min',
+    timeRange: '{from}–{to}',
     cancel: 'Odpovej',
   },
   calendar: {
@@ -313,7 +313,6 @@ export const sl = {
     otherTitle: 'Termini zunaj urnika',
     adHocTag: 'po dogovoru',
     offGridTag: 'ni več v urniku',
-    timeRange: '{from}–{to}',
     unknownCustomer: 'Neznana stranka',
     adHocFormTitle: 'Nov termin po dogovoru',
     customer: 'Stranka',

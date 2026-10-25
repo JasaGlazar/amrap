@@ -60,9 +60,10 @@ data.
   periods are checked past the week's end for an occurrence late on Sunday.
 - **Occurrences:** one row per active template in that week, grouped by day (days without any
   are left out; a week without any shows `calendar.noSlots`). A start time in the spring-forward
-  gap has no occurrence that week. Each row shows the start time, duration and
+  gap has no occurrence that week. Each row shows the time range (`slot.timeRange`,
+  "07:00–08:00", start and end in `settings.timezone`) and
   `Prosta mesta: {free} od {capacity}` with `free = capacity − booked_count` (an occurrence
-  without a `slot_occupancy` row has `booked_count` 0). The duration, the places and `Zaprto`
+  without a `slot_occupancy` row has `booked_count` 0). The places and `Zaprto`
   are unbreakable parts and each `·` separator ends the part before it: a narrow row wraps
   between parts, never inside one, and a wrapped line never starts with `·`.
 - **States of a row:**
@@ -190,7 +191,7 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     today's column has `aria-current="date"` on its heading, the
     `trainer.todayTag` tag ("danes") and a 2 px ink rule under the heading. A column lists its
     occurrences and its appointments outside the grid together, by start time, as compact
-    cards: an occurrence card has the start time, duration, `Prosta mesta` (one unbreakable
+    cards: an occurrence card has the time range ("07:00–08:00"), `Prosta mesta` (one unbreakable
     line each, like the customer row's parts), `Zaprto` as a tag when blocked, and the same roster and add control as a row in the day view; an
     appointment outside the grid shows its time range, its tag (`po dogovoru` or `ni več v
     urniku`) and the customer with **Odpovej** on a grey card, named like a row
@@ -216,7 +217,7 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   `localDateOf(startsAt, settings.timezone)`, never by UTC or the browser's zone, so an
   appointment at 00:30 on the Sunday of the autumn change (22:30 UTC on Saturday) is on
   Sunday.
-- **Occurrence** (a row in the day view, a card in the grid): start, duration, remaining capacity, blocked state, then the booked
+- **Occurrence** (a row in the day view, a card in the grid): time range, remaining capacity, blocked state, then the booked
   customers (names, `opravljeno` for charged), each with **Odpovej**, and one small **Dodaj
   stranko** (`trainer.addCustomer`) at the right, on the same line as `Ni prijavljenih strank.`
   when nobody is booked. Pressing it replaces it with the add control ([on
@@ -710,14 +711,13 @@ How the guards and the auth state work is in [auth.md](auth.md).
 
 - **Wide views.** Pages keep the 46 rem column (`--content`) at every width, and the top bar
   lines up with it. A week view that needs more room (the Urnik week grid, Stage 9, and the
-  trainer Koledar's week grid, Stage 10) carries the class `wide`: from 1024 px it starts at
-  the column's left edge, in line with the title, and grows to the right only, to
-  `--content-wide` (80 rem) or up to one page gutter from the window's right edge, whichever
-  is smaller; the title, tabs and section heading above it stay
-  on the column ([ADR 0014](adr/0014-wide-week-views.md)). At any width, when its content
-  needs more room than that, it scrolls sideways inside its own box (`.wide` carries the
-  `overflow-x`), so the page itself never does. `wide` assumes its parent is the content
-  column.
+  trainer Koledar's week grid, Stage 10) carries the class `wide`: from 1024 px it is
+  `--content-wide` (80 rem) or the window minus 32 px on each side, whichever is smaller, and
+  centred on the column, sticking out by the same amount on each side; the title, tabs and
+  section heading above it stay on the column ([ADR 0014](adr/0014-wide-week-views.md),
+  [ADR 0017](adr/0017-centred-wide-views.md)). At any width, when its content needs more room
+  than that, it scrolls sideways inside its own box (`.wide` carries the `overflow-x`), so the
+  page itself never does. `wide` assumes its parent is centred on the content column.
 
 - **Brand mark.** The framed AMRAP wordmark (`public/brand-mark.png`, alt `app.name`) replaces
   the plain "AMRAP" text: at the left of the top bar in both shells, and as the `h1` above the

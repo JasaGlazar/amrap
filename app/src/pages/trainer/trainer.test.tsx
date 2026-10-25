@@ -123,7 +123,7 @@ function adHoc(id: string, customerId: string, from: Date, minutes = 60) {
 function otherLabel(from: Date, minutes: number): string {
   return fill(t.slot.when, {
     day: formatLongDay(from, tz),
-    time: fill(t.trainer.timeRange, {
+    time: fill(t.slot.timeRange, {
       from: formatTime(from, tz),
       to: formatTime(new Date(from.getTime() + minutes * 60_000), tz),
     }),
@@ -784,6 +784,16 @@ describe('trainer calendar week grid', () => {
 
 describe.each<View>(['day', 'week'])('trainer calendar actions in the %s view', (view) => {
   beforeEach(() => showView(view));
+
+  it('shows an occurrence as its start and end time instead of its duration', async () => {
+    renderAt('/t/koledar');
+    const row = await screen.findByRole('listitem', { name: slotLabel(startsAt) });
+    const end = new Date(startsAt.getTime() + todayTemplate.duration_minutes * 60_000);
+    expect(row).toHaveTextContent(
+      fill(t.slot.timeRange, { from: formatTime(startsAt, tz), to: formatTime(end, tz) }),
+    );
+    expect(row).not.toHaveTextContent(`${todayTemplate.duration_minutes} min`);
+  });
 
   it('adds a customer to an occurrence', async () => {
     renderAt('/t/koledar');
