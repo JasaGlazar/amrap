@@ -126,6 +126,17 @@ describe('calendar', () => {
     }
   });
 
+  it('shows each occurrence as its start and end time instead of its duration', async () => {
+    renderAt('/c/koledar');
+    const start = startOf(blocked);
+    const end = new Date(start.getTime() + blocked.duration_minutes * 60_000);
+    const row = await slotRow(blocked);
+    expect(row).toHaveTextContent(
+      fill(t.slot.timeRange, { from: formatTime(start, tz), to: formatTime(end, tz) }),
+    );
+    expect(row).not.toHaveTextContent(`${blocked.duration_minutes} min`);
+  });
+
   it('enables booking only for a free, future, unblocked slot', async () => {
     renderAt('/c/koledar');
     const button = async (row: Template) => within(await slotRow(row)).getByRole('button');

@@ -41,9 +41,10 @@ function SlotCard({
       aria-label={fill(t.slot.when, { day: formatLongDay(slot.startsAt, timeZone), time })}
       className={slot.blocked || slot.past ? 'week-card muted' : 'week-card'}
     >
-      <span className="slot-time">{time}</span>
+      <span className="slot-time">
+        {fill(t.slot.timeRange, { from: time, to: formatTime(slot.endsAt, timeZone) })}
+      </span>
       <span className="week-card-info">
-        <span>{fill(t.slot.duration, { minutes: slot.durationMinutes })}</span>
         <span>{fill(t.calendar.spots, { free: slot.free, capacity: slot.capacity })}</span>
         {slot.blocked && <span className="tag">{t.calendar.blocked}</span>}
       </span>
@@ -69,14 +70,14 @@ function OtherCard({
       className="week-card other"
       aria-label={fill(t.slot.when, {
         day: formatLongDay(appointment.startsAt, timeZone),
-        time: fill(t.trainer.timeRange, {
+        time: fill(t.slot.timeRange, {
           from: formatTime(appointment.startsAt, timeZone),
           to: formatTime(appointment.endsAt, timeZone),
         }),
       })}
     >
       <span className="slot-time">
-        {fill(t.trainer.timeRange, {
+        {fill(t.slot.timeRange, {
           from: formatTime(appointment.startsAt, timeZone),
           to: formatTime(appointment.endsAt, timeZone),
         })}

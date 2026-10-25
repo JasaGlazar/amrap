@@ -1217,7 +1217,9 @@ input::placeholder {
 
 @media (min-width: 64rem) {
   .wide {
-    width: min(var(--content-wide), (100vw + var(--content)) / 2 - 2 * var(--space-4));
+    --wide: min(var(--content-wide), 100vw - 2 * var(--space-6));
+    width: var(--wide);
+    margin-left: calc((100% - var(--wide)) / 2);
   }
 }
 

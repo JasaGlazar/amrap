@@ -77,7 +77,7 @@ calendar week for both calendars: the settings, the week's Monday (`start` when 
 trainer calendar does from its `?dan` day; otherwise `weekOffset` weeks from the current week,
 in `settings.timezone`), the active templates' occurrences that week ([time.md](time.md)), and
 the live appointments in the week (only the customer's when `customerId` is given). Each
-`WeekSlot` has its start and end, duration, capacity, `booked` (from `slot_occupancy`, 0
+`WeekSlot` has its start and end, capacity, `booked` (from `slot_occupancy`, 0
 without a row), `free = max(0, capacity − booked)`, `past` (`startsAt <= now`) and `blocked`
 (overlaps a blocked period). Blocked periods are read up to the week's end plus the longest
 template duration, so an occurrence late on Sunday that runs into the next week is checked

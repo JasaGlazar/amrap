@@ -20,7 +20,7 @@ export function OtherAppointments({ appointments, names, timeZone, onCancel }: P
               <span>
                 {fill(t.slot.when, {
                   day: formatLongDay(appointment.startsAt, timeZone),
-                  time: fill(t.trainer.timeRange, {
+                  time: fill(t.slot.timeRange, {
                     from: formatTime(appointment.startsAt, timeZone),
                     to: formatTime(appointment.endsAt, timeZone),
                   }),
