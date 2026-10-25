@@ -53,7 +53,7 @@ is a question below.
 | `customerDetail.refund` (new) | Odpovej (`slot.cancel`) | Vrni kredit | Stage 5: on a charged session the action cancels with a refund; "Odpovej" hid that |
 | `customers.startingBalance` | Začetno stanje kreditov (s papirja) | Začetno stanje kreditov | Stage 8 (issue #20): the owner removed "(s papirja)"; the hint under the field is unchanged |
 | `settings.templateLine` (removed) | {weekday} ob {time} · {minutes} min · {places} | `settings.slotDetails` ({minutes} min · {places}) under a day heading, `settings.timeRange` in the week grid | Stage 9 (issue #16): the list of lowercase lines became day groups on a phone and a week grid from 768 px; the day is now the heading |
-| `slot.duration` + `trainer.timeRange` | {minutes} min (under the start) | `slot.timeRange` {from}–{to} in place of the start | The owner asked for a session's time as from–to, not start and duration; one key for every from–to |
+| `slot.duration` + `trainer.timeRange` | {minutes} min (under the start) | `slot.timeRange` {from}–{to} in place of the start | The owner asked for a session's time as from–to, not start and duration; one key for a session's from–to (the Urnik blocks keep `settings.timeRange`) |
 
 ## Open questions for the trainer
 

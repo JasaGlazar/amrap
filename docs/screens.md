@@ -196,9 +196,9 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     appointment outside the grid shows its time range, its tag (`po dogovoru` or `ni več v
     urniku`) and the customer with **Odpovej** on a grey card, named like a row
     (`{day} ob {from}–{to}`). There is no separate **Termini zunaj urnika** list. Columns are
-    at least 8.5 rem wide, the room "Prosta mesta: 0 od 5" needs on one line: from 1280 px the
-    whole week is visible (976 px, 136 px a column); at 1024-1279 px the grid scrolls sideways
-    inside its box. A column narrower than
+    at least 8.5 rem wide, the room "Prosta mesta: 0 od 5" needs on one line: from 1040 px the
+    whole week is visible (976 px, 136 px a column; 170 px at 1280 px); at 1024-1039 px the grid
+    scrolls sideways inside its box. A column narrower than
     8.75 rem drops the `+` icon from **Dodaj stranko**, so the button keeps one line; a
     disabled reason as long as **Ni strank za dodajanje** may wrap inside its card, the one
     exception to buttons never wrapping. A disabled button keeps the card's 1 px `--line`
@@ -206,7 +206,7 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     so the `wide` box never clips it. Each roster row in a card is a two-column grid: the name
     on the left, **Odpovej** on the right, centred against it, so the button never drops
     under the name; the name wraps inside its column (13 px, with a tighter card and button
-    padding, so the demo names wrap between words at 1024 and 1280 px). `opravljeno` sits on
+    padding, so a long name wraps between its words, never inside one, from 1024 px). `opravljeno` sits on
     its own line under the row, across both columns, in the Urnik blocks' condensed tag, so it
     never wraps.
     The open add control puts the select on its own line and **Dodaj** and **Prekliči** under
@@ -444,7 +444,7 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     the most slots side by side on any day (`--max-lanes`) and every day column is at least
     that many lanes of 44 px plus their 4 px gaps (and never under 7 rem), so a lane is never
     narrower than a tap target. The grid is a [wide view](#behaviour-shared-by-all-screens):
-    from 1024 px it starts at the title's left edge and grows to the right; when its columns
+    from 1024 px it is centred on the column, sticking out equally on each side; when its columns
     need more room than it has (768-1023 px, or many lanes), it scrolls sideways inside its
     own box, the hours column staying in place, and the page itself never scrolls sideways.
   - **Clicking a block** opens the edit form (`settings.editTemplate`) in a dialog

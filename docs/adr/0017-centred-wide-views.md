@@ -10,11 +10,11 @@ Supersedes the "only the week view widens, to the right" part of
 ## Context
 
 ADR 0014 started a `wide` box at the content column's left edge and grew it to the right only.
-On a laptop (1440 px) that put the trainer Koledar's week grid about 350 px right of the
-centred top bar, title and week arrows, with almost no margin on the right: the owner read it
-as the calendar being shifted to the right. Two alternatives were tried in the browser:
-centring the `wide` box on the column, and widening the whole shell (top bar and every page)
-to `--content-wide` from 1024 px. The second lines everything up but stretches every list and
+On a laptop (1440 px) the trainer Koledar's week grid started under the title but ran about
+350 px past the right edge of the top bar and the week arrows, with almost no margin on the
+right: the owner read it as the calendar being shifted to the right. Two alternatives were
+tried in the browser: centring the `wide` box on the column, and widening the whole shell (top
+bar and every page) to `--content-wide` from 1024 px. The second lines everything up but stretches every list and
 form (on Stranke a name sits about 1200 px from its balance), so it would need its own
 narrower width per page.
 
@@ -31,8 +31,8 @@ narrower width per page.
 ## Consequences
 
 - At 1440 px the Koledar grid is 80 rem (1280 px) with 80 px on each side; below 1344 px it is
-  the window minus 32 px on each side, and at 1024-1279 px the Koledar grid still scrolls
-  sideways inside its box.
+  the window minus 32 px on each side. Its seven 8.5 rem columns (976 px) fit from a 1040 px
+  window, so it scrolls sideways inside its box only at 1024-1039 px (ADR 0014 had 1024-1279).
 - The Urnik week grid (Nastavitve) uses the same box and is centred the same way.
 - The page keeps two left edges on wide screens (the column's and the grid's), which the owner
   chose over a wider shell.
