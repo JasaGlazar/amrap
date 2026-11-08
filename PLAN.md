@@ -113,8 +113,7 @@ periods).
 3. **Automation & notifications** — pre-cutoff reminders, web push, keep-alive.
 4. **Polish & pilot** — install onboarding, Slovenian copy review with trainer, real trial.
 
-Each stage gets an entry in `IMPLEMENTATION_PLAN.md` at implementation time; TDD for RPCs
-and logic.
+Each stage was planned in detail at implementation time; TDD for RPCs and logic.
 
 ## AI harness (built alongside the product)
 

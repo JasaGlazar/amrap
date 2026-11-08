@@ -16,8 +16,7 @@ Rules:
 - Secrets never go on the command line or into the repo (runbook "Turn on push notifications"
   uses a temporary env file outside the repo).
 - `supabase db push` and `supabase functions deploy` change the hosted project: run them only
-  when the release has been approved (the Workflow in `IMPLEMENTATION_PLAN.md` records who
-  approves).
+  when the owner has approved the release.
 
 ## 1. Confirm the merge and CI
 
