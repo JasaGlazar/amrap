@@ -43,7 +43,12 @@ export const db: {
   session: Session | null;
   customer: CustomerRow | null;
   balance: number;
-  settings: { id: number; late_cancel_hours: number; timezone: string };
+  settings: {
+    id: number;
+    late_cancel_hours: number;
+    timezone: string;
+    customer_booking_enabled: boolean;
+  };
   settingsError: { message: string } | null;
   customersError: { message: string } | null;
   readErrors: Record<string, { message: string }>;
@@ -75,7 +80,12 @@ export function holdTable(table: string): () => void {
 }
 
 function defaultSettings() {
-  return { id: 1, late_cancel_hours: 5, timezone: 'Europe/Ljubljana' };
+  return {
+    id: 1,
+    late_cancel_hours: 8,
+    timezone: 'Europe/Ljubljana',
+    customer_booking_enabled: false,
+  };
 }
 
 function emptyTables(): Tables {

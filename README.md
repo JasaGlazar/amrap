@@ -1,9 +1,10 @@
 # AMRAP
 
 AMRAP is a free-to-run PWA for a small personal-training gym. It replaces the paper wall
-sheets (prepaid session credits) and the whiteboard (appointments). Customers book open slots
-and cancel in-app; credits are charged automatically at session start or on late cancel; the
-trainer manages the weekly grid, customers, top-ups and adjustments. The UI is in Slovenian.
+sheets (prepaid session credits) and the whiteboard (appointments). The trainer assigns fixed
+appointments; customers cancel one in-app and can undo a free cancel until the cutoff. Credits
+are charged automatically at session start or on late cancel; the trainer manages the weekly
+grid, customers, top-ups and adjustments. The UI is in Slovenian.
 
 The design is in [PLAN.md](PLAN.md); the domain vocabulary is in [CONTEXT.md](CONTEXT.md).
 

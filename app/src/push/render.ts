@@ -45,14 +45,17 @@ export function renderNotification(kind: string, data: Data): Omit<RenderedNotif
       };
     }
     case 'booking_created':
-    case 'booking_cancelled': {
+    case 'booking_cancelled':
+    case 'booking_restored': {
       if (!when) break;
       const title =
         kind === 'booking_created'
           ? sl.push.bookingCreatedTitle
-          : data.late === true
-            ? sl.push.bookingCancelledLateTitle
-            : sl.push.bookingCancelledTitle;
+          : kind === 'booking_restored'
+            ? sl.push.bookingRestoredTitle
+            : data.late === true
+              ? sl.push.bookingCancelledLateTitle
+              : sl.push.bookingCancelledTitle;
       return {
         title,
         body: fill(sl.push.bookingBody, { name: String(data.customer_name ?? ''), ...when }),

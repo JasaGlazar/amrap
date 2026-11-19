@@ -169,6 +169,20 @@ and the release record) is the `release-checklist` skill
    deleted (an integer). A `42501` means `postgres` may not delete from `cron.job_run_details`
    there, and the daily job would fail the same way ([jobs.md](jobs.md#prune_cron_history-daily)).
 
+## Turn customer booking on
+
+Customers cannot book their own slots in the first release
+([ADR 0018](adr/0018-customers-do-not-book-in-first-release.md)). The app hides the customer
+calendar, and `book()` refuses customers with `AMRAP_BOOKING_DISABLED`. The trainer still books
+for everyone. To let customers book, run this in the SQL editor:
+
+```sql
+update public.settings set customer_booking_enabled = true where id = 1;
+```
+
+The app shows the calendar entry to customers on their next load. To turn booking off again,
+set the column to `false`; bookings that already exist stay booked.
+
 ## Database size check
 
 The Free Plan puts the database into read-only mode when its size passes 500 MB (WAL and
