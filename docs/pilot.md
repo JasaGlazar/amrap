@@ -71,13 +71,13 @@ Na koncu primerjajte **Stranke** (stanje vsake stranke) s papirnatim listom.
 > 3. V **Koledarju** rezervirate prost termin (»Rezerviraj«), na zaslonu **Domov** ga odpoveste
 >    (»Odpovej«).
 >
-> Odpoved do roka (5 ur pred začetkom) je brezplačna. Kasnejša odpoved ali termin, na katerega ne
+> Odpoved do roka (8 ur pred začetkom) je brezplačna. Kasnejša odpoved ali termin, na katerega ne
 > pridete, se zaračuna (1 kredit). Stanje in zgodovino kreditov vidite na zaslonu **Domov** in v
 > **Zgodovini**.
 >
 > Povezava: <povezava za povabilo>
 
-Če ste rok za brezplačno odpoved spremenili, popravite »5 ur« v besedilu.
+Če ste rok za brezplačno odpoved spremenili, popravite »8 ur« v besedilu.
 
 ## Med poskusnim tednom: dnevni pregled (trener)
 

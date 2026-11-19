@@ -14,7 +14,7 @@ These constraints bind every task and are what the reviewer checks against (alon
 - Partial unique index on `credit_transactions(appointment_id) WHERE type IN ('session','late_cancel')`.
 - Appointment status enum: `booked | charged | cancelled | cancelled_late | cancelled_by_trainer`.
 - Transaction type enum: `topup | session | late_cancel | refund | adjustment`.
-- Defaults: cutoff 5 h, slot 60 min, capacity 5, gym timezone `Europe/Ljubljana`.
+- Defaults: cutoff 8 h, slot 60 min, capacity 5, gym timezone `Europe/Ljubljana`.
 - Slovenian UI; every user-visible string lives in `app/src/i18n/sl.ts`. No hardcoded UI strings.
 - Docs 1:1 (below), no generated artifacts except the DB types, tests derive counts, no
   blocking hooks (all below).
@@ -173,6 +173,7 @@ run, so test files do not create it.
 | `032_event_notifications.sql` | the notification triggers: a customer booking and cancel notify the trainer (with `late`), a trainer cancel notifies the customer (with `refunded` and the reason, and `deactivate_rule` once per instance), top-up and adjustment notify the customer (with the balance); trainer bookings, materialization, charges and refunds do not; one recipient with two trainers; no device, no account or no config records nothing; actions succeed and take effect when the notification fails (a failing `enqueue_notification`, a failed pg_net call that keeps the row undispatched, a direct failure inside `enqueue_notification`); `save_push_subscription` (move between accounts, forbidden, invalid, non-https, anon), the https-only endpoint constraint; function grants and the triggers |
 | `033_retention.sql` | `prune_cron_history`: the daily schedule, grants, cron runs 13 and 15 days old, one exactly 14 days old (kept), runs that never ended (by start), the returned count, a second run |
 | `034_cancel_occurrence.sql` | `cancel_occurrence`: definition and grants, a customer and anon refused, unknown/inactive template, wrong weekday or time, missing arguments, a long reason; every live booking cancelled with the trimmed reason and charged ones refunded (balances from the fixture), other occurrences, earlier cancels and ad-hoc appointments untouched, the blocked period of the template's duration, `book()`'s lock held and taken before the blocked check (also in `book` and `materialize_rule`), `book()` and a second call then rejected, past and empty occurrences, materialization skipping the closed occurrence, one notification per customer with a device, a failing notification, missing settings |
+| `035_booking_switch.sql` | the cutoff (8 hours in the row and as the default), `customer_booking_enabled` (default false, not null); a customer `book()` refused while it is false, the trainer's `book()` and `materialize_recurring` still booking, a customer `book()` once it is true, a missing settings row |
 
 Helpers in `supabase/seeds/test_helpers.sql` (schema `tests`, local only):
 

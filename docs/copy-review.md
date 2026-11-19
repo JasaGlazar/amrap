@@ -462,6 +462,7 @@ is a question below.
 | `errors.AMRAP_ALREADY_BOOKED` | Rezervacija za ta termin že obstaja. | Spremenjeno (prej »Za ta termin ste že rezervirani.«; to vidi tudi trener). V redu? |
 | `errors.AMRAP_ALREADY_LINKED` | Ta račun je že povezan s stranko. |  |
 | `errors.AMRAP_BLOCKED` | V tem času rezervacije niso mogoče. |  |
+| `errors.AMRAP_BOOKING_DISABLED` | Rezervacije prek aplikacije trenutno niso mogoče. Termine vam dodeli trener. | Novo: stranka to vidi, če poskusi rezervirati, ko so rezervacije strank izklopljene; termine strankam dodeli trener. |
 | `errors.AMRAP_CAPACITY_FULL` | Ta termin je že poln. |  |
 | `errors.AMRAP_FORBIDDEN` | Za to dejanje nimate dovoljenja. |  |
 | `errors.AMRAP_INVALID_ARGUMENT` | Podatki niso veljavni. |  |

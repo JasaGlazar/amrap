@@ -13,6 +13,9 @@ select plan(39);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
+-- Customers call book() here; the booking setting is off by default.
+update public.settings set customer_booking_enabled = true where id = 1;
+
 -- Blocked periods in a dev database would close fixture occurrences; this is rolled back.
 delete from public.blocked_periods;
 

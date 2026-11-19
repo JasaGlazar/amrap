@@ -25,6 +25,7 @@ of it changes).
 | [0015](0015-trainer-cancel-notifies-customer.md) | A trainer cancel notifies the customer, with an optional reason | Accepted |
 | [0016](0016-cancel-occurrence-closes-it.md) | Cancelling a whole session closes it with a blocked period | Accepted |
 | [0017](0017-centred-wide-views.md) | Centred wide views | Accepted |
+| [0018](0018-customers-do-not-book-in-first-release.md) | Customers do not book in the first release | Accepted |
 
 ## Template
 

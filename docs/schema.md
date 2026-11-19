@@ -21,6 +21,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `20261024193349_data_retention.sql` | `prune_cron_history()` and its grants; the `prune_cron_history` schedule that keeps the pg_cron run log to 14 days ([jobs.md](jobs.md), [ADR 0013](adr/0013-data-retention.md)). |
 | `20261024221416_trainer_cancel_reason.sql` | `appointments.cancel_reason` and its check; the `appointment_cancelled_by_trainer` notification kind; `cancel(uuid)` dropped and recreated as `cancel(uuid, text default null)` with the same grants; `notify_cancelled_by_trainer()` and its trigger ([rpcs.md](rpcs.md#cancel), [notifications.md](notifications.md#event-notifications), [ADR 0015](adr/0015-trainer-cancel-notifies-customer.md)). |
 | `20261024222414_cancel_occurrence.sql` | `cancel_occurrence()` and its grants; `book()` and `materialize_rule()` replaced to take the advisory lock before the blocked-period check ([rpcs.md](rpcs.md#cancel_occurrence), [ADR 0016](adr/0016-cancel-occurrence-closes-it.md)). |
+| `20261119123322_customer_booking_switch.sql` | `settings.late_cancel_hours` default and current value 8; `settings.customer_booking_enabled`; `book()` replaced to refuse customer bookings while that setting is false ([rpcs.md](rpcs.md#book), [ADR 0018](adr/0018-customers-do-not-book-in-first-release.md)). |
 
 ## Enums
 
@@ -168,7 +169,8 @@ Single-row configuration; the row (`id = 1`, defaults) is inserted by the migrat
 | Column | Type | Notes |
 |---|---|---|
 | `id` | int | PK, default 1, check `id = 1` |
-| `late_cancel_hours` | int | not null, default 5, check `>= 0`; the cutoff |
+| `late_cancel_hours` | int | not null, default 8, check `>= 0`; the cutoff |
+| `customer_booking_enabled` | boolean | not null, default false; when false, `book()` refuses customers (`AMRAP_BOOKING_DISABLED`) |
 | `timezone` | text | not null, default `Europe/Ljubljana`; the gym's timezone |
 
 ### push_subscriptions

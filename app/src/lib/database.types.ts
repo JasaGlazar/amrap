@@ -357,16 +357,19 @@ export type Database = {
       }
       settings: {
         Row: {
+          customer_booking_enabled: boolean
           id: number
           late_cancel_hours: number
           timezone: string
         }
         Insert: {
+          customer_booking_enabled?: boolean
           id?: number
           late_cancel_hours?: number
           timezone?: string
         }
         Update: {
+          customer_booking_enabled?: boolean
           id?: number
           late_cancel_hours?: number
           timezone?: string

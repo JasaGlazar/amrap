@@ -13,7 +13,7 @@ Slovenian, but identifiers and docs use the English terms below.
 - **session charge** — the charge made when a `booked` appointment reaches its start time; a `session` transaction written by `charge_due_appointments`.
 - **late cancel** — a customer cancel after the cutoff; the appointment becomes `cancelled_late` and a `late_cancel` charge (−1) is written at cancel time by `cancel`.
 - **refund** — a `refund` (+1) transaction inserted when the trainer cancels an appointment that was already charged; it does not count toward the one-charge rule.
-- **cutoff** — the number of hours before `starts_at` after which a customer cancel is late; `settings.late_cancel_hours`, default 5.
+- **cutoff** — the number of hours before `starts_at` after which a customer cancel is late; `settings.late_cancel_hours`, default 8.
 - **slot template** — a weekly-grid entry defined by the trainer: weekday, start time, duration (default 60 minutes, any value allowed) and capacity (default 5); table `slot_templates`.
 - **slot** — a concrete dated occurrence of a slot template; derived from the template and the date, with capacity counted over its `booked` and `charged` appointments.
 - **appointment** — one customer's reservation of a slot or an ad-hoc time; table `appointments`, with status `booked`, `charged`, `cancelled`, `cancelled_late` or `cancelled_by_trainer`.
@@ -23,6 +23,7 @@ Slovenian, but identifiers and docs use the English terms below.
 - **rule activation** — the trainer switching a recurring rule on (`activate_rule`, which materializes it at once) or off (`deactivate_rule`, which cancels its future `booked` instances as `cancelled_by_trainer`, without charge). Reactivating does not bring back instances that were cancelled.
 - **occupancy** — the number of live (`booked` + `charged`) appointments in a slot; customers read it from the view `slot_occupancy` (counts only) to see remaining capacity.
 - **ad-hoc appointment** — a trainer-created appointment with no slot template (`slot_template_id` is null, `source = 'trainer'`).
+- **booking setting** — `settings.customer_booking_enabled`, the switch that lets customers book their own slots; default false. Turned on by a database change (`docs/runbook.md`); the trainer and materialization book whatever it says.
 - **blocked period** — a trainer-defined time range (holiday, closure) in which booking is not allowed; table `blocked_periods`.
 - **debtor** — a customer whose `customer_balances` row has balance < 0; shown in red and listed on the trainer dashboard, never blocked.
 - **invite** — a single-use, expiring (7 days) token a trainer generates with `create_invite` and a customer redeems with `accept_invite` to link an account to their customer record.
@@ -40,6 +41,7 @@ Slovenian, but identifiers and docs use the English terms below.
 
 - One charge per appointment, enforced by a partial unique index on `credit_transactions(appointment_id)` for types `session` and `late_cancel`.
 - Negative balances are allowed; they are shown, never blocked.
+- Customers book only when `settings.customer_booking_enabled` is true.
 - Nobody logs attendance. A booked appointment that is not cancelled before the cutoff is charged.
 - The trainer may cancel any `booked` or `charged` appointment at any time without charge (`cancelled_by_trainer`); an existing charge is refunded.
 - A `cancelled_late` appointment cannot be cancelled again; the trainer waives a late-cancel charge with `adjust(+1, note)`.

@@ -76,7 +76,8 @@ erDiagram
     }
     settings {
         int id PK "single row"
-        int late_cancel_hours "default 5"
+        int late_cancel_hours "default 8"
+        boolean customer_booking_enabled "default false"
         text timezone "default Europe/Ljubljana"
     }
     push_subscriptions {

@@ -43,7 +43,8 @@ app relies on.
 | `AMRAP_INVITE_INVALID` | The invite token is unknown, empty, replaced by a newer invite, already redeemed (redeeming clears it) or expired | `accept_invite` |
 | `AMRAP_INVITE_USED` | The token belongs to a customer record that is already linked | `accept_invite` |
 | `AMRAP_ALREADY_LINKED` | The customer record already has an account (`create_invite`), or the caller is already linked to a customer (`accept_invite`) | `create_invite`, `accept_invite` |
-| `AMRAP_SETTINGS_MISSING` | The `settings` row (`id = 1`) is missing, so the timezone or cutoff is unknown; the call fails closed | `book` (with a template), `cancel` (customer), `cancel_occurrence`, `materialize_recurring` (when there is an active rule) |
+| `AMRAP_BOOKING_DISABLED` | A customer tried to book while customer booking is turned off (`settings.customer_booking_enabled` is false) | `book` |
+| `AMRAP_SETTINGS_MISSING` | The `settings` row (`id = 1`) is missing, so the timezone or cutoff is unknown; the call fails closed | `book` (customer, or trainer with a template), `cancel` (customer), `cancel_occurrence`, `materialize_recurring` (when there is an active rule) |
 | `AMRAP_NOT_CANCELLABLE` | The appointment is not in a state the caller may cancel (customer: not `booked` or already started; anyone: already cancelled) | `cancel` |
 
 ## book
@@ -57,12 +58,16 @@ public.book(p_customer_id uuid, p_starts_at timestamptz,
   trainer for any customer.
 - **Rules, in the order they are checked:**
   1. A customer may book only themselves (`AMRAP_FORBIDDEN`).
-  2. Arguments (`AMRAP_INVALID_ARGUMENT`): `p_customer_id` and `p_starts_at` are required. A
+  2. A customer may book only while `settings.customer_booking_enabled` is true
+     (`AMRAP_BOOKING_DISABLED`); a missing `settings` row fails closed
+     (`AMRAP_SETTINGS_MISSING`). The trainer skips this check. (Since
+     `20261119123322_customer_booking_switch.sql`, [ADR 0018](adr/0018-customers-do-not-book-in-first-release.md).)
+  3. Arguments (`AMRAP_INVALID_ARGUMENT`): `p_customer_id` and `p_starts_at` are required. A
      customer must pass `p_slot_template_id`. `p_ends_at` is allowed only without a template
      (ad hoc, trainer only), and then it is required and must be after `p_starts_at`. With a
      template the duration always comes from the template.
-  3. The customer must exist (`AMRAP_NOT_FOUND`).
-  4. With a template: it must exist (`AMRAP_NOT_FOUND`) and be active (`AMRAP_SLOT_INACTIVE`);
+  4. The customer must exist (`AMRAP_NOT_FOUND`).
+  5. With a template: it must exist (`AMRAP_NOT_FOUND`) and be active (`AMRAP_SLOT_INACTIVE`);
      for a customer `p_starts_at` must be in the future (`AMRAP_IN_PAST`; the trainer may book
      past occurrences); `p_starts_at` in `settings.timezone` must fall on the template's
      `weekday` (`isodow - 1`) at its `start_time` (`AMRAP_SLOT_MISMATCH`). If the `settings`
@@ -71,22 +76,22 @@ public.book(p_customer_id uuid, p_starts_at timestamptz,
      it maps to two instants and both match; a `start_time` inside the spring-forward gap does
      not exist that day, so no instant matches and that occurrence cannot be booked from the
      template (the trainer can book it ad hoc).
-  5. With a template: takes `pg_advisory_xact_lock(hashtext(template_id || '@' ||
+  6. With a template: takes `pg_advisory_xact_lock(hashtext(template_id || '@' ||
      epoch(p_starts_at)))`, so concurrent bookings of one occurrence, materialization and
      `cancel_occurrence()` are serialized. (The lock key uses the epoch rather than
      `p_starts_at::text` so it does not depend on the session's `TimeZone`.) Since
      `20261024222414_cancel_occurrence.sql` the lock comes before the blocked check, so a
      booking that waited on a `cancel_occurrence()` sees the blocked period it committed.
-  6. The appointment must not overlap a blocked period: `tstzrange(p_starts_at, ends_at) &&
+  7. The appointment must not overlap a blocked period: `tstzrange(p_starts_at, ends_at) &&
      tstzrange(b.starts_at, b.ends_at)`, both half-open, where `ends_at` is the start plus the
      template's duration or `p_ends_at` (`AMRAP_BLOCKED`). An appointment that starts before a
      blocked period but runs into it is rejected; one that ends exactly when the period starts
      is allowed. Applies to the trainer and to ad-hoc bookings too. (Since
      `20261023192556_recurring_and_jobs.sql`; before, only the start was checked.)
-  7. With a template: counts appointments of that template at that start with status `booked`
+  8. With a template: counts appointments of that template at that start with status `booked`
      or `charged`. If the count is `>= capacity` the booking fails (`AMRAP_CAPACITY_FULL`), for
      the trainer too. Ad-hoc bookings have no capacity.
-  8. Insert; a second live booking of the same customer at the same start hits
+  9. Insert; a second live booking of the same customer at the same start hits
      `appointments_one_live_booking_idx` and is reported as `AMRAP_ALREADY_BOOKED`.
 - **Side effects:** inserts one `appointments` row: `status = 'booked'`,
   `source = 'trainer'` when the trainer calls, else `'self_booked'`;

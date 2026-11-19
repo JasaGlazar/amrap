@@ -1,7 +1,8 @@
 # Booking sequence
 
 How a customer books an open slot. `book(p_customer_id, p_starts_at, p_slot_template_id)` is a
-`SECURITY DEFINER` RPC that runs in one transaction: it checks the caller books for themselves,
+`SECURITY DEFINER` RPC that runs in one transaction: it checks the caller books for themselves
+and, for a customer, that `settings.customer_booking_enabled` is true (ADR 0018),
 validates the template (active, start in the future, on the template's weekday and start time
 in `settings.timezone`), takes a transaction-scoped advisory lock on the slot occurrence so
 concurrent bookings, materialization and `cancel_occurrence()` are serialized, rejects an
@@ -25,6 +26,7 @@ sequenceDiagram
 
     C->>B: book(customer_id, starts_at, slot_template_id)
     B->>B: is_trainer() or customer_id = current_customer_id(), else AMRAP_FORBIDDEN
+    B->>B: customer only: settings.customer_booking_enabled, else AMRAP_BOOKING_DISABLED
     B->>S: read template
     S-->>B: active, weekday, start_time, duration_minutes, capacity
     B->>B: active, future, weekday and start_time match, else AMRAP_SLOT_INACTIVE / AMRAP_IN_PAST / AMRAP_SLOT_MISMATCH

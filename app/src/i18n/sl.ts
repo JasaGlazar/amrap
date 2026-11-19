@@ -397,6 +397,8 @@ export const sl = {
     AMRAP_ALREADY_BOOKED: 'Rezervacija za ta termin že obstaja.',
     AMRAP_ALREADY_LINKED: 'Ta račun je že povezan s stranko.',
     AMRAP_BLOCKED: 'V tem času rezervacije niso mogoče.',
+    AMRAP_BOOKING_DISABLED:
+      'Rezervacije prek aplikacije trenutno niso mogoče. Termine vam dodeli trener.',
     AMRAP_CAPACITY_FULL: 'Ta termin je že poln.',
     AMRAP_FORBIDDEN: 'Za to dejanje nimate dovoljenja.',
     AMRAP_INVALID_ARGUMENT: 'Podatki niso veljavni.',

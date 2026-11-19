@@ -18,6 +18,8 @@ select plan(46);
 -- Fixtures ---------------------------------------------------------------------------------
 
 update public.settings set late_cancel_hours = 5 where id = 1;
+-- Customers call book() here; the booking setting is off by default.
+update public.settings set customer_booking_enabled = true where id = 1;
 
 create temp table fx (key text primary key, id uuid not null) on commit drop;
 
