@@ -188,7 +188,9 @@ back. Defined in `20261119125501_undo_cancel.sql`.
       (`appointments_one_live_booking_idx`, reported as `AMRAP_ALREADY_BOOKED`).
 - **Side effects:** the same row goes back to `status = 'booked'` with `cancelled_at = null`.
   No credit transaction: the free cancel wrote none, and the charge job charges the restored
-  appointment at its start as usual (one `session` row).
+  appointment at its start as usual (one `session` row). The trainer is notified
+  (`booking_restored`) by trigger and best effort
+  ([notifications.md](notifications.md#event-notifications)).
 - **Diagram:** [architecture/appointment-states.md](architecture/appointment-states.md).
 
 ## cancel_occurrence
@@ -551,7 +553,15 @@ grant for the role that fires it). See [notifications.md](notifications.md#event
   `appointments_notify_booking_cancelled` (`after update of status`, `booked` → `cancelled` or
   `cancelled_late`): enqueues `booking_cancelled` for the trainer. The recipient is one
   trainer record, the earliest created one with a push subscription (ties by id), matching the
-  one-row-per-`(kind, appointment_id)` key; the domain has a single trainer.
+  one-row-per-`(kind, appointment_id)` key; the domain has a single trainer. Since
+  `20261119131643_booking_restored_notification.sql` it first deletes the appointment's
+  earlier `booking_cancelled` row, so a cancel after an undo is pushed again.
+- `public.notify_booking_restored() returns trigger` — trigger
+  `appointments_notify_booking_restored` (`after update of status`, `cancelled` → `booked`, which
+  only `undo_cancel()` does), defined in `20261119131643_booking_restored_notification.sql`:
+  deletes the appointment's earlier `booking_restored` row, then enqueues `booking_restored`
+  for the trainer with `customer_name`, `starts_at` and `timezone`. Same recipient as
+  `notify_booking_cancelled()`.
 - `public.notify_credit_change() returns trigger` — trigger
   `credit_transactions_notify_credit_change` (`after insert`, `type in ('topup',
   'adjustment')`): enqueues `credit_topup` or `credit_adjustment` for the customer with the
@@ -565,5 +575,5 @@ grant for the role that fires it). See [notifications.md](notifications.md#event
   already run, and every trainer cancel of a charged appointment refunds it.
 
 Each trigger function, like `enqueue_notification` itself, catches every error and reports it
-with `raise warning`, so a notification problem never fails `book`, `cancel`,
-`deactivate_rule`, `top_up` or `adjust`.
+with `raise warning`, so a notification problem never fails `book`, `cancel`, `undo_cancel`,
+`cancel_occurrence`, `deactivate_rule`, `top_up` or `adjust`.

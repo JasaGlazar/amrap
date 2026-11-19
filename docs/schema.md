@@ -23,6 +23,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `20261024222414_cancel_occurrence.sql` | `cancel_occurrence()` and its grants; `book()` and `materialize_rule()` replaced to take the advisory lock before the blocked-period check ([rpcs.md](rpcs.md#cancel_occurrence), [ADR 0016](adr/0016-cancel-occurrence-closes-it.md)). |
 | `20261119123322_customer_booking_switch.sql` | `settings.late_cancel_hours` default and current value 8; `settings.customer_booking_enabled`; `book()` replaced to refuse customer bookings while that setting is false ([rpcs.md](rpcs.md#book), [ADR 0018](adr/0018-customers-do-not-book-in-first-release.md)). |
 | `20261119125501_undo_cancel.sql` | `undo_cancel()` and its grants: a customer restores their own free cancel before the cutoff ([rpcs.md](rpcs.md#undo_cancel)). |
+| `20261119131643_booking_restored_notification.sql` | The `booking_restored` notification kind; `notify_booking_restored()` and its trigger; `notify_booking_cancelled()` replaced to delete the appointment's earlier `booking_cancelled` row first, so a repeat cancel is pushed again ([rpcs.md](rpcs.md#helpers), [notifications.md](notifications.md#repeat-cancel-and-undo)). |
 
 ## Enums
 
@@ -32,7 +33,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `appointment_status` | `booked`, `charged`, `cancelled`, `cancelled_late`, `cancelled_by_trainer` |
 | `appointment_source` | `recurring`, `self_booked`, `trainer` |
 | `transaction_type` | `topup`, `session`, `late_cancel`, `refund`, `adjustment` |
-| `notification_kind` | `cutoff_reminder`, `booking_created`, `booking_cancelled`, `credit_topup`, `credit_adjustment`, `appointment_cancelled_by_trainer` |
+| `notification_kind` | `cutoff_reminder`, `booking_created`, `booking_cancelled`, `credit_topup`, `credit_adjustment`, `appointment_cancelled_by_trainer`, `booking_restored` |
 
 ## Tables
 
@@ -211,8 +212,10 @@ API.
 | `dispatched_at` | timestamptz | set once by `claim_notifications()`; null until the edge function claims the row |
 
 Unique `notifications_kind_appointment_id_key` on `(kind, appointment_id)`: one notification of
-a kind per appointment, ever (nulls are distinct, so rows without an appointment never
-collide). Index `notifications_created_at_idx` on `(created_at)` for the 30-day pruning in
+a kind per appointment at a time (nulls are distinct, so rows without an appointment never
+collide). Only the `booking_cancelled` and `booking_restored` triggers delete their earlier row
+first, so a repeat cancel or undo is pushed again
+([notifications.md](notifications.md#repeat-cancel-and-undo)). Index `notifications_created_at_idx` on `(created_at)` for the 30-day pruning in
 `send_cutoff_reminders()`.
 
 Foreign keys not listed with an `on delete` action use the default (no action): customers,
@@ -229,6 +232,7 @@ Notification triggers (ADR 0009, [notifications.md](notifications.md#event-notif
 | `appointments_notify_booking_created` | `appointments` | `after insert` when `new.source = 'self_booked'` | `notify_booking_created()` |
 | `appointments_notify_booking_cancelled` | `appointments` | `after update of status` when `old.status = 'booked'` and `new.status in ('cancelled', 'cancelled_late')` | `notify_booking_cancelled()` |
 | `appointments_notify_cancelled_by_trainer` | `appointments` | `after update of status` when `old.status in ('booked', 'charged')` and `new.status = 'cancelled_by_trainer'` | `notify_cancelled_by_trainer()` |
+| `appointments_notify_booking_restored` | `appointments` | `after update of status` when `old.status = 'cancelled'` and `new.status = 'booked'` | `notify_booking_restored()` |
 | `credit_transactions_notify_credit_change` | `credit_transactions` | `after insert` when `new.type in ('topup', 'adjustment')` | `notify_credit_change()` |
 
 ## Views

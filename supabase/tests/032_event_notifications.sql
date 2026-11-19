@@ -158,8 +158,9 @@ select set_eq(
   $$values ('appointments', 'appointments_notify_booking_created'),
            ('appointments', 'appointments_notify_booking_cancelled'),
            ('appointments', 'appointments_notify_cancelled_by_trainer'),
+           ('appointments', 'appointments_notify_booking_restored'),
            ('credit_transactions', 'credit_transactions_notify_credit_change')$$,
-  'the four notification triggers exist');
+  'the five notification triggers exist');
 
 -- Bookings ---------------------------------------------------------------------------------
 

@@ -330,6 +330,7 @@ export const sl = {
     bookingCreatedTitle: 'Nova rezervacija',
     bookingCancelledTitle: 'Odpoved termina',
     bookingCancelledLateTitle: 'Pozna odpoved termina',
+    bookingRestoredTitle: 'Razveljavljena odpoved termina',
     bookingBody: '{name}: {day} ob {time}',
     topupTitle: 'Dodani krediti',
     topupBody: 'Dodano: {amount}. Novo stanje: {balance}.',

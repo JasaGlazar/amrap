@@ -426,6 +426,7 @@ is a question below.
 | `push.bookingCreatedTitle` | Nova rezervacija |  |
 | `push.bookingCancelledTitle` | Odpoved termina |  |
 | `push.bookingCancelledLateTitle` | Pozna odpoved termina |  |
+| `push.bookingRestoredTitle` | Razveljavljena odpoved termina | Novo: naslov obvestila trenerju, ko stranka razveljavi svojo odpoved in je termin spet njen. Besedilo pod naslovom je kot pri odpovedi (»{name}: {day} ob {time}«). |
 | `push.bookingBody` | {name}: {day} ob {time} |  |
 | `push.topupTitle` | Dodani krediti |  |
 | `push.topupBody` | Dodano: {amount}. Novo stanje: {balance}. | »Dodano: +8. Novo stanje: 10.« ali »Dodanih 8 kreditov, novo stanje 10.«? |

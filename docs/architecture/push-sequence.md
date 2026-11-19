@@ -1,10 +1,11 @@
 # Push sequence
 
 How a notification travels from the database to a device (ADR 0009). A writer (the
-15-minute reminder job, or `enqueue_notification()` called by a booking, cancel, trainer
+15-minute reminder job, or `enqueue_notification()` called by a booking, cancel, undo, trainer
 cancel or credit trigger) records `notifications` rows with a unique `(kind, appointment_id)`
 key and dispatches only the ids its insert returned, so re-runs and overlapping runs push
-nothing new. `dispatch_notifications()` queues one pg_net request, which leaves only after the
+nothing new. The customer cancel and undo triggers first delete the appointment's earlier row
+of their kind, so a repeat cancel or undo is pushed again. `dispatch_notifications()` queues one pg_net request, which leaves only after the
 writer's transaction commits, and never raises. The `send-push` edge function checks the shared
 secret, claims the ids once with `claim_notifications()` (at most once per notification), and
 sends to each of the recipient's subscriptions; a 404 or 410 from the push service deletes that
@@ -22,7 +23,7 @@ sequenceDiagram
     participant A as App (notifications toggle, /logout)
     participant S as push_subscriptions
     participant Cron as pg_cron (every 15 min)
-    participant T as book, cancel, cancel_occurrence, deactivate_rule, top_up, adjust
+    participant T as book, cancel, undo_cancel, cancel_occurrence, deactivate_rule, top_up, adjust
     participant J as send_cutoff_reminders()
     participant E as enqueue_notification()
     participant N as notifications
@@ -49,7 +50,8 @@ sequenceDiagram
         J->>D: dispatch_notifications(new ids)
         J-->>Cron: number inserted, commit
     else event trigger
-        T->>E: notify_* trigger (customer booking or cancel, trainer cancel or cancel_occurrence with refunded and reason, top-up, adjustment)
+        T->>N: booking_cancelled or booking_restored trigger: delete the earlier row of its kind
+        T->>E: notify_* trigger (customer booking, cancel or undo, trainer cancel or cancel_occurrence with refunded and reason, top-up, adjustment)
         E->>E: push_config(), recipient linked with a device, else return
         E->>N: insert the event row, on conflict do nothing
         E->>D: dispatch_notifications(new id)

@@ -523,6 +523,7 @@ export type Database = {
         | "credit_topup"
         | "credit_adjustment"
         | "appointment_cancelled_by_trainer"
+        | "booking_restored"
       transaction_type:
         | "topup"
         | "session"
@@ -675,6 +676,7 @@ export const Constants = {
         "credit_topup",
         "credit_adjustment",
         "appointment_cancelled_by_trainer",
+        "booking_restored",
       ],
       transaction_type: [
         "topup",
