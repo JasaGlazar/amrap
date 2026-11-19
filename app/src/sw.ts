@@ -18,14 +18,15 @@ clientsClaim();
 
 self.addEventListener('push', (event) => {
   const notification = parsePush(event.data?.text());
-  event.waitUntil(
-    self.registration.showNotification(notification.title, {
-      body: notification.body,
-      tag: notification.tag,
-      icon: '/icon-192.png',
-      data: { url: notification.url },
-    }),
-  );
+  // renotify is missing from the WebWorker types.
+  const options: NotificationOptions & { renotify: boolean } = {
+    body: notification.body,
+    tag: notification.tag,
+    renotify: true,
+    icon: '/icon-192.png',
+    data: { url: notification.url },
+  };
+  event.waitUntil(self.registration.showNotification(notification.title, options));
 });
 
 self.addEventListener('notificationclick', (event) => {

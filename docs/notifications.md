@@ -96,6 +96,9 @@ and registered by the plugin's `registerSW.js`:
   new balance, plus the note when there is one. An unknown kind, missing fields or a payload
   that is not JSON shows `push.genericTitle` / `push.genericBody`. The tag is
   `<kind>:<appointment or transaction id>`, so a repeated notification replaces the earlier one.
+  `renotify: true` makes that replacement alert again, so a second cancel or undo of the same
+  appointment is not silent (the option is missing from the WebWorker types, hence the
+  intersection type in `sw.ts`).
 - **notificationclick:** closes the notification, then focuses a window of the app that the
   service worker controls and navigates it to `url`; with no such window, or when navigating
   fails, it opens a new window there. `parsePush` keeps a `url` only when it starts with `/` and

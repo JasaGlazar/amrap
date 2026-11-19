@@ -5,8 +5,10 @@ import {
   book,
   cancel,
   chargedSince,
+  futureCancelledAppointments,
   liveAppointmentsBetween,
   pastAppointments,
+  undoCancel,
   upcomingAppointments,
 } from './appointments';
 import type { Client } from './client';
@@ -38,6 +40,11 @@ const fixtures = [
   appointment('future-booked', me, 48, 'booked'),
   appointment('soon-booked', me, 2, 'booked'),
   appointment('future-cancelled', me, 24, 'cancelled'),
+  appointment('soon-cancelled', me, 6, 'cancelled'),
+  appointment('past-cancelled', me, -6, 'cancelled'),
+  appointment('future-late', me, 30, 'cancelled_late'),
+  appointment('future-by-trainer', me, 36, 'cancelled_by_trainer'),
+  appointment('other-cancelled', 'customer-2', 24, 'cancelled'),
   appointment('past-charged', me, -24, 'charged'),
   appointment('started-booked', me, -0.5, 'booked'),
   appointment('other-future', 'customer-2', 48, 'booked'),
@@ -58,6 +65,15 @@ describe('appointments', () => {
       .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at))
       .map((row) => row.id);
     const result = await upcomingAppointments(client, me, now);
+    expect(result.map((a) => a.id)).toEqual(expected);
+  });
+
+  it('lists my cancelled future appointments, soonest first', async () => {
+    const expected = mine()
+      .filter((row) => row.status === 'cancelled' && Date.parse(row.starts_at) > now.getTime())
+      .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at))
+      .map((row) => row.id);
+    const result = await futureCancelledAppointments(client, me, now);
     expect(result.map((a) => a.id)).toEqual(expected);
   });
 
@@ -193,6 +209,27 @@ describe('actions', () => {
     expect(await cancel(client, 'future-booked')).toEqual({
       ok: false,
       message: errorMessages.AMRAP_CAPACITY_FULL,
+    });
+  });
+});
+
+describe('undo cancel', () => {
+  it('undoes a cancel through the undo_cancel RPC', async () => {
+    fakeSupabase.rpc.mockResolvedValueOnce({ data: null, error: null });
+    expect(await undoCancel(client, 'future-cancelled')).toEqual({ ok: true, data: null });
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('undo_cancel', {
+      p_appointment_id: 'future-cancelled',
+    });
+  });
+
+  it('turns AMRAP_NOT_UNDOABLE into its Slovenian copy', async () => {
+    fakeSupabase.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'AMRAP_NOT_UNDOABLE: the cutoff has passed' },
+    });
+    expect(await undoCancel(client, 'future-cancelled')).toEqual({
+      ok: false,
+      message: errorMessages.AMRAP_NOT_UNDOABLE,
     });
   });
 });

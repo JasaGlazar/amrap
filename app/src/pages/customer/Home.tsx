@@ -1,11 +1,16 @@
 import { useCallback, useState } from 'react';
 import { useCustomer } from '../../auth/AuthContext';
-import { upcomingAppointments, type Appointment } from '../../data/appointments';
+import {
+  futureCancelledAppointments,
+  undoCancel,
+  upcomingAppointments,
+  type Appointment,
+} from '../../data/appointments';
 import { balanceOf } from '../../data/credits';
 import { getSettings } from '../../data/settings';
 import { fill, formatBalance, formatTimeUntil, t } from '../../i18n';
 import { supabase } from '../../lib/supabase';
-import { formatLongDay, formatTime, timeUntil } from '../../lib/time';
+import { formatLongDay, formatTime, isFreeCancel, timeUntil } from '../../lib/time';
 import { useLoad } from '../../lib/useLoad';
 import { CancelDialog } from '../shared/CancelDialog';
 import { PushToggle } from '../shared/PushToggle';
@@ -14,16 +19,19 @@ export function CustomerHome() {
   const customer = useCustomer();
   const load = useCallback(async () => {
     const now = new Date();
-    const [settings, balance, upcoming] = await Promise.all([
+    const [settings, balance, upcoming, cancelled] = await Promise.all([
       getSettings(supabase),
       balanceOf(supabase, customer.id),
       upcomingAppointments(supabase, customer.id, now),
+      futureCancelledAppointments(supabase, customer.id, now),
     ]);
-    return { now, settings, balance, upcoming };
+    return { now, settings, balance, upcoming, cancelled };
   }, [customer.id]);
   const [state, reload] = useLoad(load);
   const [cancelling, setCancelling] = useState<Appointment | null>(null);
-  const [cancelled, setCancelled] = useState(false);
+  const [done, setDone] = useState<'cancelled' | 'restored' | null>(null);
+  const [undoing, setUndoing] = useState<string | null>(null);
+  const [undoError, setUndoError] = useState<string | null>(null);
 
   if (state.status === 'loading') return <p className="status">{t.common.loading}</p>;
   if (state.status === 'error') {
@@ -34,14 +42,30 @@ export function CustomerHome() {
     );
   }
 
-  const { now, settings, balance, upcoming } = state.data;
-  const { timeZone } = settings;
+  const { now, settings, balance, upcoming, cancelled } = state.data;
+  const { timeZone, lateCancelHours } = settings;
   const next = upcoming[0];
+  const undoable = cancelled.filter((appointment) =>
+    isFreeCancel(appointment.startsAt, lateCancelHours, now),
+  );
   const when = (appointment: Appointment) =>
     fill(t.slot.when, {
       day: formatLongDay(appointment.startsAt, timeZone),
       time: formatTime(appointment.startsAt, timeZone),
     });
+
+  async function undo(appointment: Appointment) {
+    setUndoing(appointment.id);
+    setUndoError(null);
+    const result = await undoCancel(supabase, appointment.id);
+    if (result.ok) {
+      setDone('restored');
+      await reload();
+    } else {
+      setUndoError(result.message);
+    }
+    setUndoing(null);
+  }
 
   return (
     <>
@@ -63,9 +87,9 @@ export function CustomerHome() {
         </section>
       )}
       <h2>{t.customer.upcomingTitle}</h2>
-      {cancelled && (
+      {done !== null && (
         <p role="status" className="ok">
-          {t.cancelDialog.done}
+          {done === 'cancelled' ? t.cancelDialog.done : t.customer.restored}
         </p>
       )}
       {upcoming.length === 0 ? (
@@ -86,6 +110,31 @@ export function CustomerHome() {
           ))}
         </ul>
       )}
+      {undoable.length > 0 && (
+        <section aria-labelledby="cancelled-title">
+          <h2 id="cancelled-title">{t.customer.cancelledTitle}</h2>
+          {undoError !== null && (
+            <p role="alert" className="error">
+              {undoError}
+            </p>
+          )}
+          <ul className="list">
+            {undoable.map((appointment) => (
+              <li key={appointment.id} aria-label={when(appointment)} className="row">
+                <span>{when(appointment)}</span>
+                <button
+                  type="button"
+                  className="button secondary small"
+                  disabled={undoing !== null}
+                  onClick={() => void undo(appointment)}
+                >
+                  {t.customer.undo}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <PushToggle audience="customer" userId={customer.auth_user_id ?? ''} />
       {cancelling !== null && (
         <CancelDialog
@@ -97,7 +146,8 @@ export function CustomerHome() {
           }}
           onCancelled={() => {
             setCancelling(null);
-            setCancelled(true);
+            setDone('cancelled');
+            setUndoError(null);
             void reload();
           }}
         />

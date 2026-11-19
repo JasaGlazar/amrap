@@ -173,6 +173,9 @@ is a question below.
 | `customer.nextLabel` | Naslednji termin |  |
 | `customer.upcomingTitle` | Prihajajoči termini |  |
 | `customer.noUpcoming` | Ni prihajajočih terminov. |  |
+| `customer.cancelledTitle` | Odpovedani termini | Novo: seznam brezplačno odpovedanih terminov, ki jih stranka še lahko razveljavi. |
+| `customer.undo` | Razveljavi odpoved | Novo: gumb ob odpovedanem terminu; termin je spet rezerviran. |
+| `customer.restored` | Termin je spet rezerviran. | Novo: sporočilo po uspešni razveljavitvi. |
 | `customer.calendarTitle` | Koledar |  |
 | `customer.historyTitle` | Zgodovina |  |
 | `slot.when` | {day} ob {time} | Ura kot »07:00« ali »7.00«? |
@@ -206,6 +209,7 @@ is a question below.
 | `cancelDialog.title` | Odpoved termina |  |
 | `cancelDialog.cutoff` | Brezplačna odpoved do {day} ob {time}. |  |
 | `cancelDialog.free` | Odpoved je brezplačna. |  |
+| `cancelDialog.undoNote` | Odpoved lahko razveljavite do {day} ob {time}. | Novo: le pri brezplačni odpovedi stranke; čas je isti kot rok za brezplačno odpoved. |
 | `cancelDialog.late` | Pozna odpoved: zaračunan bo 1 kredit. | Spremenjeno (glej zgoraj). V redu? |
 | `cancelDialog.confirm` | Odpovej termin |  |
 | `cancelDialog.back` | Nazaj |  |
