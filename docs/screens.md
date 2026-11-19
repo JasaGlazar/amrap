@@ -69,8 +69,10 @@ turned off still shows it; `book()` then fails and the notice line shows
   ahead (`now < starts_at − lateCancelHours`, the same strict rule as the cancel dialog, with
   `now` from page load), soonest first, each with **Razveljavi odpoved** (`customer.undo`, a
   small secondary button). Late cancels (`cancelled_late`) and trainer cancels never appear.
-  The page filter only hides rows; `undo_cancel()` decides. Tapping it disables the buttons
-  while the call runs; on success the page reloads, the appointment moves back to the upcoming
+  A cancel is also hidden when an upcoming appointment of mine starts at the same time
+  (`undo_cancel()` would refuse it with `AMRAP_ALREADY_BOOKED`).
+  The page filter only hides rows; `undo_cancel()` decides. Tapping it clears the status line
+  and disables the buttons while the call runs; on success the page reloads, the appointment moves back to the upcoming
   list and the status line shows `customer.restored`. On failure the `errors.*` copy shows
   above the list (an alert) and the row stays. Hidden when there is no such cancel.
 - **Obvestila:** the notifications toggle with the customer hint (`pushToggle.customerHint`),

@@ -37,3 +37,5 @@ read it.
   needs Slovenian copy for it.
 - The cutoff reminder moves with the cutoff: it arrives about 9 hours before the session.
 - ADR 0001 still says the default cutoff is 5 hours; this ADR replaces that number.
+- ADR 0004 still says "customers self-book open slots". While the setting is false they do
+  not; the trainer books for them.

@@ -1,6 +1,6 @@
 # Minimal customer scope — design
 
-Date: 2026-11-19. Status: waiting for owner approval.
+Date: 2026-11-19. Status: Approved by the owner on 2026-11-19.
 
 ## Intent
 
@@ -137,9 +137,9 @@ the trainer should be told about every change. This is the builder's call on the
 
 ### 5. Customer screens
 
-- Home and history show a cancelled appointment with an undo button while it can be undone:
-  status `cancelled` and the cutoff not passed. The button calls `undo_cancel` and refreshes
-  the list. Errors show their `errors.AMRAP_*` copy.
+- Home shows a cancelled appointment with an undo button while it can be undone: status
+  `cancelled` and the cutoff not passed. History is unchanged. The button calls `undo_cancel`
+  and refreshes the list. Errors show their `errors.AMRAP_*` copy.
 - The cancel dialog says that the cancel can be undone until the cutoff time, shown as a
   clock time.
 - No other screen changes. Fixed appointments already appear as upcoming appointments.

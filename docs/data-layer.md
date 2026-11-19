@@ -29,7 +29,7 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 | `occupancyBetween(client, from, to)` | `slot_occupancy` | `from <= starts_at < to`. An occurrence nobody booked has no row: its count is 0. |
 | `blockedBetween(client, from, to)` | `blocked_periods` | overlaps `[from, to)`: `starts_at < to` and `ends_at > from` |
 | `upcomingAppointments(client, customerId, now)` | `appointments` | mine, `status = 'booked'`, `starts_at > now`, soonest first |
-| `futureCancelledAppointments(client, customerId, now)` | `appointments` | mine, `status = 'cancelled'` (a free cancel), `starts_at > now`, soonest first; the customer Home filters these by the cutoff to offer an undo |
+| `futureCancelledAppointments(client, customerId, now)` | `appointments` | mine, `status = 'cancelled'` (a free cancel), `starts_at > now`, soonest first; the customer Home filters these by the cutoff, and drops any that start at the same time as an upcoming appointment, to offer an undo |
 | `pastAppointments(client, customerId, now, from?)` | `appointments` | mine and not upcoming: `status <> 'booked'` or `starts_at <= now` (so a cancelled future appointment is history too), newest first; [paged](#paged-reads) |
 | `liveAppointmentsBetween(client, from, to, customerId?)` | `appointments` | `status in ('booked', 'charged')`, `from <= starts_at < to`, by start; only that customer's when `customerId` is given (the trainer omits it) |
 | `balanceOf(client, customerId)` | `customer_balances` | my row; 0 when there is none |

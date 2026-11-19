@@ -73,7 +73,7 @@ sequenceDiagram
             F->>F: log, keep the subscription
         else delivered
             P->>SW: push event
-            SW->>SW: parsePush, showNotification(title and body from sl.ts, tag kind:id)
+            SW->>SW: parsePush, showNotification(title and body from sl.ts, tag kind:id, renotify)
         end
     end
     opt the user taps the notification

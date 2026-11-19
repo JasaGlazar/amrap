@@ -6,7 +6,7 @@
 -- them, so weekday and start_time always match.
 begin;
 
-select plan(13);
+select plan(14);
 
 -- Defaults (checked before any fixture changes settings) -----------------------------------
 
@@ -84,6 +84,9 @@ select throws_matching(
   $$select public.book((select id from fx where key = 'cust_a'), (select ts from times where key = 'slot'),
                        (select id from fx where key = 'slot'))$$,
   '^AMRAP_BOOKING_DISABLED:', 'a customer cannot book while customer booking is off');
+select is_empty(
+  $$update public.settings set customer_booking_enabled = true returning id$$,
+  'a customer cannot turn customer booking on');
 select tests.clear_authentication();
 
 select tests.authenticate_as((select id from fx where key = 'trainer_user'));

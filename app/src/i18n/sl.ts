@@ -38,7 +38,7 @@ export const sl = {
   },
   invite: {
     title: 'Nov račun',
-    intro: 'Z računom boste lahko rezervirali termine in spremljali svoje kredite.',
+    intro: 'Z računom boste videli svoje termine in kredite.',
     email: 'E-poštni naslov',
     password: 'Geslo',
     confirmPassword: 'Ponovite geslo',
@@ -253,7 +253,7 @@ export const sl = {
     startTime: 'Začetek',
     duration: 'Trajanje (min)',
     capacity: 'Število mest',
-    active: 'Aktiven (stranke ga vidijo in rezervirajo)',
+    active: 'Aktiven (v urniku)',
     edit: 'Uredi',
     save: 'Shrani',
     cancelEdit: 'Prekliči',

@@ -28,10 +28,10 @@ All on the hosted project, from an up-to-date `main`; steps in [runbook.md](runb
 Vse na telefonu, v aplikaciji AMRAP, prijavljeni kot trener. Papirnati list imejte ob sebi.
 
 1. **Nastavitve → Odpoved:** koliko ur pred začetkom lahko stranka še
-   brezplačno odpove (privzeto 5). Tapnite »Shrani«.
+   brezplačno odpove (privzeto 8). Tapnite »Shrani«.
 2. **Nastavitve → Urnik → Nov termin:** za vsak redni termin v tednu vpišite dan,
-   začetek, trajanje (min) in število mest; »Aktiven (stranke ga vidijo in rezervirajo)« naj
-   ostane označen. Tapnite »Shrani«.
+   začetek, trajanje (min) in število mest; »Aktiven (v urniku)« naj ostane
+   označen. Tapnite »Shrani«.
    Ponovite za vse termine z whiteboarda.
 3. **Nastavitve → Zaprta obdobja → Novo zaprto obdobje:** dopust ali zaprtje, ki ga že poznate
    (od, do, razlog). V tem času rezervacije niso mogoče. Novo zaprto obdobje ne odpove že
@@ -90,7 +90,8 @@ Vsak dan, nekaj minut:
 3. **Koledar → Termini zunaj urnika:** termini po dogovoru in rezervacije terminov, ki jih ni
    več v urniku (na telefonu pod izbranim dnem, na računalniku v stolpcu dneva z oznako).
    Preverite, ali so pravi.
-4. **Obvestila na telefonu:** nove rezervacije in odpovedi strank.
+4. **Obvestila na telefonu:** odpovedi strank in obnovljeni termini (stranka je odpoved
+   razveljavila z »Razveljavi odpoved«).
 
 Popravki:
 
@@ -148,6 +149,5 @@ a wrong charge → `cron.job_run_details` and the customer's ledger, then a trai
 
 - **Success criterion:** a full week with no entry on the paper sheet that AMRAP did not have.
 - **Questions for the trainer:** open copy questions ([copy-review.md](copy-review.md)); should a
-  trainer cancel notify the customer; does the trainer want a veto over self-bookings
-  (`PLAN.md` open question 1); anything the customers asked about.
+  trainer cancel notify the customer; anything the customers asked about.
 - **Record** the outcome (dates, problems reported, answers) in the Stage 4 GitHub issue.

@@ -534,6 +534,36 @@ describe('undo on home', () => {
     );
     expect(within(section).getByRole('listitem', { name: slotLabel(open) })).toBeInTheDocument();
   });
+
+  it('clears an earlier success line when a later undo fails', async () => {
+    fakeSupabase.rpc
+      .mockImplementationOnce(async () => {
+        const row = db.tables.appointments.find((appointment) => appointment.id === 'open');
+        if (row !== undefined) row.status = 'booked';
+        return { data: null, error: null };
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: 'AMRAP_NOT_UNDOABLE: the cutoff has passed' },
+      });
+    renderAt('/c');
+    await userEvent.click(await undoButton(open));
+    expect(await screen.findByRole('status')).toHaveTextContent(t.customer.restored);
+    await waitFor(async () => expect(await undoButton(later)).toBeEnabled());
+    await userEvent.click(await undoButton(later));
+    const section = await cancelledSection();
+    expect(await within(section).findByRole('alert')).toHaveTextContent(
+      errorMessages.AMRAP_NOT_UNDOABLE,
+    );
+    expect(screen.queryByText(t.customer.restored)).toBeNull();
+  });
+
+  it('does not list a cancel when a booked appointment starts at the same time', async () => {
+    db.tables.appointments.push(appointmentRow('rebooked', open, 'booked'));
+    renderAt('/c');
+    const items = within(await cancelledSection()).getAllByRole('listitem');
+    expect(items.map((item) => item.getAttribute('aria-label'))).toEqual([slotLabel(later)]);
+  });
 });
 
 describe('history', () => {

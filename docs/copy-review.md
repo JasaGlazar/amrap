@@ -92,7 +92,7 @@ is a question below.
 | Ključ | Besedilo | Vprašanje |
 |---|---|---|
 | `invite.title` | Nov račun | Spremenjeno (prej »Ustvari račun«, enako kot gumb). V redu? |
-| `invite.intro` | Z računom boste lahko rezervirali termine in spremljali svoje kredite. |  |
+| `invite.intro` | Z računom boste videli svoje termine in kredite. |  |
 | `invite.email` | E-poštni naslov |  |
 | `invite.password` | Geslo |  |
 | `invite.confirmPassword` | Ponovite geslo |  |
@@ -396,7 +396,7 @@ is a question below.
 | `settings.startTime` | Začetek |  |
 | `settings.duration` | Trajanje (min) |  |
 | `settings.capacity` | Število mest |  |
-| `settings.active` | Aktiven (stranke ga vidijo in rezervirajo) | Razlaga v oklepaju: v redu? |
+| `settings.active` | Aktiven (v urniku) | Razlaga v oklepaju: v redu? |
 | `settings.edit` | Uredi |  |
 | `settings.save` | Shrani |  |
 | `settings.cancelEdit` | Prekliči |  |

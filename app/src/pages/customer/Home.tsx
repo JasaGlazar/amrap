@@ -45,8 +45,11 @@ export function CustomerHome() {
   const { now, settings, balance, upcoming, cancelled } = state.data;
   const { timeZone, lateCancelHours } = settings;
   const next = upcoming[0];
-  const undoable = cancelled.filter((appointment) =>
-    isFreeCancel(appointment.startsAt, lateCancelHours, now),
+  const bookedStarts = new Set(upcoming.map((appointment) => appointment.startsAt.getTime()));
+  const undoable = cancelled.filter(
+    (appointment) =>
+      isFreeCancel(appointment.startsAt, lateCancelHours, now) &&
+      !bookedStarts.has(appointment.startsAt.getTime()),
   );
   const when = (appointment: Appointment) =>
     fill(t.slot.when, {
@@ -56,6 +59,7 @@ export function CustomerHome() {
 
   async function undo(appointment: Appointment) {
     setUndoing(appointment.id);
+    setDone(null);
     setUndoError(null);
     const result = await undoCancel(supabase, appointment.id);
     if (result.ok) {
