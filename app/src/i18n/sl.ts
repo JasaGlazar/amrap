@@ -407,6 +407,7 @@ export const sl = {
     AMRAP_IN_PAST: 'Termina v preteklosti ni mogoče rezervirati.',
     AMRAP_NOT_CANCELLABLE: 'Tega termina ni mogoče odpovedati.',
     AMRAP_NOT_FOUND: 'Zapisa ni mogoče najti.',
+    AMRAP_NOT_UNDOABLE: 'Te odpovedi ni več mogoče razveljaviti.',
     AMRAP_SETTINGS_MISSING: 'Nastavitve niso na voljo. Obrnite se na trenerja.',
     AMRAP_SLOT_INACTIVE: 'Ta termin ni več na voljo.',
     AMRAP_SLOT_MISMATCH: 'Čas ne ustreza izbranemu terminu.',

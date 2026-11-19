@@ -471,6 +471,7 @@ is a question below.
 | `errors.AMRAP_IN_PAST` | Termina v preteklosti ni mogoče rezervirati. |  |
 | `errors.AMRAP_NOT_CANCELLABLE` | Tega termina ni mogoče odpovedati. |  |
 | `errors.AMRAP_NOT_FOUND` | Zapisa ni mogoče najti. |  |
+| `errors.AMRAP_NOT_UNDOABLE` | Te odpovedi ni več mogoče razveljaviti. | Novo: stranka to vidi, če poskusi razveljaviti odpoved, ko je rok že mimo, termin ni več brezplačno odpovedan ali stalni termin ni več aktiven. |
 | `errors.AMRAP_SETTINGS_MISSING` | Nastavitve niso na voljo. Obrnite se na trenerja. |  |
 | `errors.AMRAP_SLOT_INACTIVE` | Ta termin ni več na voljo. |  |
 | `errors.AMRAP_SLOT_MISMATCH` | Čas ne ustreza izbranemu terminu. |  |

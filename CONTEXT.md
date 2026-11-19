@@ -12,6 +12,7 @@ Slovenian, but identifiers and docs use the English terms below.
 - **charge** — the single deduction of one credit for an appointment; a `session` or `late_cancel` transaction (−1), at most one per appointment.
 - **session charge** — the charge made when a `booked` appointment reaches its start time; a `session` transaction written by `charge_due_appointments`.
 - **late cancel** — a customer cancel after the cutoff; the appointment becomes `cancelled_late` and a `late_cancel` charge (−1) is written at cancel time by `cancel`.
+- **undo** — a customer restoring their own free cancel (`cancelled`) before the cutoff with `undo_cancel`; the same appointment goes back to `booked`, with no ledger change.
 - **refund** — a `refund` (+1) transaction inserted when the trainer cancels an appointment that was already charged; it does not count toward the one-charge rule.
 - **cutoff** — the number of hours before `starts_at` after which a customer cancel is late; `settings.late_cancel_hours`, default 8.
 - **slot template** — a weekly-grid entry defined by the trainer: weekday, start time, duration (default 60 minutes, any value allowed) and capacity (default 5); table `slot_templates`.
@@ -45,5 +46,6 @@ Slovenian, but identifiers and docs use the English terms below.
 - Nobody logs attendance. A booked appointment that is not cancelled before the cutoff is charged.
 - The trainer may cancel any `booked` or `charged` appointment at any time without charge (`cancelled_by_trainer`); an existing charge is refunded.
 - A `cancelled_late` appointment cannot be cancelled again; the trainer waives a late-cancel charge with `adjust(+1, note)`.
+- A `cancelled_late` or `cancelled_by_trainer` appointment cannot be restored.
 - The balance is never stored; the ledger is the only source of truth.
 - All credit and capacity mutations go through `SECURITY DEFINER` RPCs with explicit role checks.

@@ -5,7 +5,7 @@ How a customer books an open slot. `book(p_customer_id, p_starts_at, p_slot_temp
 and, for a customer, that `settings.customer_booking_enabled` is true (ADR 0018),
 validates the template (active, start in the future, on the template's weekday and start time
 in `settings.timezone`), takes a transaction-scoped advisory lock on the slot occurrence so
-concurrent bookings, materialization and `cancel_occurrence()` are serialized, rejects an
+concurrent bookings, materialization, `cancel_occurrence()` and `undo_cancel()` are serialized, rejects an
 appointment whose `[starts_at, ends_at)` overlaps a blocked period (so one that starts before a
 closure but runs into it is rejected too; checked after the lock, so a booking that waited on a
 whole-session cancel sees the period it added), counts the

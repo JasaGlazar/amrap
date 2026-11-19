@@ -174,6 +174,7 @@ run, so test files do not create it.
 | `033_retention.sql` | `prune_cron_history`: the daily schedule, grants, cron runs 13 and 15 days old, one exactly 14 days old (kept), runs that never ended (by start), the returned count, a second run |
 | `034_cancel_occurrence.sql` | `cancel_occurrence`: definition and grants, a customer and anon refused, unknown/inactive template, wrong weekday or time, missing arguments, a long reason; every live booking cancelled with the trimmed reason and charged ones refunded (balances from the fixture), other occurrences, earlier cancels and ad-hoc appointments untouched, the blocked period of the template's duration, `book()`'s lock held and taken before the blocked check (also in `book` and `materialize_rule`), `book()` and a second call then rejected, past and empty occurrences, materialization skipping the closed occurrence, one notification per customer with a device, a failing notification, missing settings |
 | `035_booking_switch.sql` | the cutoff (8 hours in the row and as the default), `customer_booking_enabled` (default false, not null); a customer `book()` refused while it is false, the trainer's `book()` and `materialize_recurring` still booking, a customer `book()` once it is true, a missing settings row |
+| `036_undo_cancel.sql` | `undo_cancel`: definition and grants, `book()`'s lock held and taken before the blocked check; a customer's own free cancel restored with no ledger row and later charged once by the charge job; another customer, the trainer, an unlinked user and anon refused; unknown and null id; `booked`, `charged`, `cancelled_late` and `cancelled_by_trainer` refused; exactly at the cutoff refused and one second before it allowed; blocked period, full slot (count stays at capacity), inactive template, another live booking at the same start, inactive and active recurring rule, ad-hoc appointment; missing settings |
 
 Helpers in `supabase/seeds/test_helpers.sql` (schema `tests`, local only):
 
@@ -198,7 +199,7 @@ How to write a test:
    example into a temp table, `grant select` on it to `authenticated`), then switch with
    `tests.authenticate_as(...)` and compare (`set_eq`, `is`, `results_eq`). Never hardcode a
    total: the dev seed data is present in the database while tests run. A test whose
-   fixture slots must be bookable deletes `blocked_periods` first (`021`, `032`, `034`): a dev
+   fixture slots must be bookable deletes `blocked_periods` first (`021`, `032`, `034`, `036`): a dev
    database's blocked periods would block them, and the rollback restores them.
 4. Assert failures by SQLSTATE: `throws_ok(sql, '42501', null, ...)` for privilege and RLS
    insert violations, `'23505'` for unique, `'23514'` for check constraints. An update or

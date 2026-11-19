@@ -22,6 +22,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `20261024221416_trainer_cancel_reason.sql` | `appointments.cancel_reason` and its check; the `appointment_cancelled_by_trainer` notification kind; `cancel(uuid)` dropped and recreated as `cancel(uuid, text default null)` with the same grants; `notify_cancelled_by_trainer()` and its trigger ([rpcs.md](rpcs.md#cancel), [notifications.md](notifications.md#event-notifications), [ADR 0015](adr/0015-trainer-cancel-notifies-customer.md)). |
 | `20261024222414_cancel_occurrence.sql` | `cancel_occurrence()` and its grants; `book()` and `materialize_rule()` replaced to take the advisory lock before the blocked-period check ([rpcs.md](rpcs.md#cancel_occurrence), [ADR 0016](adr/0016-cancel-occurrence-closes-it.md)). |
 | `20261119123322_customer_booking_switch.sql` | `settings.late_cancel_hours` default and current value 8; `settings.customer_booking_enabled`; `book()` replaced to refuse customer bookings while that setting is false ([rpcs.md](rpcs.md#book), [ADR 0018](adr/0018-customers-do-not-book-in-first-release.md)). |
+| `20261119125501_undo_cancel.sql` | `undo_cancel()` and its grants: a customer restores their own free cancel before the cutoff ([rpcs.md](rpcs.md#undo_cancel)). |
 
 ## Enums
 

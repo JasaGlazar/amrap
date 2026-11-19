@@ -505,6 +505,7 @@ export type Database = {
         Args: { p_amount: number; p_customer_id: string; p_note?: string }
         Returns: string
       }
+      undo_cancel: { Args: { p_appointment_id: string }; Returns: undefined }
     }
     Enums: {
       appointment_source: "recurring" | "self_booked" | "trainer"
