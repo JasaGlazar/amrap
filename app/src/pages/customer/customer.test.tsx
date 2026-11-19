@@ -93,6 +93,7 @@ describe('calendar', () => {
   const blocked = template('t-blocked', 5, '09:00:00', 5, 90);
 
   beforeEach(() => {
+    db.settings.customer_booking_enabled = true;
     db.tables.slot_templates = [free, empty, full, past, blocked];
     db.tables.slot_occupancy = [
       { slot_template_id: free.id, starts_at: postgrestTime(startOf(free)), booked_count: 2 },
@@ -175,6 +176,18 @@ describe('calendar', () => {
       within(await slotRow(free)).getByRole('button', { name: t.calendar.book }),
     );
     expect(await screen.findByRole('alert')).toHaveTextContent(errorMessages.AMRAP_CAPACITY_FULL);
+  });
+
+  it('shows the booking-off copy when booking was turned off after the screen loaded', async () => {
+    renderAt('/c/koledar');
+    fakeSupabase.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'AMRAP_BOOKING_DISABLED: customer booking is turned off' },
+    });
+    await userEvent.click(
+      within(await slotRow(free)).getByRole('button', { name: t.calendar.book }),
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(t.errors.AMRAP_BOOKING_DISABLED);
   });
 
   it('disables an occurrence late on Sunday that runs into a block after the week ends', async () => {

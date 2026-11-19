@@ -68,8 +68,8 @@ Na koncu primerjajte **Stranke** (stanje vsake stranke) s papirnatim listom.
 >    nujno, sicer obvestila ne delujejo.
 > 2. Na zaslonu **Domov** tapnite »Vklopi obvestila«. Uro pred rokom za brezplačno odpoved
 >    dobite opomnik.
-> 3. V **Koledarju** rezervirate prost termin (»Rezerviraj«), na zaslonu **Domov** ga odpoveste
->    (»Odpovej«).
+> 3. Na zaslonu **Domov** vidite termine, ki vam jih je dodelil trener. Termin odpoveste
+>    (»Odpovej«), brezplačno odpoved pa do roka prekličete (»Razveljavi odpoved«).
 >
 > Odpoved do roka (8 ur pred začetkom) je brezplačna. Kasnejša odpoved ali termin, na katerega ne
 > pridete, se zaračuna (1 kredit). Stanje in zgodovino kreditov vidite na zaslonu **Domov** in v

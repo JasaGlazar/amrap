@@ -161,12 +161,17 @@ describe('credits and settings', () => {
     expect((await ledgerOf(client, me)).rows.map((row) => row.id)).toEqual(['t2', 't1']);
   });
 
-  it('reads the cutoff hours and timezone', async () => {
-    expect(await getSettings(client)).toEqual({
-      lateCancelHours: db.settings.late_cancel_hours,
-      timeZone: db.settings.timezone,
-    });
-  });
+  it.each([true, false])(
+    'reads the cutoff hours, timezone and booking switch (%s)',
+    async (enabled) => {
+      db.settings.customer_booking_enabled = enabled;
+      expect(await getSettings(client)).toEqual({
+        lateCancelHours: db.settings.late_cancel_hours,
+        timeZone: db.settings.timezone,
+        customerBookingEnabled: enabled,
+      });
+    },
+  );
 });
 
 describe('actions', () => {

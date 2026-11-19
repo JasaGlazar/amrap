@@ -15,8 +15,8 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/` | signed in | Redirects to `/t` for the trainer or `/c` for a customer. | none | Stage 1 |
 | (any route below `/`) | signed in, customer lookup failed | Error page with a retry button and a sign-out link to `/logout`. | `lookupFailed`, `common.signOut` | Stage 1 |
 | (any route below `/`) | signed in, no `customers` row | "Account not linked" page with a sign-out link to `/logout`. Shown instead of the route, URL unchanged. | `notLinked`, `common.signOut` | Stage 1 |
-| `/c` | customer | Customer shell: top bar with the framed wordmark and the [account menu](#account-menu) (theme, sign-out), the [install card](#install-card), the [main navigation](#main-navigation) (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `account`, `install`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle` | Stage 2, push Stage 3, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
-| `/c/koledar` | customer | Week calendar: book open slots, cancel own bookings. | `customer`, `calendar`, `slot`, `cancelDialog` | Stage 2 |
+| `/c` | customer | Customer shell: top bar with the framed wordmark and the [account menu](#account-menu) (theme, sign-out), the [install card](#install-card), the [main navigation](#main-navigation) (Home, Calendar, History; Calendar only while [customer booking is on](#customer-booking-switch)). Index is Home: balance, next appointment, upcoming list with cancel, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `account`, `install`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle` | Stage 2, push Stage 3, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
+| `/c/koledar` | customer | Week calendar: book open slots, cancel own bookings. Only while [customer booking is on](#customer-booking-switch); otherwise it redirects to `/c`. | `customer`, `calendar`, `slot`, `cancelDialog`, `errors` | Stage 2, booking switch minimal customer scope |
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
 | `/t` | trainer | Trainer shell: the same top bar with the [account menu](#account-menu), the [install card](#install-card), the [main navigation](#main-navigation) (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `account`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. A day view below 1024 px and a week grid from 1024 px; the selected day (and so the week) in `?dan=YYYY-MM-DD`. | `trainer`, `calendar`, `slot`, `cancelDialog`, `common` | Stage 2, add control and forms on demand Stage 7, day view and week grid Stage 10 |
@@ -35,6 +35,22 @@ All three load their data through `app/src/data/` ([data-layer.md](data-layer.md
 loading line first and `common.loadFailed` if any read fails. Dates and times are in
 `settings.timezone` ([time.md](time.md)). After a booking or a cancel the screen reloads its
 data.
+
+### Customer booking switch
+
+`CustomerShell` reads `getSettings` once and passes the result to the calendar route
+(`settings.customer_booking_enabled`, [ADR 0018](adr/0018-customers-do-not-book-in-first-release.md)).
+It fails closed: a failed read counts as off.
+
+| Settings read | Calendar link | `/c/koledar` |
+|---|---|---|
+| loading | hidden | renders nothing; no redirect, so a reload of `/c/koledar` stays when booking is on |
+| failed, or `customer_booking_enabled` false | hidden | redirects to `/c` |
+| `customer_booking_enabled` true | shown | the calendar |
+
+Home and History work in all three states. A tab that loaded the calendar before booking was
+turned off still shows it; `book()` then fails and the notice line shows
+`errors.AMRAP_BOOKING_DISABLED`.
 
 ### Home (`/c`)
 

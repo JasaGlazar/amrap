@@ -24,7 +24,7 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 
 | Function | Source | Filter and order |
 |---|---|---|
-| `getSettings(client)` | `settings` | `id = 1`; returns `{ lateCancelHours, timeZone }`; throws when the row is missing |
+| `getSettings(client)` | `settings` | `id = 1`; returns `{ lateCancelHours, timeZone, customerBookingEnabled }`; throws when the row is missing |
 | `activeTemplates(client)` | `slot_templates` | `active = true`, by `weekday`, `start_time` |
 | `occupancyBetween(client, from, to)` | `slot_occupancy` | `from <= starts_at < to`. An occurrence nobody booked has no row: its count is 0. |
 | `blockedBetween(client, from, to)` | `blocked_periods` | overlaps `[from, to)`: `starts_at < to` and `ends_at > from` |
