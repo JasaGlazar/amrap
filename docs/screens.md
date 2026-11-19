@@ -72,8 +72,8 @@ turned off still shows it; `book()` then fails and the notice line shows
   A cancel is also hidden when an upcoming appointment of mine starts at the same time
   (`undo_cancel()` would refuse it with `AMRAP_ALREADY_BOOKED`).
   The page filter only hides rows; `undo_cancel()` decides. Tapping it clears the status line
-  and disables the buttons while the call runs; on success the page reloads, the appointment moves back to the upcoming
-  list and the status line shows `customer.restored`. On failure the `errors.*` copy shows
+  and disables the buttons while the call runs; on success the page reloads, the appointment
+  moves back to the upcoming list and the status line shows `customer.restored`. On failure the `errors.*` copy shows
   above the list (an alert) and the row stays. Hidden when there is no such cancel.
 - **Obvestila:** the notifications toggle with the customer hint (`pushToggle.customerHint`),
   see [Notifications toggle](#notifications-toggle).
@@ -649,7 +649,7 @@ keep their native roles.
 new customer sees after accepting an invite. It says why to install (`install.why`) and, on iOS,
 where push works only in the home-screen app, what that means for the role:
 `install.iosWhyCustomer` (no reminder before a charge without it) or `install.iosWhyTrainer`
-(booking and cancel notifications). Then, by mode:
+(cancel and restore notifications). Then, by mode:
 
 | Mode | When | Shows |
 |---|---|---|

@@ -54,6 +54,10 @@ is a question below.
 | `customers.startingBalance` | Začetno stanje kreditov (s papirja) | Začetno stanje kreditov | Stage 8 (issue #20): the owner removed "(s papirja)"; the hint under the field is unchanged |
 | `settings.templateLine` (removed) | {weekday} ob {time} · {minutes} min · {places} | `settings.slotDetails` ({minutes} min · {places}) under a day heading, `settings.timeRange` in the week grid | Stage 9 (issue #16): the list of lowercase lines became day groups on a phone and a week grid from 768 px; the day is now the heading |
 | `slot.duration` + `trainer.timeRange` | {minutes} min (under the start) | `slot.timeRange` {from}–{to} in place of the start | The owner asked for a session's time as from–to, not start and duration; one key for a session's from–to (the Urnik blocks keep `settings.timeRange`) |
+| `invite.intro` | Z računom boste lahko rezervirali termine in spremljali svoje kredite. | Z računom boste videli svoje termine in kredite. | Customers do not book in the first release (ADR 0018) |
+| `settings.active` | Aktiven (stranke ga vidijo in rezervirajo) | Aktiven (v urniku) | Customers do not book in the first release (ADR 0018) |
+| `pushToggle.trainerHint` | Obvestila o rezervacijah in odpovedih strank. | Obvestila o odpovedih strank in obnovljenih terminih. | Customers do not book in the first release (ADR 0018); the trainer is told about cancels and restored appointments |
+| `install.iosWhyTrainer` | … obvestila o rezervacijah in odpovedih strank … | … obvestila o odpovedih strank in obnovljenih terminih … | Customers do not book in the first release (ADR 0018); same wording as `pushToggle.trainerHint` |
 
 ## Open questions for the trainer
 
@@ -153,7 +157,7 @@ is a question below.
 | `install.title` | Namestite aplikacijo |  |
 | `install.why` | Dodajte AMRAP na začetni zaslon: odprete ga z enim dotikom, kot vsako aplikacijo. | Je razlog dovolj jasen? |
 | `install.iosWhyCustomer` | Na iPhonu obvestila delujejo le v aplikaciji, odprti z začetnega zaslona. Brez nje ne prejmete opomnika pred rokom za brezplačno odpoved, edinega opozorila, preden se termin zaračuna. | Le stranke na iPhonu. Dovolj jasno, zakaj je namestitev pomembna? |
-| `install.iosWhyTrainer` | Na iPhonu obvestila o rezervacijah in odpovedih strank delujejo le v aplikaciji, odprti z začetnega zaslona. | Le trener na iPhonu. |
+| `install.iosWhyTrainer` | Na iPhonu obvestila o odpovedih strank in obnovljenih terminih delujejo le v aplikaciji, odprti z začetnega zaslona. | Le trener na iPhonu. |
 | `install.install` | Namesti aplikacijo |  |
 | `install.notNow` | Ne zdaj |  |
 | `install.stepsLabel` | Koraki za namestitev |  |
@@ -445,7 +449,7 @@ is a question below.
 | `push.genericBody` | Imate novo obvestilo. |  |
 | `pushToggle.title` | Obvestila |  |
 | `pushToggle.customerHint` | Opomnik pred rokom za brezplačno odpoved ter obvestila o kreditih. |  |
-| `pushToggle.trainerHint` | Obvestila o rezervacijah in odpovedih strank. |  |
+| `pushToggle.trainerHint` | Obvestila o odpovedih strank in obnovljenih terminih. |  |
 | `pushToggle.on` | Obvestila so na tej napravi vklopljena. |  |
 | `pushToggle.off` | Obvestila so na tej napravi izklopljena. |  |
 | `pushToggle.enable` | Vklopi obvestila |  |

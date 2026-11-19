@@ -351,7 +351,7 @@ export const sl = {
   pushToggle: {
     title: 'Obvestila',
     customerHint: 'Opomnik pred rokom za brezplačno odpoved ter obvestila o kreditih.',
-    trainerHint: 'Obvestila o rezervacijah in odpovedih strank.',
+    trainerHint: 'Obvestila o odpovedih strank in obnovljenih terminih.',
     on: 'Obvestila so na tej napravi vklopljena.',
     off: 'Obvestila so na tej napravi izklopljena.',
     enable: 'Vklopi obvestila',
@@ -374,7 +374,7 @@ export const sl = {
     iosWhyCustomer:
       'Na iPhonu obvestila delujejo le v aplikaciji, odprti z začetnega zaslona. Brez nje ne prejmete opomnika pred rokom za brezplačno odpoved, edinega opozorila, preden se termin zaračuna.',
     iosWhyTrainer:
-      'Na iPhonu obvestila o rezervacijah in odpovedih strank delujejo le v aplikaciji, odprti z začetnega zaslona.',
+      'Na iPhonu obvestila o odpovedih strank in obnovljenih terminih delujejo le v aplikaciji, odprti z začetnega zaslona.',
     install: 'Namesti aplikacijo',
     notNow: 'Ne zdaj',
     stepsLabel: 'Koraki za namestitev',

@@ -1,6 +1,6 @@
 # Booking sequence
 
-How a customer books an open slot. `book(p_customer_id, p_starts_at, p_slot_template_id)` is a
+This page describes how a customer books an open slot when customer booking is on. `book(p_customer_id, p_starts_at, p_slot_template_id)` is a
 `SECURITY DEFINER` RPC that runs in one transaction: it checks the caller books for themselves
 and, for a customer, that `settings.customer_booking_enabled` is true (ADR 0018),
 validates the template (active, start in the future, on the template's weekday and start time
