@@ -109,8 +109,9 @@ Route `/registracija`, outside `RequireAuth`, like `/invite/:token`. The QR code
 4. `register_customer(name, phone, code)`. A refusal shows its `errors.AMRAP_*` copy.
 5. `refresh()` the auth state and go to `/`, which lands on the customer Home.
 
-A visit without `?koda=` or with a wrong code shows the form's refusal only after submit, with
-copy that tells the person to scan the code in the gym.
+A visit without `?koda=` shows no form, only copy that tells the person to scan the code in the
+gym, so no account is created without a code. A wrong code is refused after submit with the
+same advice.
 
 ### 3. An account without a record
 
