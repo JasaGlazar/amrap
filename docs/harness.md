@@ -21,7 +21,8 @@ These constraints bind every task and are what the reviewer checks against (alon
 - Auth: email/password with email confirmations disabled. Customers join only via trainer
   invite token (`create_invite` / `accept_invite`). Magic links and OTP are not used.
 - Tests: pgTAP via `supabase test db` (`supabase/tests/*.sql`); frontend logic tests with Vitest;
-  edge function tests with Deno (`scripts/test-functions.sh`).
+  edge function tests with Deno (`scripts/test-functions.sh`); browser tests with Playwright
+  (`app/e2e/`, see [Browser tests](#browser-tests)).
 - Never `supabase db push` to the remote from a feature branch (see `docs/runbook.md`).
 
 ## Docs 1:1 rule
@@ -209,3 +210,62 @@ How to write a test:
 5. Call `tests.clear_authentication()` before going back to superuser fixtures.
 6. Write the test first and watch it fail, then write the migration; run
    `supabase db reset && supabase test db` until the output is green with no notices.
+
+### Browser tests
+
+Playwright tests in `app/e2e/` run the main flows in Chromium with the "Pixel 7" phone profile.
+They run against the production build of the app and the local Supabase stack (ADR 0020).
+
+They cover sign-in, routing by role and the screens working with the real database. They do
+not cover rules about time (the cutoff, charging, materialization): those stay in pgTAP, where
+time can be controlled. Push delivery stays a manual check on a phone.
+
+How to run, in `app/`:
+
+1. Start the local stack: `supabase start`.
+2. Install Chromium once: `npx playwright install chromium`.
+3. Run `npm run e2e`. `npm run e2e:ui` opens Playwright's UI.
+
+`npm run e2e` builds the app with `vite build --mode e2e`, serves it with `vite preview` on
+port 4173 and runs the tests. The build gets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+as process environment variables, so it never loads `app/.env.production.local` (the hosted
+project). The HTML report goes to `app/playwright-report/` (open it with
+`npx playwright show-report`); traces and other output go to `app/test-results/`. Both are
+ignored by git.
+
+`app/e2e/env.ts` reads `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`. It
+uses the local stack's demo values when they are not set. It throws when the URL's host is not
+`127.0.0.1` or `localhost`. A global setup (`app/e2e/global-setup.ts`) calls the local REST
+endpoint once and stops the run with `Local Supabase is not running. Run "supabase start"
+first.` when nothing answers.
+
+How the fixtures in `app/e2e/fixtures.ts` make data:
+
+- `customer`: a new auth user (admin API, email confirmed) and its linked `customers` row,
+  with a unique email `e2e-<random>@test.local`. After the test the fixture deletes the
+  customer's credit transactions, appointments and recurring rules (in that order, because of
+  the foreign keys), then the row and the auth user.
+- `fixedAppointment`: a new active slot template (capacity 5) and a recurring rule for
+  `customer`, made as the trainer with the same calls as `addRule` in `app/src/data/rules.ts`
+  (insert the rule, then `activate_rule`). The template is deactivated after the test.
+- `signIn(page, who)`: fills the real login page and waits for the role's home (`/t` or `/c`).
+- `TRAINER`: the seeded `trainer@amrap.local` from `supabase/seeds/dev.sql`.
+
+The trainer signs in through the API once per worker. The local stack allows 30 sign-ins per
+5 minutes per IP address (`supabase/config.toml`). If many reruns in a row fail with the
+"too many attempts" copy, wait a few minutes.
+
+Rules that keep the tests stable:
+
+- Find elements by role and accessible name. Import the names from `app/src/i18n/sl.ts`; never
+  type UI copy in a test.
+- No fixed waits (`waitForTimeout`). Use Playwright's waiting on elements and URLs.
+- Each test makes its own data. Tests do not depend on each other, on their order, on the
+  weekday or on the time of day.
+- One retry in CI, none locally. A trace is recorded on the retry.
+- Tests run in parallel locally and with two workers in CI.
+- A test that fails only sometimes is fixed or its cause is reported. It is never skipped.
+
+| File | Covers |
+|---|---|
+| `auth.spec.ts` | the trainer lands on `/t` and a customer on `/c` after sign-in; a wrong password shows the invalid-credentials error; a customer who opens `/t` is sent to `/c`; every auth and REST request during a sign-in goes to `127.0.0.1` or `localhost` |

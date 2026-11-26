@@ -12,3 +12,6 @@ coverage/
 dev-dist/
 .cloudflare/
 .wrangler/
+app/playwright-report/
+app/test-results/
+app/e2e/.auth/

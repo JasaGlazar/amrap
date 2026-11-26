@@ -1,7 +1,7 @@
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import type { PluginOption } from 'vite';
-import { defineConfig } from 'vitest/config';
+import { defineConfig, defaultExclude } from 'vitest/config';
 
 // The service worker plugin is build-time only; leave it out of the unit tests.
 const plugins: PluginOption[] = [react()];
@@ -50,5 +50,6 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    exclude: [...defaultExclude, 'e2e/**'],
   },
 });

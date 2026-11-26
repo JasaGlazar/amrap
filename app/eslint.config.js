@@ -26,6 +26,8 @@ export default tseslint.config(
       'src/lib/database.types.ts',
       'deploy/.cloudflare',
       'deploy/.wrangler',
+      'playwright-report',
+      'test-results',
     ],
   },
   {
@@ -48,5 +50,14 @@ export default tseslint.config(
   {
     files: ['vite.config.ts', 'eslint.config.js'],
     languageOptions: { globals: globals.node },
+  },
+  {
+    // Playwright fixtures take `use` and `{}` by design; neither is React.
+    files: ['e2e/**/*.ts', 'playwright.config.ts'],
+    languageOptions: { globals: globals.node },
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
+      'no-empty-pattern': 'off',
+    },
   },
 );
