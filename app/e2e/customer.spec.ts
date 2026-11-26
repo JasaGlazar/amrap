@@ -64,6 +64,11 @@ test('the calendar shows free places and no book button', async ({
     .getByRole('listitem')
     .filter({ hasText: fixedAppointment.startTime })
     .filter({ hasText: sl.calendar.mine });
-  await expect(mine).toContainText(fill(sl.calendar.spots, { free: 4, capacity: 5 }));
+  await expect(mine).toContainText(
+    fill(sl.calendar.spots, {
+      free: fixedAppointment.capacity - 1,
+      capacity: fixedAppointment.capacity,
+    }),
+  );
   await expect(page.getByRole('button', { name: sl.calendar.book })).toHaveCount(0);
 });

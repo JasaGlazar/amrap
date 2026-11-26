@@ -42,7 +42,7 @@ test('the trainer cancels an appointment with a reason and the customer sees it'
   await page.goto(`/t/stranke/${customer.id}`);
   const upcoming = page.getByRole('region', { name: sl.customerDetail.upcomingTitle });
   const rows = upcoming.getByRole('listitem').filter({ hasText: fixedAppointment.startTime });
-  await rows.first().getByRole('button', { name: sl.slot.cancel, exact: true }).click();
+  await rows.last().getByRole('button', { name: sl.slot.cancel, exact: true }).click();
 
   const dialog = page.getByRole('dialog', { name: sl.cancelDialog.title });
   await expect(dialog).toContainText(customer.name);

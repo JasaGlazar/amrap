@@ -1,7 +1,6 @@
 dist
 dist-e2e
 dev-dist
-dist-e2e
 node_modules
 coverage
 src/lib/database.types.ts

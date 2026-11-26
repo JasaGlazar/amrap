@@ -31,8 +31,10 @@ the hosted project. Tests must never write to it.
 - Build into `app/dist-e2e` and serve it from there, so a production build in `app/dist`
   that waits for deploy is never replaced.
 - `app/e2e/env.ts` refuses any Supabase URL whose host is not `127.0.0.1` or `localhost`.
-  Every browser context in a test aborts requests to any other host. The test then fails and
-  lists those hosts.
+  Every browser context in a test aborts HTTP requests (`context.route`) and closes
+  WebSockets (`context.routeWebSocket`) to any other host. The test then fails and lists those
+  hosts. The guard relies on the app's service worker only handling same-origin requests:
+  Playwright does not route requests that a service worker makes itself.
 - Tests find elements by role and accessible name, with the names imported from
   `app/src/i18n/sl.ts`.
 

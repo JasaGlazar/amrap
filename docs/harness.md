@@ -257,13 +257,13 @@ How to run, in `app/`:
 3. Run `npm run e2e`. `npm run e2e:ui` opens Playwright's UI.
 
 `npm run e2e` builds the app with `vite build --mode e2e` into `app/dist-e2e`, serves it with
-`vite preview` on port 4173 and runs the tests. The own output folder keeps a production build
+`vite preview` on port 4173 and runs the tests. Its own output folder keeps a production build
 in `app/dist` safe. The build gets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as process
 environment variables. Mode `e2e` keeps `app/.env.production.local` (the hosted project) out.
 In mode `e2e`, `app/vite.config.ts` also sets `envDir: false`, so the build reads no `.env`
-file at all, not even `app/.env.local`. `app/dist-e2e` is ignored by git. The HTML report goes to `app/playwright-report/` (open it with
-`npx playwright show-report`); traces and other output go to `app/test-results/`. Both are
-ignored by git.
+file at all, not even `app/.env.local`. `app/dist-e2e` is ignored by git. The HTML report
+goes to `app/playwright-report/` (open it with `npx playwright show-report`); traces and other
+output go to `app/test-results/`. Both are ignored by git.
 
 `app/e2e/env.ts` reads `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`. It
 uses the local stack's demo values when they are not set. It throws when the URL's host is not
@@ -275,25 +275,34 @@ Every browser context in a test blocks requests to hosts other than `127.0.0.1` 
 `localhost` (`LOCAL_HOSTS` in `app/e2e/env.ts`). The fixtures abort such a request and record
 its host. After the test, the test fails with a message that lists the hosts. The default
 `page` gets this through the fixtures. For a second user in the same test, use
-`newGuardedPage()` from the fixtures; do not make a context with `browser.newContext()`.
+`newGuardedPage()` from the fixtures. A lint rule stops a spec from calling
+`browser.newContext()` or `browser.newPage()`.
+
+The guard covers HTTP requests from the pages (`context.route`) and WebSockets
+(`context.routeWebSocket`). A WebSocket to another host is recorded in the same list and
+closed. The guard relies on one thing: the app's service worker only handles same-origin
+requests. Playwright does not route requests that a service worker makes itself, so a service
+worker that fetched from another host would not be seen.
 
 How the fixtures in `app/e2e/fixtures.ts` make data:
 
 - `customer`: a new auth user (admin API, email confirmed) and its linked `customers` row,
   with a unique email `e2e-<random>@test.local`. After the test the fixture deletes the
   customer's credit transactions, appointments and recurring rules (in that order, because of
-  the foreign keys), then the row and the auth user. It deletes the credit transactions again
-  after the appointments, because a charge job can add one in between.
+  the foreign keys), then the row and the auth user. A charge job can add a credit transaction
+  after the transactions are deleted, and then the appointments delete fails. In that case the
+  fixture deletes the transactions and the appointments again, up to 3 times in total.
 - `slotTemplate`: a new active slot template, made as the trainer: Thursday (weekday 3),
-  capacity 5, start time 12:00 plus a random minute (12:00 to 12:59). The random minute keeps
+  capacity 5 (given to the test as `capacity`), start time 12:00 plus a random minute (12:00 to 12:59). The random minute keeps
   sessions of tests that run at the same time apart on screen. After the test the fixture
-  deletes the credit transactions of the template's appointments, the appointments, the
-  recurring rules and then the template. When the template delete fails, it deactivates the
+  deletes the credit transactions of the template's appointments and the appointments (again
+  up to 3 times, like `customer`), then the recurring rules and then the template. When the template delete fails, it deactivates the
   template instead.
 - `fixedAppointment`: a recurring rule for `customer` on `slotTemplate`, made as the trainer
   with the same calls as `addRule` in `app/src/data/rules.ts` (insert the rule, then
-  `activate_rule`). It fails when `activate_rule` creates no appointments. It gives the
-  template id, the rule id and the start time.
+  `activate_rule`). It fails when `activate_rule` creates fewer than 3 appointments; a blocked
+  period in the local database is the likely cause. It gives the template id, the rule id, the
+  start time and the capacity.
 - `signIn(page, who)`: fills the real login page and waits for the role's home (`/t` or `/c`).
 - `TRAINER`: the seeded `trainer@amrap.local` from `supabase/seeds/dev.sql`.
 
@@ -302,6 +311,8 @@ login page, once or twice. The local stack allows 1000 sign-ins and sign-ups per
 IP address (`[auth.rate_limit] sign_in_sign_ups` in `supabase/config.toml`), raised from 30
 for these tests. After you change that value, restart the stack (`supabase stop`, then
 `supabase start`). The hosted project does not read this file, so its limit stays as it is.
+`supabase config push` would send it to the hosted project; this project never runs that
+command.
 
 Rules that keep the tests stable:
 
@@ -313,6 +324,9 @@ Rules that keep the tests stable:
 - One retry in CI, none locally. A trace is recorded on the retry.
 - Tests run in parallel locally and with two workers in CI.
 - A test that fails only sometimes is fixed or its cause is reported. It is never skipped.
+- The tests assume the local database is at seed defaults: `customer_booking_enabled` is false,
+  the cutoff is the default and no blocked period falls in the next four weeks. CI always
+  starts from seed defaults.
 
 | File | Covers |
 |---|---|

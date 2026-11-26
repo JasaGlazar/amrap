@@ -57,6 +57,20 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
+    files: ['e2e/**/*.spec.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.object.name='browser'][callee.property.name=/^(newContext|newPage)$/]",
+          message:
+            'Use newGuardedPage() from the fixtures; it blocks requests outside the local stack.',
+        },
+      ],
+    },
+  },
+  {
     // Playwright fixtures take `use` and `{}` by design; neither is React.
     files: ['e2e/fixtures.ts'],
     rules: {
