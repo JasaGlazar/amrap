@@ -181,8 +181,8 @@ book, run this in the SQL editor:
 update public.settings set customer_booking_enabled = true where id = 1;
 ```
 
-The setting only adds the book buttons to the calendar, on the customer's next load of it. To turn booking off again,
-set the column to `false`; bookings that already exist stay booked.
+The setting only adds the book buttons. A customer sees them the next time the calendar loads.
+To turn booking off again, set the column to `false`; bookings that already exist stay booked.
 
 ## Database size check
 

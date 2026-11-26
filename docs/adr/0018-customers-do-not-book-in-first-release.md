@@ -23,7 +23,7 @@ read it.
   closed with `AMRAP_SETTINGS_MISSING`. The trainer and `materialize_recurring` do not read the
   setting.
 - The app reads the setting and hides the customer calendar route and its navigation entry
-  while it is false.
+  while it is false (refined by ADR 0019: the calendar is visible and read-only).
 - The setting has no UI. The owner turns it on with one SQL statement
   ([runbook](../runbook.md#turn-customer-booking-on)).
 - The cutoff default and the current row value become 8 hours.

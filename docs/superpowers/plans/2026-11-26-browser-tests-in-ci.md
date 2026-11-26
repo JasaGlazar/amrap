@@ -49,7 +49,7 @@
 ### Task 1: Playwright setup, fixtures and the sign-in flows
 
 **Files:**
-- Create: `app/playwright.config.ts`, `app/e2e/env.ts`, `app/e2e/fixtures.ts`, `app/e2e/auth.spec.ts`, `app/tsconfig.e2e.json`, `docs/adr/0019-playwright-browser-tests.md`
+- Create: `app/playwright.config.ts`, `app/e2e/env.ts`, `app/e2e/fixtures.ts`, `app/e2e/auth.spec.ts`, `app/tsconfig.e2e.json`, `docs/adr/0020-playwright-browser-tests.md`
 - Modify: `app/package.json`, `app/package-lock.json`, `app/tsconfig.json` (reference the new project), `app/vite.config.ts` (Vitest `exclude` for `e2e/**`), `app/eslint.config.js` (cover `e2e/`), `.gitignore` (`app/playwright-report/`, `app/test-results/`, `app/e2e/.auth/`), `docs/harness.md`, `docs/adr/README.md`
 
 **Interfaces:**
@@ -76,7 +76,7 @@
   Before relying on it, confirm in the Vite docs that process environment variables take priority over `.env` files and that mode `e2e` does not load `.env.production.local`.
 - [ ] **Step 5: Run `npm run e2e`.** Expected: 5 passed. Run it three times in a row; all three pass.
 - [ ] **Step 6: Run the other gates.** Vitest must not collect `e2e/`; `tsc -b` type-checks `e2e/`; ESLint covers `e2e/`.
-- [ ] **Step 7: Docs.** `docs/harness.md`: new section "Browser tests" (what they cover and what they do not: time rules stay in pgTAP, push delivery stays manual; how to run; the rules from the spec's section 5; how the fixtures make data) and the "Testing" table row for `auth.spec.ts`. ADR 0019: Playwright over Cypress and Vitest browser mode; built app over dev server; per-test data over shared seeds; the `--mode e2e` build and why.
+- [ ] **Step 7: Docs.** `docs/harness.md`: new section "Browser tests" (what they cover and what they do not: time rules stay in pgTAP, push delivery stays manual; how to run; the rules from the spec's section 5; how the fixtures make data) and the "Testing" table row for `auth.spec.ts`. ADR 0020: Playwright over Cypress and Vitest browser mode; built app over dev server; per-test data over shared seeds; the `--mode e2e` build and why.
 - [ ] **Step 8: Commit** — `test: add Playwright with fixtures and the sign-in flows`.
 
 ---

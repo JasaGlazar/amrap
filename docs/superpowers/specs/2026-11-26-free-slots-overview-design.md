@@ -1,6 +1,6 @@
 # Free slots overview for customers — design
 
-Date: 2026-11-26. Status: waiting for owner approval.
+Date: 2026-11-26. Status: Approved by the owner on 2026-11-26.
 
 ## Intent
 
@@ -64,9 +64,9 @@ while booking is off. This design shows it again, read-only.
 
 ## Docs
 
-`docs/screens.md`, ADR 0018 stays as it is (customers still do not book); `docs/pilot.md`
-customer steps mention the free-places view; `docs/runbook.md` "Turn customer booking on" says
-that the calendar is already visible and the setting only adds the buttons.
+`docs/screens.md`. ADR 0019 records the read-only calendar, and ADR 0018 gets a pointer to it.
+`docs/pilot.md` customer steps mention the free-places view; `docs/runbook.md` "Turn customer
+booking on" says that the calendar is already visible and the setting only adds the buttons.
 
 ## Where it lands
 

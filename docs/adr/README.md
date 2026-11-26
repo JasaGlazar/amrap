@@ -26,6 +26,7 @@ of it changes).
 | [0016](0016-cancel-occurrence-closes-it.md) | Cancelling a whole session closes it with a blocked period | Accepted |
 | [0017](0017-centred-wide-views.md) | Centred wide views | Accepted |
 | [0018](0018-customers-do-not-book-in-first-release.md) | Customers do not book in the first release | Accepted |
+| [0019](0019-customers-see-the-calendar-read-only.md) | Customers see the calendar read-only | Accepted |
 
 ## Template
 

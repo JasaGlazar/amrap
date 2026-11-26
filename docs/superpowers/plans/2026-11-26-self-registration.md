@@ -52,7 +52,7 @@
 ### Task 1: Gym code and `register_customer` (database)
 
 **Files:**
-- Create: `supabase/migrations/<ts>_self_registration.sql`, `supabase/tests/038_registration.sql`, `docs/adr/0020-customers-register-with-a-gym-code.md`
+- Create: `supabase/migrations/<ts>_self_registration.sql`, `supabase/tests/038_registration.sql`, `docs/adr/0021-customers-register-with-a-gym-code.md`
 - Modify: `app/src/lib/database.types.ts`, `app/src/i18n/sl.ts` (error copy), `docs/copy-review.md`, `docs/schema.md`, `docs/rpcs.md`, `docs/architecture/data-model.md`, `docs/architecture/auth-invite-flow.md` (add the registration sequence), `docs/harness.md`, `docs/adr/README.md`, `CONTEXT.md`
 
 **Interfaces:**
@@ -78,7 +78,7 @@
 - [ ] **Step 2: Run `supabase test db`.** Expected: `038` fails (relation does not exist).
 - [ ] **Step 3: Write the migration.** `register_customer` order of checks: `auth.uid()` not null (`AMRAP_FORBIDDEN`); `public.current_customer_id()` is null (`AMRAP_ALREADY_LINKED`); the stored code is not null and equals `p_code` (`AMRAP_REGISTRATION_CLOSED`); name and phone lengths. Read the email from `auth.users` for `auth.uid()`. Insert inside a `begin ... exception when unique_violation` block that raises `AMRAP_ALREADY_LINKED`, as `accept_invite` does for the concurrent case.
 - [ ] **Step 4: Run `supabase db reset && supabase test db && supabase db lint`.** Expected: all green.
-- [ ] **Step 5: Docs and copy.** `docs/rpcs.md` (both functions, the error table), `docs/schema.md` (migration row, table, column, RLS matrix row), data-model diagram, registration sequence in the auth flow diagram, `docs/harness.md`, `CONTEXT.md` (terms **registration**, **gym code**; rule "Registration creates only customers"). ADR 0020: refines ADR 0006 (invites are no longer the only way in; the gym code is the proof that a person saw the QR; email stays unconfirmed; why a separate table and not a `settings` column — customers can read `settings`). `sl.ts`: `errors.AMRAP_REGISTRATION_CLOSED: 'Registracija ni mogoča. Skenirajte QR kodo v telovadnici ali se obrnite na trenerja.'`
+- [ ] **Step 5: Docs and copy.** `docs/rpcs.md` (both functions, the error table), `docs/schema.md` (migration row, table, column, RLS matrix row), data-model diagram, registration sequence in the auth flow diagram, `docs/harness.md`, `CONTEXT.md` (terms **registration**, **gym code**; rule "Registration creates only customers"). ADR 0021: refines ADR 0006 (invites are no longer the only way in; the gym code is the proof that a person saw the QR; email stays unconfirmed; why a separate table and not a `settings` column — customers can read `settings`). `sl.ts`: `errors.AMRAP_REGISTRATION_CLOSED: 'Registracija ni mogoča. Skenirajte QR kodo v telovadnici ali se obrnite na trenerja.'`
 - [ ] **Step 6: Regenerate types, run all gates.**
 - [ ] **Step 7: Commit** — `feat: let a person register as a customer with the gym code`.
 
