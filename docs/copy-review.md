@@ -205,6 +205,7 @@ is a question below.
 | `calendar.blocked` | Zaprto | »Zaprto« za termin v zaprtem obdobju (dopust): v redu? |
 | `calendar.mine` | Rezervirano |  |
 | `calendar.booked` | Termin je rezerviran. |  |
+| `calendar.viewOnly` | Za prost termin se dogovorite s trenerjem. | Novo: vrstica nad Koledarjem stranke, dokler stranke ne morejo same rezervirati. Koledar kaže le prosta mesta. |
 
 ### Odpoved termina (okno)
 

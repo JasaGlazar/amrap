@@ -21,6 +21,7 @@ export function CustomerCalendar() {
   const [message, setMessage] = useState<Notice>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<Appointment | null>(null);
+  const canBook = state.status === 'ok' && state.data.settings.customerBookingEnabled;
 
   async function bookSlot(slot: WeekSlot) {
     setPending(slot.key);
@@ -58,6 +59,7 @@ export function CustomerCalendar() {
           {t.common.loadFailed}
         </p>
       )}
+      {state.status === 'ok' && !canBook && <p className="status">{t.calendar.viewOnly}</p>}
       {state.status === 'ok' && (
         <WeekSlots
           slots={state.data.slots}
@@ -81,6 +83,9 @@ export function CustomerCalendar() {
               );
             }
             const full = slot.free === 0;
+            if (!canBook) {
+              return full ? <span className="tag">{t.calendar.full}</span> : null;
+            }
             return (
               <button
                 type="button"

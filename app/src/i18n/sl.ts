@@ -94,6 +94,7 @@ export const sl = {
     blocked: 'Zaprto',
     mine: 'Rezervirano',
     booked: 'Termin je rezerviran.',
+    viewOnly: 'Za prost termin se dogovorite s trenerjem.',
   },
   cancelDialog: {
     title: 'Odpoved termina',

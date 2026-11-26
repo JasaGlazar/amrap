@@ -18,6 +18,7 @@ import { routes } from '../../routes';
 import {
   db,
   fakeSupabase,
+  holdTable,
   makeCustomer,
   makeSession,
   postgrestTime,
@@ -188,6 +189,104 @@ describe('calendar', () => {
       within(await slotRow(free)).getByRole('button', { name: t.calendar.book }),
     );
     expect(await screen.findByRole('alert')).toHaveTextContent(t.errors.AMRAP_BOOKING_DISABLED);
+  });
+
+  describe('while booking is off', () => {
+    beforeEach(() => {
+      db.settings.customer_booking_enabled = false;
+    });
+
+    it('shows free places and no book button while booking is off', async () => {
+      renderAt('/c/koledar');
+      expect(await slotRow(free)).toHaveTextContent(remaining(free));
+      expect(screen.queryByRole('button', { name: t.calendar.book })).toBeNull();
+    });
+
+    it('shows the view-only hint while booking is off', async () => {
+      renderAt('/c/koledar');
+      await slotRow(free);
+      expect(screen.getByText(t.calendar.viewOnly)).toBeInTheDocument();
+    });
+
+    it('marks a full session as full while booking is off', async () => {
+      renderAt('/c/koledar');
+      const row = await slotRow(full);
+      expect(row).toHaveTextContent(t.calendar.full);
+      expect(within(row).queryByRole('button')).toBeNull();
+    });
+
+    it('shows no full tag on a past or blocked session that has places', async () => {
+      renderAt('/c/koledar');
+      for (const template of [past, blocked]) {
+        const row = await slotRow(template);
+        expect(row).not.toHaveTextContent(t.calendar.full);
+        expect(row).toHaveClass('muted');
+        expect(within(row).queryByRole('button')).toBeNull();
+      }
+    });
+
+    it('marks a past or blocked session as full when it has no places', async () => {
+      db.tables.slot_occupancy.push(
+        { slot_template_id: past.id, starts_at: startOf(past).toISOString(), booked_count: 5 },
+        {
+          slot_template_id: blocked.id,
+          starts_at: startOf(blocked).toISOString(),
+          booked_count: 5,
+        },
+      );
+      renderAt('/c/koledar');
+      for (const template of [past, blocked]) {
+        expect(await slotRow(template)).toHaveTextContent(t.calendar.full);
+      }
+    });
+
+    it("keeps cancel on the customer's own appointment while booking is off", async () => {
+      db.tables.appointments = [
+        {
+          id: 'a-mine',
+          customer_id: me.id,
+          slot_template_id: free.id,
+          starts_at: postgrestTime(startOf(free)),
+          ends_at: postgrestTime(new Date(startOf(free).getTime() + 3_600_000)),
+          status: 'booked',
+        },
+      ];
+      renderAt('/c/koledar');
+      const row = await slotRow(free);
+      await waitFor(() => expect(row).toHaveTextContent(t.calendar.mine));
+      await userEvent.click(within(row).getByRole('button', { name: t.slot.cancel }));
+      const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
+      await userEvent.click(within(dialog).getByRole('button', { name: t.cancelDialog.confirm }));
+      expect(fakeSupabase.rpc).toHaveBeenCalledWith('cancel', { p_appointment_id: 'a-mine' });
+      expect(await screen.findByRole('status')).toHaveTextContent(t.cancelDialog.done);
+    });
+  });
+
+  it('shows no book button when the settings read fails', async () => {
+    db.settingsError = { message: 'paused' };
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const router = renderAt('/c/koledar');
+    expect(await screen.findByText(t.common.loadFailed)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: t.customer.calendarTitle })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/c/koledar');
+    expect(screen.queryByRole('button', { name: t.calendar.book })).toBeNull();
+    warn.mockRestore();
+  });
+
+  it('shows loading and no book button while the settings load', async () => {
+    const release = holdTable('settings');
+    renderAt('/c/koledar');
+    await screen.findByRole('heading', { name: t.customer.calendarTitle });
+    expect(screen.getByText(t.common.loading)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: t.calendar.book })).toBeNull();
+    release();
+    expect(await slotRow(free)).toBeInTheDocument();
+  });
+
+  it('shows no view-only hint while booking is on', async () => {
+    renderAt('/c/koledar');
+    await slotRow(free);
+    expect(screen.queryByText(t.calendar.viewOnly)).toBeNull();
   });
 
   it('disables an occurrence late on Sunday that runs into a block after the week ends', async () => {
