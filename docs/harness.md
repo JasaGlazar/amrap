@@ -43,7 +43,7 @@ function name appears in the schema and RPC reference docs (see [CI](#ci)).
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`, as four
+`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`, as five
 independent jobs:
 
 | Job | What it runs |
@@ -52,6 +52,7 @@ independent jobs:
 | `app` | In `app/` with the Node version from `app/.node-version`: `npm ci`, `npm run lint`, `npm run typecheck`, `npm test -- --run`, `npm run build`. |
 | `functions` | `denoland/setup-deno@v2` with Deno 2.1.4 (what the local edge runtime 1.74.3 is compatible with), then `bash scripts/test-functions.sh`. |
 | `docs` | `bash scripts/check-docs.sh`. |
+| `e2e` | The browser tests (see "Browser tests" below). It starts the stack like `db`: the same pinned CLI and the same `supabase start` line. Then, in `app/`, it runs `npm ci` and installs Chromium. It sets the test environment from `supabase status -o env` and runs `npm run e2e`. The timeout is 15 minutes. |
 
 `scripts/check-docs.sh` also runs locally from any directory and lists everything it finds
 missing before exiting non-zero. It enforces two things, reading `supabase/migrations/*.sql`
@@ -68,6 +69,35 @@ generated with); bumping it means regenerating `database.types.ts` in the same P
 
 A stale generated-types failure is fixed by running
 `supabase gen types typescript --local > app/src/lib/database.types.ts` and committing the result.
+
+Details of the `e2e` job:
+
+- Chromium comes from a cache of `~/.cache/ms-playwright`. The cache key is the runner OS and
+  the `@playwright/test` version in `app/package-lock.json`. On a cache miss the job runs
+  `npx playwright install --with-deps chromium`. On a hit it runs only
+  `npx playwright install-deps chromium` for the system packages.
+- `supabase status -o env` prints `API_URL`, `ANON_KEY` and `SERVICE_ROLE_KEY`. The job writes
+  them to `$GITHUB_ENV` as `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`.
+  When one of the three names is missing, the step fails. The tests never fall back to the
+  demo values in CI.
+
+When `e2e` fails, it uploads one artifact named `playwright-report`. It holds
+`app/playwright-report/` and `app/test-results/` and is kept for 7 days. A cancelled run
+uploads nothing. To read it:
+
+1. Open the failed run in the GitHub "Actions" tab and download `playwright-report` from the
+   "Artifacts" list at the bottom of the run's summary page.
+2. Unzip it. Run `npx playwright show-report <folder>/playwright-report` in `app/` to open
+   the HTML report.
+3. Open a trace from the report, or run `npx playwright show-trace <zip>` with a `trace.zip`
+   from `<folder>/test-results/`. CI retries a failed test once and records a trace on that
+   retry (`trace: 'on-first-retry'` in `app/playwright.config.ts`).
+
+Owner action: after the first green run on `main`, turn on branch protection for `main`. In
+GitHub, go to Settings > Branches > "Add branch protection rule" (or Settings > Rules >
+Rulesets) for `main`. Turn on "Require status checks to pass before merging" and require the
+jobs `db`, `app`, `functions`, `docs` and `e2e`. Also turn on "Require branches to be up to
+date before merging".
 
 ## Code comments
 
