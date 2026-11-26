@@ -15,8 +15,8 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/` | signed in | Redirects to `/t` for the trainer or `/c` for a customer. | none | Stage 1 |
 | (any route below `/`) | signed in, customer lookup failed | Error page with a retry button and a sign-out link to `/logout`. | `lookupFailed`, `common.signOut` | Stage 1 |
 | (any route below `/`) | signed in, no `customers` row | "Account not linked" page with a sign-out link to `/logout`. Shown instead of the route, URL unchanged. | `notLinked`, `common.signOut` | Stage 1 |
-| `/c` | customer | Customer shell: top bar with the framed wordmark and the [account menu](#account-menu) (theme, sign-out), the [install card](#install-card), the [main navigation](#main-navigation) (Home, Calendar, History; Calendar only while [customer booking is on](#customer-booking-switch)). Index is Home: balance, next appointment, upcoming list with cancel, cancelled list with undo, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `account`, `install`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle`, `errors` | Stage 2, push Stage 3, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
-| `/c/koledar` | customer | Week calendar: book open slots, cancel own bookings. Only while [customer booking is on](#customer-booking-switch); otherwise it redirects to `/c`. | `customer`, `calendar`, `slot`, `cancelDialog`, `errors` | Stage 2, booking switch minimal customer scope |
+| `/c` | customer | Customer shell: top bar with the framed wordmark and the [account menu](#account-menu) (theme, sign-out), the [install card](#install-card), the [main navigation](#main-navigation) (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel, cancelled list with undo, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `account`, `install`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle`, `errors` | Stage 2, push Stage 3, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
+| `/c/koledar` | customer | Week calendar: free places of each session, cancel own bookings. Book buttons only while [customer booking is on](#customer-booking-switch). | `customer`, `calendar`, `slot`, `cancelDialog`, `errors` | Stage 2, booking switch minimal customer scope |
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
 | `/t` | trainer | Trainer shell: the same top bar with the [account menu](#account-menu), the [install card](#install-card), the [main navigation](#main-navigation) (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `account`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. A day view below 1024 px and a week grid from 1024 px; the selected day (and so the week) in `?dan=YYYY-MM-DD`. | `trainer`, `calendar`, `slot`, `cancelDialog`, `common` | Stage 2, add control and forms on demand Stage 7, day view and week grid Stage 10 |
@@ -38,19 +38,21 @@ data.
 
 ### Customer booking switch
 
-`CustomerShell` reads `getSettings` once and passes the result to the calendar route
-(`settings.customer_booking_enabled`, [ADR 0018](adr/0018-customers-do-not-book-in-first-release.md)).
-It fails closed: a failed read counts as off.
+The customer navigation always has **Koledar**, and `/c/koledar` always renders. The calendar
+decides on its own whether it offers booking. It reads
+`settings.customer_booking_enabled` from `loadWeek`
+([ADR 0018](adr/0018-customers-do-not-book-in-first-release.md)). The shell reads no settings.
 
-| Settings read | Calendar link | `/c/koledar` |
-|---|---|---|
-| loading | hidden | renders nothing; no redirect, so a reload of `/c/koledar` stays when booking is on |
-| failed, or `customer_booking_enabled` false | hidden | redirects to `/c` |
-| `customer_booking_enabled` true | shown | the calendar |
+| Week load | Calendar |
+|---|---|
+| loading | `common.loading`; no book buttons |
+| failed | `common.loadFailed`; no book buttons |
+| `customer_booking_enabled` false | view only: free places, **Polno**, the `calendar.viewOnly` hint, my own appointments |
+| `customer_booking_enabled` true | free places and book buttons, as before |
 
-Home and History work in all three states. A tab that loaded the calendar before booking was
-turned off still shows it; `book()` then fails and the notice line shows
-`errors.AMRAP_BOOKING_DISABLED`.
+A failed read shows no book buttons; `book()` refuses customers in any case while the setting
+is off. A tab that loaded the calendar before booking was turned off still has its book
+buttons; `book()` then fails and the notice line shows `errors.AMRAP_BOOKING_DISABLED`.
 
 ### Home (`/c`)
 
@@ -93,15 +95,17 @@ turned off still shows it; `book()` then fails and the notice line shows
   without a `slot_occupancy` row has `booked_count` 0). The places and `Zaprto`
   are unbreakable parts and each `·` separator ends the part before it: a narrow row wraps
   between parts, never inside one, and a wrapped line never starts with `·`.
+- **View-only hint:** while booking is off, one status line `calendar.viewOnly` sits above the
+  days.
 - **States of a row:**
 
-  | State | Shown |
-  |---|---|
-  | free and in the future | **Rezerviraj**, enabled |
-  | full (`free = 0`) | **Polno**, disabled |
-  | started or past | **Rezerviraj**, disabled; the row is greyed out |
-  | overlaps a blocked period | `· Zaprto`, **Rezerviraj** disabled; greyed out |
-  | my live booking | `Rezervirano` tag, plus **Odpovej** while it is `booked` and in the future |
+  | State | Booking on | Booking off |
+  |---|---|---|
+  | free and in the future | **Rezerviraj**, enabled | nothing |
+  | full (`free = 0`) | **Polno**, disabled | `Polno` tag |
+  | started or past | **Rezerviraj**, disabled; the row is greyed out | nothing (`Polno` tag if full); greyed out |
+  | overlaps a blocked period | `· Zaprto`, **Rezerviraj** disabled; greyed out | `· Zaprto`, nothing (`Polno` tag if full); greyed out |
+  | my live booking | `Rezervirano` tag, plus **Odpovej** while it is `booked` and in the future | the same |
 
 - **Booking:** `book(my id, startsAt, template id)`; success shows `calendar.booked` (a status
   line), a rejection shows its `errors.AMRAP_*` copy (an alert). Book buttons stay disabled

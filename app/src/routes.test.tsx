@@ -12,7 +12,6 @@ import {
   db,
   emitAuth,
   fakeSupabase,
-  holdTable,
   makeCustomer,
   makeSession,
   resetFake,
@@ -336,23 +335,21 @@ describe('customer booking switch', () => {
       .map((link) => link.textContent);
   };
 
-  it('leaves the calendar out of the navigation while booking is off', async () => {
+  it('shows Koledar in the customer navigation while booking is off', async () => {
     signedInAs(customer);
     db.settings.customer_booking_enabled = false;
     renderAt('/c');
     await screen.findByRole('heading', { name: t.nav.home });
-    expect(await navLabels()).toEqual([t.nav.home, t.nav.history]);
+    expect(await navLabels()).toEqual([t.nav.home, t.nav.calendar, t.nav.history]);
   });
 
-  it('sends /c/koledar to /c while booking is off', async () => {
+  it('opens /c/koledar while booking is off', async () => {
     signedInAs(customer);
     db.settings.customer_booking_enabled = false;
     const router = renderAt('/c/koledar');
-    await screen.findByRole('heading', { name: t.nav.home });
-    expect(router.state.location.pathname).toBe('/c');
-    expect(
-      screen.queryByRole('heading', { name: t.customer.calendarTitle }),
-    ).not.toBeInTheDocument();
+    await screen.findByRole('heading', { name: t.customer.calendarTitle });
+    expect(await screen.findByText(t.calendar.noSlots)).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/c/koledar');
   });
 
   it('opens /c/koledar while booking is on', async () => {
@@ -363,49 +360,16 @@ describe('customer booking switch', () => {
     expect(router.state.location.pathname).toBe('/c/koledar');
   });
 
-  it('treats booking as off when the settings read fails, and Home still renders', async () => {
+  it('the customer shell reads no settings of its own', async () => {
     signedInAs(customer);
-    db.settings.customer_booking_enabled = true;
     db.settingsError = { message: 'paused' };
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const router = renderAt('/c/koledar');
-    await waitFor(() => expect(router.state.location.pathname).toBe('/c'));
+    const router = renderAt('/c/zgodovina');
+    // History reads the settings for its time zone, so it shows its own error line.
     expect(await screen.findByText(t.common.loadFailed)).toBeInTheDocument();
-    expect(await navLabels()).toEqual([t.nav.home, t.nav.history]);
-    expect(
-      screen.queryByRole('heading', { name: t.customer.calendarTitle }),
-    ).not.toBeInTheDocument();
+    expect(await navLabels()).toEqual([t.nav.home, t.nav.calendar, t.nav.history]);
+    expect(router.state.location.pathname).toBe('/c/zgodovina');
     warn.mockRestore();
-  });
-
-  it('neither shows nor leaves /c/koledar while the settings load', async () => {
-    signedInAs(customer);
-    db.settings.customer_booking_enabled = true;
-    const release = holdTable('settings');
-    const router = renderAt('/c/koledar');
-    await screen.findByRole('navigation', { name: t.nav.customerLabel });
-    expect(await navLabels()).toEqual([t.nav.home, t.nav.history]);
-    expect(
-      screen.queryByRole('heading', { name: t.customer.calendarTitle }),
-    ).not.toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/c/koledar');
-    release();
-    await screen.findByRole('heading', { name: t.customer.calendarTitle });
-    expect(router.state.location.pathname).toBe('/c/koledar');
-    expect(await navLabels()).toEqual([t.nav.home, t.nav.calendar, t.nav.history]);
-  });
-
-  it('keeps Home working while the settings load', async () => {
-    signedInAs(customer);
-    db.settings.customer_booking_enabled = true;
-    const release = holdTable('settings');
-    renderAt('/c');
-    await screen.findByRole('navigation', { name: t.nav.customerLabel });
-    expect(screen.getByText(t.common.loading)).toBeInTheDocument();
-    expect(await navLabels()).toEqual([t.nav.home, t.nav.history]);
-    release();
-    await screen.findByRole('heading', { name: t.nav.home });
-    expect(await navLabels()).toEqual([t.nav.home, t.nav.calendar, t.nav.history]);
   });
 });
 

@@ -70,6 +70,8 @@ Na koncu primerjajte **Stranke** (stanje vsake stranke) s papirnatim listom.
 >    dobite opomnik.
 > 3. Na zaslonu **Domov** vidite termine, ki vam jih je dodelil trener. Termin odpoveste
 >    (»Odpovej«), brezplačno odpoved pa do roka prekličete (»Razveljavi odpoved«).
+> 4. Na zaslonu **Koledar** vidite, koliko prostih mest ima vsak termin. Za prost termin se
+>    dogovorite s trenerjem.
 >
 > Odpoved do roka (8 ur pred začetkom) je brezplačna. Kasnejša odpoved ali termin, na katerega ne
 > pridete, se zaračuna (1 kredit). Stanje in zgodovino kreditov vidite na zaslonu **Domov** in v

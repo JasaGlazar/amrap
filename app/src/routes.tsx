@@ -5,7 +5,7 @@ import { fromError } from './i18n';
 import { supabase } from './lib/supabase';
 import { browserPlatform } from './push/browser';
 import { disablePush } from './push/subscribe';
-import { CustomerBookingRoute, CustomerShell } from './pages/CustomerPages';
+import { CustomerShell } from './pages/CustomerPages';
 import { CustomerCalendar } from './pages/customer/Calendar';
 import { CustomerHistory } from './pages/customer/History';
 import { CustomerHome } from './pages/customer/Home';
@@ -66,14 +66,7 @@ export const routes: RouteObject[] = [
                 element: <CustomerShell />,
                 children: [
                   { index: true, element: <CustomerHome /> },
-                  {
-                    path: 'koledar',
-                    element: (
-                      <CustomerBookingRoute>
-                        <CustomerCalendar />
-                      </CustomerBookingRoute>
-                    ),
-                  },
+                  { path: 'koledar', element: <CustomerCalendar /> },
                   { path: 'zgodovina', element: <CustomerHistory /> },
                 ],
               },
