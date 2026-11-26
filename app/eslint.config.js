@@ -62,10 +62,21 @@ export default tseslint.config(
       'no-restricted-syntax': [
         'error',
         {
-          selector:
-            "CallExpression[callee.object.name='browser'][callee.property.name=/^(newContext|newPage)$/]",
+          selector: 'CallExpression[callee.property.name=/^(newContext|newPage)$/]',
           message:
             'Use newGuardedPage() from the fixtures; it blocks requests outside the local stack.',
+        },
+      ],
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@playwright/test',
+              message: 'Import test and expect from ./fixtures',
+              allowTypeImports: true,
+            },
+          ],
         },
       ],
     },

@@ -8,6 +8,7 @@ export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: CI,
+  failOnFlakyTests: CI,
   retries: CI ? 1 : 0,
   workers: CI ? 2 : undefined,
   reporter: [['html', { open: 'never' }], CI ? ['github'] : ['list']],
@@ -22,6 +23,7 @@ export default defineConfig({
       'npx vite build --mode e2e --outDir dist-e2e && npx vite preview --outDir dist-e2e --port 4173 --strictPort',
     url: 'http://localhost:4173',
     reuseExistingServer: false,
+    timeout: 120_000,
     env: {
       VITE_SUPABASE_URL: env.supabaseUrl,
       VITE_SUPABASE_ANON_KEY: env.anonKey,

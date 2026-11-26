@@ -9,17 +9,20 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Pinned to the CLI version database.types.ts was generated with; bumping it means
+# regenerating app/src/lib/database.types.ts in the same PR.
+env:
+  SUPABASE_CLI_VERSION: 2.117.0
+
 jobs:
   db:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      # Pinned to the CLI version database.types.ts was generated with; bumping it means
-      # regenerating app/src/lib/database.types.ts in the same PR.
       - uses: supabase/setup-cli@v1
         with:
-          version: 2.117.0
+          version: ${{ env.SUPABASE_CLI_VERSION }}
       # start applies the migrations and the seeds listed in supabase/config.toml
       - run: supabase start -x studio,imgproxy,logflare,vector,edge-runtime
       - run: supabase test db
@@ -72,7 +75,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
-          version: 2.117.0
+          version: ${{ env.SUPABASE_CLI_VERSION }}
       - run: supabase start -x studio,imgproxy,logflare,vector,edge-runtime
       - uses: actions/setup-node@v4
         with:

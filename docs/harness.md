@@ -64,8 +64,9 @@ only (not tests or seeds):
   `` `public.name(` ``). The role helpers `current_customer_id` and `is_trainer` live in its
   "Helpers" section.
 
-The Supabase CLI is pinned in `ci.yml` (`version: 2.117.0`, the version the committed types were
-generated with); bumping it means regenerating `database.types.ts` in the same PR.
+The Supabase CLI is pinned once in `ci.yml`, in the workflow-level `SUPABASE_CLI_VERSION` value
+(2.117.0, the version the committed types were generated with). Both the `db` and the `e2e` job
+read it. Bumping it means regenerating `database.types.ts` in the same PR.
 
 A stale generated-types failure is fixed by running
 `supabase gen types typescript --local > app/src/lib/database.types.ts` and committing the result.
@@ -91,7 +92,9 @@ uploads nothing. To read it:
    the HTML report.
 3. Open a trace from the report, or run `npx playwright show-trace <zip>` with a `trace.zip`
    from `<folder>/test-results/`. CI retries a failed test once and records a trace on that
-   retry (`trace: 'on-first-retry'` in `app/playwright.config.ts`).
+   retry (`trace: 'on-first-retry'` in `app/playwright.config.ts`). A test that fails and then
+   passes on the retry is flaky. It fails the job (`failOnFlakyTests`), so the report is
+   uploaded and holds the trace of the retry.
 
 Owner action: after the first green run on `main`, turn on branch protection for `main`. In
 GitHub, go to Settings > Branches > "Add branch protection rule" (or Settings > Rules >
@@ -293,11 +296,11 @@ How the fixtures in `app/e2e/fixtures.ts` make data:
   after the transactions are deleted, and then the appointments delete fails. In that case the
   fixture deletes the transactions and the appointments again, up to 3 times in total.
 - `slotTemplate`: a new active slot template, made as the trainer: Thursday (weekday 3),
-  capacity 5 (given to the test as `capacity`), start time 12:00 plus a random minute (12:00 to 12:59). The random minute keeps
-  sessions of tests that run at the same time apart on screen. After the test the fixture
-  deletes the credit transactions of the template's appointments and the appointments (again
-  up to 3 times, like `customer`), then the recurring rules and then the template. When the template delete fails, it deactivates the
-  template instead.
+  capacity 5 (given to the test as `capacity`), start time 12:00 plus a random minute (12:00 to
+  12:59). The random minute keeps sessions of tests that run at the same time apart on screen.
+  After the test the fixture deletes the credit transactions of the template's appointments and
+  the appointments (again up to 3 times, like `customer`), then the recurring rules and then the
+  template. When the template delete fails, it deactivates the template instead.
 - `fixedAppointment`: a recurring rule for `customer` on `slotTemplate`, made as the trainer
   with the same calls as `addRule` in `app/src/data/rules.ts` (insert the rule, then
   `activate_rule`). It fails when `activate_rule` creates fewer than 3 appointments; a blocked
@@ -321,7 +324,8 @@ Rules that keep the tests stable:
 - No fixed waits (`waitForTimeout`). Use Playwright's waiting on elements and URLs.
 - Each test makes its own data. Tests do not depend on each other, on their order, on the
   weekday or on the time of day.
-- One retry in CI, none locally. A trace is recorded on the retry.
+- One retry in CI, none locally. A trace is recorded on the retry. In CI a flaky test, one that
+  fails and then passes on the retry, fails the job, and the report has the trace of the retry.
 - Tests run in parallel locally and with two workers in CI.
 - A test that fails only sometimes is fixed or its cause is reported. It is never skipped.
 - The tests assume the local database is at seed defaults: `customer_booking_enabled` is false,
@@ -332,4 +336,4 @@ Rules that keep the tests stable:
 |---|---|
 | `auth.spec.ts` | the trainer lands on `/t` and a customer on `/c` after sign-in; a wrong password shows the invalid-credentials error; a customer who opens `/t` is sent to `/c`; during a customer sign-in the app sends at least one auth and one REST request, all to `127.0.0.1` or `localhost` |
 | `customer.spec.ts` | a customer with a fixed appointment sees at least three upcoming rows on Home; they cancel the last one, it moves to the cancelled list, they undo it and it is back in the upcoming list with the "restored" status; next week's calendar shows free places on their session and no book button |
-| `trainer.spec.ts` | the trainer adds a fixed appointment on the customer's page, then the customer (in a second browser context) sees it on Home; the trainer cancels the customer's next appointment with a reason, then the customer sees it in History as cancelled by the trainer, with the reason |
+| `trainer.spec.ts` | the trainer adds a fixed appointment on the customer's page, then the customer (in a second browser context) sees it on Home; the trainer cancels the customer's last upcoming appointment with a reason, then the customer sees it in History as cancelled by the trainer, with the reason |

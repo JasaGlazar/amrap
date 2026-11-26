@@ -15,4 +15,3 @@ dev-dist/
 .wrangler/
 app/playwright-report/
 app/test-results/
-app/e2e/.auth/
