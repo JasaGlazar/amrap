@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { test as base, expect, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../src/lib/database.types';
@@ -9,7 +9,8 @@ type Client = SupabaseClient<Database>;
 type Credentials = { email: string; password: string };
 
 export type Customer = Credentials & { id: string; name: string };
-export type FixedAppointment = { templateId: string; ruleId: string };
+export type SlotTemplate = { id: string; weekday: number; startTime: string };
+export type FixedAppointment = { templateId: string; ruleId: string; startTime: string };
 
 export const TRAINER: Credentials = { email: 'trainer@amrap.local', password: 'password' };
 
@@ -36,7 +37,11 @@ export async function signIn(page: Page, who: Credentials): Promise<void> {
   await page.waitForURL(who.email === TRAINER.email ? /\/t$/ : /\/c$/);
 }
 
-type TestFixtures = { customer: Customer; fixedAppointment: FixedAppointment };
+type TestFixtures = {
+  customer: Customer;
+  slotTemplate: SlotTemplate;
+  fixedAppointment: FixedAppointment;
+};
 type WorkerFixtures = { admin: Client; trainerClient: Client };
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
@@ -47,7 +52,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     { scope: 'worker' },
   ],
 
-  // One API sign-in per worker: the local stack allows 30 sign-ins per 5 minutes.
+  // One API sign-in per worker keeps the run far below the sign-in rate limit.
   trainerClient: [
     async ({}, use) => {
       const client = newClient(env.anonKey);
@@ -99,36 +104,42 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     await bestEffort('deleting the auth user', () => admin.auth.admin.deleteUser(userId));
   },
 
-  // The same calls as addRule in src/data/rules.ts, made as the trainer.
-  fixedAppointment: async ({ customer, trainerClient }, use) => {
+  // Thursday 12:xx: a random minute keeps parallel tests' sessions apart on screen.
+  slotTemplate: async ({ trainerClient }, use) => {
+    const weekday = 3;
+    const startTime = `12:${String(randomInt(60)).padStart(2, '0')}`;
     const template = await trainerClient
       .from('slot_templates')
-      .insert({ weekday: 3, start_time: '12:00', capacity: 5 })
+      .insert({ weekday, start_time: startTime, capacity: 5 })
       .select('id')
       .single();
     if (template.error)
       throw new Error(`e2e: creating a slot template failed: ${template.error.message}`);
-    const templateId = template.data.id;
+    const id = template.data.id;
 
-    try {
-      const rule = await trainerClient
-        .from('recurring_rules')
-        .insert({ customer_id: customer.id, slot_template_id: templateId })
-        .select('id')
-        .single();
-      if (rule.error)
-        throw new Error(`e2e: creating a recurring rule failed: ${rule.error.message}`);
-      const activated = await trainerClient.rpc('activate_rule', { p_rule_id: rule.data.id });
-      if (activated.error) {
-        throw new Error(`e2e: activate_rule failed: ${activated.error.message}`);
-      }
+    await use({ id, weekday, startTime });
 
-      await use({ templateId, ruleId: rule.data.id });
-    } finally {
-      await bestEffort('deactivating the slot template', () =>
-        trainerClient.from('slot_templates').update({ active: false }).eq('id', templateId),
-      );
-    }
+    await bestEffort('deactivating the slot template', () =>
+      trainerClient.from('slot_templates').update({ active: false }).eq('id', id),
+    );
+  },
+
+  // The same calls as addRule in src/data/rules.ts, made as the trainer.
+  fixedAppointment: async ({ customer, slotTemplate, trainerClient }, use) => {
+    const rule = await trainerClient
+      .from('recurring_rules')
+      .insert({ customer_id: customer.id, slot_template_id: slotTemplate.id })
+      .select('id')
+      .single();
+    if (rule.error) throw new Error(`e2e: creating a recurring rule failed: ${rule.error.message}`);
+    const activated = await trainerClient.rpc('activate_rule', { p_rule_id: rule.data.id });
+    if (activated.error) throw new Error(`e2e: activate_rule failed: ${activated.error.message}`);
+
+    await use({
+      templateId: slotTemplate.id,
+      ruleId: rule.data.id,
+      startTime: slotTemplate.startTime,
+    });
   },
 });
 

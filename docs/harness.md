@@ -245,15 +245,21 @@ How the fixtures in `app/e2e/fixtures.ts` make data:
   with a unique email `e2e-<random>@test.local`. After the test the fixture deletes the
   customer's credit transactions, appointments and recurring rules (in that order, because of
   the foreign keys), then the row and the auth user.
-- `fixedAppointment`: a new active slot template (capacity 5) and a recurring rule for
-  `customer`, made as the trainer with the same calls as `addRule` in `app/src/data/rules.ts`
-  (insert the rule, then `activate_rule`). The template is deactivated after the test.
+- `slotTemplate`: a new active slot template, made as the trainer: Thursday (weekday 3),
+  capacity 5, start time 12:00 plus a random minute (12:00 to 12:59). The random minute keeps
+  sessions of tests that run at the same time apart on screen. The template is deactivated
+  after the test.
+- `fixedAppointment`: a recurring rule for `customer` on `slotTemplate`, made as the trainer
+  with the same calls as `addRule` in `app/src/data/rules.ts` (insert the rule, then
+  `activate_rule`). It gives the template id, the rule id and the start time.
 - `signIn(page, who)`: fills the real login page and waits for the role's home (`/t` or `/c`).
 - `TRAINER`: the seeded `trainer@amrap.local` from `supabase/seeds/dev.sql`.
 
-The trainer signs in through the API once per worker. The local stack allows 30 sign-ins per
-5 minutes per IP address (`supabase/config.toml`). If many reruns in a row fail with the
-"too many attempts" copy, wait a few minutes.
+The trainer signs in through the API once per worker. Each test also signs in through the
+login page, once or twice. The local stack allows 1000 sign-ins and sign-ups per 5 minutes per
+IP address (`[auth.rate_limit] sign_in_sign_ups` in `supabase/config.toml`), raised from 30
+for these tests. After you change that value, restart the stack (`supabase stop`, then
+`supabase start`). The hosted project does not read this file, so its limit stays as it is.
 
 Rules that keep the tests stable:
 
@@ -269,3 +275,5 @@ Rules that keep the tests stable:
 | File | Covers |
 |---|---|
 | `auth.spec.ts` | the trainer lands on `/t` and a customer on `/c` after sign-in; a wrong password shows the invalid-credentials error; a customer who opens `/t` is sent to `/c`; every auth and REST request during a sign-in goes to `127.0.0.1` or `localhost` |
+| `customer.spec.ts` | a customer with a fixed appointment sees at least three upcoming rows on Home; they cancel the last one, it moves to the cancelled list, they undo it and it is back in the upcoming list with the "restored" status; next week's calendar shows free places on their session and no book button |
+| `trainer.spec.ts` | the trainer adds a fixed appointment on the customer's page, then the customer (in a second browser context) sees it on Home; the trainer cancels the customer's next appointment with a reason, then the customer sees it in History as cancelled by the trainer, with the reason |
