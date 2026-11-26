@@ -150,7 +150,7 @@ select ok(
 
 select results_eq(
   $$select id, late_cancel_hours, timezone from public.settings$$,
-  $$values (1, 5, 'Europe/Ljubljana'::text)$$,
+  $$values (1, 8, 'Europe/Ljubljana'::text)$$,
   'settings holds exactly one row with the default cutoff and timezone');
 select throws_ok(
   $$insert into public.settings (id) values (2)$$, '23514', null,

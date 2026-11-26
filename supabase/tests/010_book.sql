@@ -11,6 +11,9 @@ select plan(37);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
+-- Customers call book() here; the booking setting is off by default.
+update public.settings set customer_booking_enabled = true where id = 1;
+
 create temp table fx (key text primary key, id uuid not null) on commit drop;
 
 insert into fx (key, id) values
@@ -319,7 +322,7 @@ select is(
   (select count(*) from booked),
   'every successful book() call left exactly one appointment row');
 
--- Without the settings row the timezone is unknown: fail closed ----------------------------
+-- Without the settings row the booking setting is unknown: fail closed ---------------------
 
 delete from public.settings where id = 1;
 select tests.authenticate_as((select id from fx where key = 'user_a'));

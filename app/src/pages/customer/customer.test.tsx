@@ -93,6 +93,7 @@ describe('calendar', () => {
   const blocked = template('t-blocked', 5, '09:00:00', 5, 90);
 
   beforeEach(() => {
+    db.settings.customer_booking_enabled = true;
     db.tables.slot_templates = [free, empty, full, past, blocked];
     db.tables.slot_occupancy = [
       { slot_template_id: free.id, starts_at: postgrestTime(startOf(free)), booked_count: 2 },
@@ -175,6 +176,18 @@ describe('calendar', () => {
       within(await slotRow(free)).getByRole('button', { name: t.calendar.book }),
     );
     expect(await screen.findByRole('alert')).toHaveTextContent(errorMessages.AMRAP_CAPACITY_FULL);
+  });
+
+  it('shows the booking-off copy when booking was turned off after the screen loaded', async () => {
+    renderAt('/c/koledar');
+    fakeSupabase.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'AMRAP_BOOKING_DISABLED: customer booking is turned off' },
+    });
+    await userEvent.click(
+      within(await slotRow(free)).getByRole('button', { name: t.calendar.book }),
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(t.errors.AMRAP_BOOKING_DISABLED);
   });
 
   it('disables an occurrence late on Sunday that runs into a block after the week ends', async () => {
@@ -352,6 +365,34 @@ describe('cancel dialog', () => {
     expect(back).toHaveFocus();
   });
 
+  it('says until when the cancel can be undone, in the gym timezone', async () => {
+    const zone = 'Pacific/Auckland';
+    db.settings.timezone = zone;
+    vi.setSystemTime(new Date(cutoff.getTime() - 60_000));
+    renderAt('/c');
+    const label = fill(t.slot.when, {
+      day: formatLongDay(startsAt, zone),
+      time: formatTime(startsAt, zone),
+    });
+    const row = await screen.findByRole('listitem', { name: label });
+    await userEvent.click(within(row).getByRole('button', { name: t.slot.cancel }));
+    const dialog = await screen.findByRole('dialog', { name: t.cancelDialog.title });
+    expect(dialog).toHaveTextContent(
+      fill(t.cancelDialog.undoNote, {
+        day: formatDay(cutoff, zone),
+        time: formatTime(cutoff, zone),
+      }),
+    );
+  });
+
+  it('does not offer an undo on a late cancel', async () => {
+    vi.setSystemTime(new Date(cutoff.getTime() + 60_000));
+    const dialog = await openDialog();
+    expect(dialog).not.toHaveTextContent(
+      fill(t.cancelDialog.undoNote, { day: formatDay(cutoff, tz), time: formatTime(cutoff, tz) }),
+    );
+  });
+
   it('shows the server error when the appointment changed meanwhile', async () => {
     const dialog = await openDialog();
     fakeSupabase.rpc.mockResolvedValueOnce({
@@ -398,6 +439,130 @@ describe('home', () => {
     const items = within(screen.getByRole('list')).getAllByRole('listitem');
     const expected = [...starts].sort((a, b) => a.getTime() - b.getTime()).map(slotLabel);
     expect(items.map((item) => item.getAttribute('aria-label'))).toEqual(expected);
+  });
+});
+
+describe('undo on home', () => {
+  const hour = 3_600_000;
+  const cutoffFromNow = () => now.getTime() + db.settings.late_cancel_hours * hour;
+  let later: Date;
+  let open: Date;
+
+  function appointmentRow(id: string, startsAt: Date, status: string) {
+    return {
+      id,
+      customer_id: me.id,
+      slot_template_id: null,
+      starts_at: postgrestTime(startsAt),
+      ends_at: postgrestTime(new Date(startsAt.getTime() + hour)),
+      status,
+    };
+  }
+
+  beforeEach(() => {
+    open = new Date(cutoffFromNow() + 24 * hour);
+    later = new Date(cutoffFromNow() + 48 * hour);
+    db.tables.appointments = [
+      appointmentRow('later', later, 'cancelled'),
+      appointmentRow('open', open, 'cancelled'),
+      appointmentRow('boundary', new Date(cutoffFromNow()), 'cancelled'),
+      appointmentRow('inside', new Date(cutoffFromNow() - hour), 'cancelled'),
+      appointmentRow('late', new Date(cutoffFromNow() + 25 * hour), 'cancelled_late'),
+      appointmentRow('trainer', new Date(cutoffFromNow() + 26 * hour), 'cancelled_by_trainer'),
+    ];
+  });
+
+  function cancelledSection() {
+    return screen.findByRole('region', { name: t.customer.cancelledTitle });
+  }
+
+  async function undoButton(startsAt: Date) {
+    const item = await within(await cancelledSection()).findByRole('listitem', {
+      name: slotLabel(startsAt),
+    });
+    return within(item).getByRole('button', { name: t.customer.undo });
+  }
+
+  it('lists only free cancels before their cutoff, soonest first', async () => {
+    renderAt('/c');
+    const items = within(await cancelledSection()).getAllByRole('listitem');
+    expect(items.map((item) => item.getAttribute('aria-label'))).toEqual(
+      [open, later].map(slotLabel),
+    );
+  });
+
+  it('gives each listed cancel a Razveljavi odpoved button', async () => {
+    renderAt('/c');
+    expect(await undoButton(open)).toBeEnabled();
+  });
+
+  it('does not list a cancel whose start is exactly now plus the cutoff', async () => {
+    db.tables.appointments = db.tables.appointments.filter((row) => row.id === 'boundary');
+    renderAt('/c');
+    expect(await screen.findByText(t.customer.noUpcoming)).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: t.customer.cancelledTitle })).toBeNull();
+  });
+
+  it('undoes the cancel, reloads and says the appointment is booked again', async () => {
+    fakeSupabase.rpc.mockImplementationOnce(async () => {
+      const row = db.tables.appointments.find((appointment) => appointment.id === 'open');
+      if (row !== undefined) row.status = 'booked';
+      return { data: null, error: null };
+    });
+    renderAt('/c');
+    await userEvent.click(await undoButton(open));
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('undo_cancel', { p_appointment_id: 'open' });
+    expect(await screen.findByRole('status')).toHaveTextContent(t.customer.restored);
+    const section = await cancelledSection();
+    await waitFor(() =>
+      expect(within(section).queryByRole('listitem', { name: slotLabel(open) })).toBeNull(),
+    );
+    const upcoming = screen.getByRole('region', { name: t.customer.nextLabel });
+    expect(upcoming).toHaveTextContent(slotLabel(open));
+  });
+
+  it('shows the error and keeps the appointment listed when the undo fails', async () => {
+    fakeSupabase.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'AMRAP_NOT_UNDOABLE: the cutoff has passed' },
+    });
+    renderAt('/c');
+    await userEvent.click(await undoButton(open));
+    const section = await cancelledSection();
+    expect(await within(section).findByRole('alert')).toHaveTextContent(
+      errorMessages.AMRAP_NOT_UNDOABLE,
+    );
+    expect(within(section).getByRole('listitem', { name: slotLabel(open) })).toBeInTheDocument();
+  });
+
+  it('clears an earlier success line when a later undo fails', async () => {
+    fakeSupabase.rpc
+      .mockImplementationOnce(async () => {
+        const row = db.tables.appointments.find((appointment) => appointment.id === 'open');
+        if (row !== undefined) row.status = 'booked';
+        return { data: null, error: null };
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: 'AMRAP_NOT_UNDOABLE: the cutoff has passed' },
+      });
+    renderAt('/c');
+    await userEvent.click(await undoButton(open));
+    expect(await screen.findByRole('status')).toHaveTextContent(t.customer.restored);
+    await waitFor(async () => expect(await undoButton(later)).toBeEnabled());
+    await userEvent.click(await undoButton(later));
+    const section = await cancelledSection();
+    expect(await within(section).findByRole('alert')).toHaveTextContent(
+      errorMessages.AMRAP_NOT_UNDOABLE,
+    );
+    expect(screen.queryByText(t.customer.restored)).toBeNull();
+  });
+
+  it('does not list a cancel when a booked appointment starts at the same time', async () => {
+    db.tables.appointments.push(appointmentRow('rebooked', open, 'booked'));
+    renderAt('/c');
+    const items = within(await cancelledSection()).getAllByRole('listitem');
+    expect(items.map((item) => item.getAttribute('aria-label'))).toEqual([slotLabel(later)]);
   });
 });
 

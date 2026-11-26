@@ -9,6 +9,7 @@ const URLS: Record<NotificationKind, string> = {
   credit_topup: '/c/zgodovina',
   credit_adjustment: '/c/zgodovina',
   appointment_cancelled_by_trainer: '/c/zgodovina',
+  booking_restored: '/t',
 };
 
 export function buildPush(row: ClaimedRow, now: Date): BuiltPush {

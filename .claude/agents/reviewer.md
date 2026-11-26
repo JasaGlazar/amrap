@@ -13,7 +13,7 @@ confirmed) and the "Binding constraints" section of `docs/harness.md`.
 ## Checklist
 
 1. **Spec vs PLAN.md.** Does the diff do what the brief asks, nothing missing and nothing
-   extra? Do statuses, transaction types, defaults (cutoff 5 h, slot 60 min, capacity 5,
+   extra? Do statuses, transaction types, defaults (cutoff 8 h, slot 60 min, capacity 5,
    timezone `Europe/Ljubljana`) and names (`book`, `cancel`, `top_up`, `adjust`,
    `charge_due_appointments`, `create_invite`, `accept_invite`, `current_customer_id()`,
    `is_trainer()`, `customer_balances`) match exactly?

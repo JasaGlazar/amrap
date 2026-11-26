@@ -12,6 +12,7 @@ import {
   db,
   emitAuth,
   fakeSupabase,
+  holdTable,
   makeCustomer,
   makeSession,
   resetFake,
@@ -203,8 +204,10 @@ describe('shells', () => {
 
   it('shows the customer navigation', async () => {
     signedInAs(customer);
+    db.settings.customer_booking_enabled = true;
     renderAt('/c');
-    const nav = await screen.findByRole('navigation', { name: t.nav.customerLabel });
+    await screen.findByRole('link', { name: t.nav.calendar });
+    const nav = screen.getByRole('navigation', { name: t.nav.customerLabel });
     const labels = within(nav)
       .getAllByRole('link')
       .map((link) => link.textContent);
@@ -322,6 +325,87 @@ describe('shells', () => {
     db.balance = -2;
     renderAt('/c');
     expect(await screen.findByText(formatBalance(db.balance))).toHaveClass('negative');
+  });
+});
+
+describe('customer booking switch', () => {
+  const navLabels = async () => {
+    const nav = await screen.findByRole('navigation', { name: t.nav.customerLabel });
+    return within(nav)
+      .getAllByRole('link')
+      .map((link) => link.textContent);
+  };
+
+  it('leaves the calendar out of the navigation while booking is off', async () => {
+    signedInAs(customer);
+    db.settings.customer_booking_enabled = false;
+    renderAt('/c');
+    await screen.findByRole('heading', { name: t.nav.home });
+    expect(await navLabels()).toEqual([t.nav.home, t.nav.history]);
+  });
+
+  it('sends /c/koledar to /c while booking is off', async () => {
+    signedInAs(customer);
+    db.settings.customer_booking_enabled = false;
+    const router = renderAt('/c/koledar');
+    await screen.findByRole('heading', { name: t.nav.home });
+    expect(router.state.location.pathname).toBe('/c');
+    expect(
+      screen.queryByRole('heading', { name: t.customer.calendarTitle }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('opens /c/koledar while booking is on', async () => {
+    signedInAs(customer);
+    db.settings.customer_booking_enabled = true;
+    const router = renderAt('/c/koledar');
+    await screen.findByRole('heading', { name: t.customer.calendarTitle });
+    expect(router.state.location.pathname).toBe('/c/koledar');
+  });
+
+  it('treats booking as off when the settings read fails, and Home still renders', async () => {
+    signedInAs(customer);
+    db.settings.customer_booking_enabled = true;
+    db.settingsError = { message: 'paused' };
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const router = renderAt('/c/koledar');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/c'));
+    expect(await screen.findByText(t.common.loadFailed)).toBeInTheDocument();
+    expect(await navLabels()).toEqual([t.nav.home, t.nav.history]);
+    expect(
+      screen.queryByRole('heading', { name: t.customer.calendarTitle }),
+    ).not.toBeInTheDocument();
+    warn.mockRestore();
+  });
+
+  it('neither shows nor leaves /c/koledar while the settings load', async () => {
+    signedInAs(customer);
+    db.settings.customer_booking_enabled = true;
+    const release = holdTable('settings');
+    const router = renderAt('/c/koledar');
+    await screen.findByRole('navigation', { name: t.nav.customerLabel });
+    expect(await navLabels()).toEqual([t.nav.home, t.nav.history]);
+    expect(
+      screen.queryByRole('heading', { name: t.customer.calendarTitle }),
+    ).not.toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/c/koledar');
+    release();
+    await screen.findByRole('heading', { name: t.customer.calendarTitle });
+    expect(router.state.location.pathname).toBe('/c/koledar');
+    expect(await navLabels()).toEqual([t.nav.home, t.nav.calendar, t.nav.history]);
+  });
+
+  it('keeps Home working while the settings load', async () => {
+    signedInAs(customer);
+    db.settings.customer_booking_enabled = true;
+    const release = holdTable('settings');
+    renderAt('/c');
+    await screen.findByRole('navigation', { name: t.nav.customerLabel });
+    expect(screen.getByText(t.common.loading)).toBeInTheDocument();
+    expect(await navLabels()).toEqual([t.nav.home, t.nav.history]);
+    release();
+    await screen.findByRole('heading', { name: t.nav.home });
+    expect(await navLabels()).toEqual([t.nav.home, t.nav.calendar, t.nav.history]);
   });
 });
 

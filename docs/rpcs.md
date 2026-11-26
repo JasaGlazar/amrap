@@ -32,19 +32,21 @@ app relies on.
 | Token | Meaning | Raised by |
 |---|---|---|
 | `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record or gives a cancel reason (`cancel`), or (`accept_invite`) there is no signed-in user | all except `charge_due_appointments`, `send_cutoff_reminders`, `prune_cron_history` and `claim_notifications` |
-| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record; for `cancel` and `cancel_occurrence`: a reason over 200 characters) | `book`, `cancel`, `cancel_occurrence`, `top_up`, `adjust`, `create_invite`, `materialize_recurring`, `save_push_subscription` |
-| `AMRAP_NOT_FOUND` | The referenced customer, slot template, appointment or recurring rule does not exist | `book`, `cancel`, `cancel_occurrence`, `top_up`, `adjust`, `create_invite`, `activate_rule`, `deactivate_rule` |
-| `AMRAP_SLOT_INACTIVE` | The slot template is deactivated | `book`, `cancel_occurrence` |
+| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record; for `cancel` and `cancel_occurrence`: a reason over 200 characters) | `book`, `cancel`, `undo_cancel`, `cancel_occurrence`, `top_up`, `adjust`, `create_invite`, `materialize_recurring`, `save_push_subscription` |
+| `AMRAP_NOT_FOUND` | The referenced customer, slot template, appointment or recurring rule does not exist | `book`, `cancel`, `undo_cancel`, `cancel_occurrence`, `top_up`, `adjust`, `create_invite`, `activate_rule`, `deactivate_rule` |
+| `AMRAP_SLOT_INACTIVE` | The slot template is deactivated | `book`, `undo_cancel`, `cancel_occurrence` |
 | `AMRAP_IN_PAST` | A customer tried to book a start that is not in the future | `book` |
 | `AMRAP_SLOT_MISMATCH` | The start is not on the template's weekday and start time (in `settings.timezone`), so it is not an occurrence | `book`, `cancel_occurrence` |
-| `AMRAP_BLOCKED` | The appointment `[starts_at, ends_at)` overlaps a blocked period (`cancel_occurrence`: the occurrence is already closed) | `book`, `cancel_occurrence` |
-| `AMRAP_CAPACITY_FULL` | The slot occurrence already has `capacity` live appointments | `book` |
-| `AMRAP_ALREADY_BOOKED` | The customer already has a live (`booked`/`charged`) appointment at that start | `book` |
+| `AMRAP_BLOCKED` | The appointment `[starts_at, ends_at)` overlaps a blocked period (`cancel_occurrence`: the occurrence is already closed) | `book`, `undo_cancel`, `cancel_occurrence` |
+| `AMRAP_CAPACITY_FULL` | The slot occurrence already has `capacity` live appointments | `book`, `undo_cancel` |
+| `AMRAP_ALREADY_BOOKED` | The customer already has a live (`booked`/`charged`) appointment at that start | `book`, `undo_cancel` |
 | `AMRAP_INVITE_INVALID` | The invite token is unknown, empty, replaced by a newer invite, already redeemed (redeeming clears it) or expired | `accept_invite` |
 | `AMRAP_INVITE_USED` | The token belongs to a customer record that is already linked | `accept_invite` |
 | `AMRAP_ALREADY_LINKED` | The customer record already has an account (`create_invite`), or the caller is already linked to a customer (`accept_invite`) | `create_invite`, `accept_invite` |
-| `AMRAP_SETTINGS_MISSING` | The `settings` row (`id = 1`) is missing, so the timezone or cutoff is unknown; the call fails closed | `book` (with a template), `cancel` (customer), `cancel_occurrence`, `materialize_recurring` (when there is an active rule) |
+| `AMRAP_BOOKING_DISABLED` | A customer tried to book while customer booking is turned off (`settings.customer_booking_enabled` is false) | `book` |
+| `AMRAP_SETTINGS_MISSING` | The `settings` row (`id = 1`) is missing, so the timezone, cutoff or booking setting is unknown; the call fails closed | `book` (customer, or trainer with a template), `cancel` (customer), `undo_cancel`, `cancel_occurrence`, `materialize_recurring` (when there is an active rule) |
 | `AMRAP_NOT_CANCELLABLE` | The appointment is not in a state the caller may cancel (customer: not `booked` or already started; anyone: already cancelled) | `cancel` |
+| `AMRAP_NOT_UNDOABLE` | The cancel cannot be undone: the appointment is not `cancelled` (a free customer cancel), the cutoff has passed, or its recurring rule is no longer active | `undo_cancel` |
 
 ## book
 
@@ -57,12 +59,16 @@ public.book(p_customer_id uuid, p_starts_at timestamptz,
   trainer for any customer.
 - **Rules, in the order they are checked:**
   1. A customer may book only themselves (`AMRAP_FORBIDDEN`).
-  2. Arguments (`AMRAP_INVALID_ARGUMENT`): `p_customer_id` and `p_starts_at` are required. A
+  2. A customer may book only while `settings.customer_booking_enabled` is true
+     (`AMRAP_BOOKING_DISABLED`); a missing `settings` row fails closed
+     (`AMRAP_SETTINGS_MISSING`). The trainer skips this check. (Since
+     `20261119123322_customer_booking_switch.sql`, [ADR 0018](adr/0018-customers-do-not-book-in-first-release.md).)
+  3. Arguments (`AMRAP_INVALID_ARGUMENT`): `p_customer_id` and `p_starts_at` are required. A
      customer must pass `p_slot_template_id`. `p_ends_at` is allowed only without a template
      (ad hoc, trainer only), and then it is required and must be after `p_starts_at`. With a
      template the duration always comes from the template.
-  3. The customer must exist (`AMRAP_NOT_FOUND`).
-  4. With a template: it must exist (`AMRAP_NOT_FOUND`) and be active (`AMRAP_SLOT_INACTIVE`);
+  4. The customer must exist (`AMRAP_NOT_FOUND`).
+  5. With a template: it must exist (`AMRAP_NOT_FOUND`) and be active (`AMRAP_SLOT_INACTIVE`);
      for a customer `p_starts_at` must be in the future (`AMRAP_IN_PAST`; the trainer may book
      past occurrences); `p_starts_at` in `settings.timezone` must fall on the template's
      `weekday` (`isodow - 1`) at its `start_time` (`AMRAP_SLOT_MISMATCH`). If the `settings`
@@ -71,22 +77,22 @@ public.book(p_customer_id uuid, p_starts_at timestamptz,
      it maps to two instants and both match; a `start_time` inside the spring-forward gap does
      not exist that day, so no instant matches and that occurrence cannot be booked from the
      template (the trainer can book it ad hoc).
-  5. With a template: takes `pg_advisory_xact_lock(hashtext(template_id || '@' ||
-     epoch(p_starts_at)))`, so concurrent bookings of one occurrence, materialization and
-     `cancel_occurrence()` are serialized. (The lock key uses the epoch rather than
+  6. With a template: takes `pg_advisory_xact_lock(hashtext(template_id || '@' ||
+     epoch(p_starts_at)))`, so concurrent bookings of one occurrence, materialization,
+     `cancel_occurrence()` and `undo_cancel()` are serialized. (The lock key uses the epoch rather than
      `p_starts_at::text` so it does not depend on the session's `TimeZone`.) Since
      `20261024222414_cancel_occurrence.sql` the lock comes before the blocked check, so a
      booking that waited on a `cancel_occurrence()` sees the blocked period it committed.
-  6. The appointment must not overlap a blocked period: `tstzrange(p_starts_at, ends_at) &&
+  7. The appointment must not overlap a blocked period: `tstzrange(p_starts_at, ends_at) &&
      tstzrange(b.starts_at, b.ends_at)`, both half-open, where `ends_at` is the start plus the
      template's duration or `p_ends_at` (`AMRAP_BLOCKED`). An appointment that starts before a
      blocked period but runs into it is rejected; one that ends exactly when the period starts
      is allowed. Applies to the trainer and to ad-hoc bookings too. (Since
      `20261023192556_recurring_and_jobs.sql`; before, only the start was checked.)
-  7. With a template: counts appointments of that template at that start with status `booked`
+  8. With a template: counts appointments of that template at that start with status `booked`
      or `charged`. If the count is `>= capacity` the booking fails (`AMRAP_CAPACITY_FULL`), for
      the trainer too. Ad-hoc bookings have no capacity.
-  8. Insert; a second live booking of the same customer at the same start hits
+  9. Insert; a second live booking of the same customer at the same start hits
      `appointments_one_live_booking_idx` and is reported as `AMRAP_ALREADY_BOOKED`.
 - **Side effects:** inserts one `appointments` row: `status = 'booked'`,
   `source = 'trainer'` when the trainer calls, else `'self_booked'`;
@@ -139,6 +145,53 @@ public.cancel(p_appointment_id uuid, p_reason text default null) returns void
   trainer is never notified of their own cancel.
 - **Diagrams:** [architecture/appointment-states.md](architecture/appointment-states.md),
   [architecture/charging-sequence.md](architecture/charging-sequence.md).
+
+## undo_cancel
+
+```sql
+public.undo_cancel(p_appointment_id uuid) returns void
+```
+
+Restores a customer's own free cancel, so a customer who cancelled a fixed appointment by
+mistake gets it back. Customers do not book in the first release
+([ADR 0018](adr/0018-customers-do-not-book-in-first-release.md)), so this is their only way
+back. Defined in `20261119125501_undo_cancel.sql`.
+
+- **Who may call:** a customer for their own appointment. The trainer is rejected even though
+  the trainer has a customer record; the trainer books the customer again with `book()`.
+- **Rules, in the order they are checked:**
+  1. `p_appointment_id` is required (`AMRAP_INVALID_ARGUMENT`).
+  2. The caller must be a linked customer who is not the trainer (`AMRAP_FORBIDDEN`).
+  3. Reads the appointment with `select ... for update` (`AMRAP_NOT_FOUND`), so a second undo
+     or a `cancel()` of the same row waits.
+  4. The appointment must be the caller's own (`AMRAP_FORBIDDEN`).
+  5. Status must be `cancelled` (`AMRAP_NOT_UNDOABLE`). A `cancelled_late` or
+     `cancelled_by_trainer` appointment cannot be restored, and nor can `booked` or `charged`.
+  6. With `cutoff = settings.late_cancel_hours` (missing row → `AMRAP_SETTINGS_MISSING`),
+     `now() < starts_at - cutoff` must hold, the same strict comparison as `cancel()`; at the
+     cutoff instant or later → `AMRAP_NOT_UNDOABLE`.
+  7. An instance of a recurring rule (`rule_id` set) needs the rule to be active
+     (`AMRAP_NOT_UNDOABLE`). The rule row is read `for share`, so a concurrent
+     `deactivate_rule()` either waits for the undo (and then cancels the restored instance) or
+     wins (and the undo is refused).
+  8. With a template: it must be active (`AMRAP_SLOT_INACTIVE`), then the call takes `book()`'s
+     advisory lock for the occurrence (`hashtext(template_id || '@' || epoch(starts_at))`).
+  9. `[starts_at, ends_at)` must not overlap a blocked period (`AMRAP_BLOCKED`). As in `book()`,
+     this check runs under the lock, so an undo that waited on `cancel_occurrence()` sees the
+     blocked period it committed ([ADR 0016](adr/0016-cancel-occurrence-closes-it.md)).
+     Ad-hoc appointments take no lock.
+  10. With a template: the `booked` and `charged` appointments of that template at that start
+      must be fewer than `capacity` (`AMRAP_CAPACITY_FULL`). Ad-hoc appointments have no
+      capacity. Because the count runs under the lock, an undo and a `book()` for the last
+      place cannot both win.
+  11. The customer must not have another live appointment at `starts_at`
+      (`appointments_one_live_booking_idx`, reported as `AMRAP_ALREADY_BOOKED`).
+- **Side effects:** the same row goes back to `status = 'booked'` with `cancelled_at = null`.
+  No credit transaction: the free cancel wrote none, and the charge job charges the restored
+  appointment at its start as usual (one `session` row). The trainer is notified
+  (`booking_restored`) by trigger and best effort
+  ([notifications.md](notifications.md#event-notifications)).
+- **Diagram:** [architecture/appointment-states.md](architecture/appointment-states.md).
 
 ## cancel_occurrence
 
@@ -500,7 +553,15 @@ grant for the role that fires it). See [notifications.md](notifications.md#event
   `appointments_notify_booking_cancelled` (`after update of status`, `booked` → `cancelled` or
   `cancelled_late`): enqueues `booking_cancelled` for the trainer. The recipient is one
   trainer record, the earliest created one with a push subscription (ties by id), matching the
-  one-row-per-`(kind, appointment_id)` key; the domain has a single trainer.
+  one-row-per-`(kind, appointment_id)` key; the domain has a single trainer. Since
+  `20261119131643_booking_restored_notification.sql` it first deletes the appointment's
+  earlier `booking_cancelled` row, so a cancel after an undo is pushed again.
+- `public.notify_booking_restored() returns trigger` — trigger
+  `appointments_notify_booking_restored` (`after update of status`, `cancelled` → `booked`, which
+  only `undo_cancel()` does), defined in `20261119131643_booking_restored_notification.sql`:
+  deletes the appointment's earlier `booking_restored` row, then enqueues `booking_restored`
+  for the trainer with `customer_name`, `starts_at` and `timezone`. Same recipient as
+  `notify_booking_cancelled()`.
 - `public.notify_credit_change() returns trigger` — trigger
   `credit_transactions_notify_credit_change` (`after insert`, `type in ('topup',
   'adjustment')`): enqueues `credit_topup` or `credit_adjustment` for the customer with the
@@ -514,5 +575,5 @@ grant for the role that fires it). See [notifications.md](notifications.md#event
   already run, and every trainer cancel of a charged appointment refunds it.
 
 Each trigger function, like `enqueue_notification` itself, catches every error and reports it
-with `raise warning`, so a notification problem never fails `book`, `cancel`,
-`deactivate_rule`, `top_up` or `adjust`.
+with `raise warning`, so a notification problem never fails `book`, `cancel`, `undo_cancel`,
+`cancel_occurrence`, `deactivate_rule`, `top_up` or `adjust`.

@@ -85,6 +85,14 @@ export function CancelDialog({
             <p className={free ? 'notice' : 'notice late'}>
               {free ? t.cancelDialog.free : t.cancelDialog.late}
             </p>
+            {free && (
+              <p>
+                {fill(t.cancelDialog.undoNote, {
+                  day: formatDay(cutoff, timeZone),
+                  time: formatTime(cutoff, timeZone),
+                })}
+              </p>
+            )}
           </>
         )}
         {error !== null && (

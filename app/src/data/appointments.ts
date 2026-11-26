@@ -53,6 +53,22 @@ export async function upcomingAppointments(
   return data.map(toAppointment);
 }
 
+export async function futureCancelledAppointments(
+  client: Client,
+  customerId: string,
+  now: Date,
+): Promise<Appointment[]> {
+  const { data, error } = await client
+    .from('appointments')
+    .select(columns)
+    .eq('customer_id', customerId)
+    .eq('status', 'cancelled')
+    .gt('starts_at', now.toISOString())
+    .order('starts_at');
+  if (error) throw error;
+  return data.map(toAppointment);
+}
+
 export async function pastAppointments(
   client: Client,
   customerId: string,
@@ -122,6 +138,13 @@ export function cancel(client: Client, appointmentId: string, reason = ''): Prom
         : { p_appointment_id: appointmentId, p_reason: trimmed },
     );
     return { data: undefined, error };
+  });
+}
+
+export function undoCancel(client: Client, appointmentId: string): Promise<ActionResult<null>> {
+  return runAction(async () => {
+    const { error } = await client.rpc('undo_cancel', { p_appointment_id: appointmentId });
+    return { data: null, error };
   });
 }
 

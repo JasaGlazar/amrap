@@ -59,6 +59,20 @@ describe('renderNotification', () => {
     });
   });
 
+  it('tells the trainer about a restored booking', () => {
+    const data = {
+      appointment_id: appointmentId,
+      customer_name: 'Ana Novak',
+      starts_at: startsAt,
+      timezone: tz,
+    };
+    expect(renderNotification('booking_restored', data)).toEqual({
+      title: t.push.bookingRestoredTitle,
+      body: fill(t.push.bookingBody, { name: 'Ana Novak', ...when(startsAt) }),
+      tag: `booking_restored:${appointmentId}`,
+    });
+  });
+
   it('tells the customer about a top-up with the new balance', () => {
     const data = { transaction_id: 'tx-1', amount: 8, note: null, balance: 7 };
     expect(renderNotification('credit_topup', data)).toEqual({

@@ -24,11 +24,12 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 
 | Function | Source | Filter and order |
 |---|---|---|
-| `getSettings(client)` | `settings` | `id = 1`; returns `{ lateCancelHours, timeZone }`; throws when the row is missing |
+| `getSettings(client)` | `settings` | `id = 1`; returns `{ lateCancelHours, timeZone, customerBookingEnabled }`; throws when the row is missing |
 | `activeTemplates(client)` | `slot_templates` | `active = true`, by `weekday`, `start_time` |
 | `occupancyBetween(client, from, to)` | `slot_occupancy` | `from <= starts_at < to`. An occurrence nobody booked has no row: its count is 0. |
 | `blockedBetween(client, from, to)` | `blocked_periods` | overlaps `[from, to)`: `starts_at < to` and `ends_at > from` |
 | `upcomingAppointments(client, customerId, now)` | `appointments` | mine, `status = 'booked'`, `starts_at > now`, soonest first |
+| `futureCancelledAppointments(client, customerId, now)` | `appointments` | mine, `status = 'cancelled'` (a free cancel), `starts_at > now`, soonest first; the customer Home filters these by the cutoff, and drops any that start at the same time as an upcoming appointment, to offer an undo |
 | `pastAppointments(client, customerId, now, from?)` | `appointments` | mine and not upcoming: `status <> 'booked'` or `starts_at <= now` (so a cancelled future appointment is history too), newest first; [paged](#paged-reads) |
 | `liveAppointmentsBetween(client, from, to, customerId?)` | `appointments` | `status in ('booked', 'charged')`, `from <= starts_at < to`, by start; only that customer's when `customerId` is given (the trainer omits it) |
 | `balanceOf(client, customerId)` | `customer_balances` | my row; 0 when there is none |
@@ -88,7 +89,8 @@ another weekday or time.
 
 `upcomingAppointments` and `pastAppointments` split my appointments into two disjoint sets: an
 appointment that has started but is not charged yet (the charge job runs every 15 minutes) is
-already history.
+already history. `futureCancelledAppointments` is a subset of `pastAppointments`: a free cancel
+in the future stays in History and is also offered for undo on Home.
 
 ## Actions
 
@@ -97,6 +99,7 @@ already history.
 | `book(client, { customerId, startsAt, slotTemplateId })` | `book` | `p_customer_id`, `p_starts_at` (`startsAt.toISOString()`), `p_slot_template_id` |
 | `book(client, { customerId, startsAt, endsAt })` | `book` | ad hoc (trainer): `p_customer_id`, `p_starts_at`, `p_ends_at`, no template |
 | `cancel(client, appointmentId, reason?)` | `cancel` | `p_appointment_id`, plus `p_reason` (trimmed) only when the reason is not blank, so a customer's call never carries one |
+| `undoCancel(client, appointmentId)` | `undo_cancel` | `p_appointment_id`; `data` is null. The database decides whether the undo is allowed (`AMRAP_NOT_UNDOABLE`, `AMRAP_CAPACITY_FULL`) |
 | `cancelOccurrence(client, { templateId, startsAt, reason })` | `cancel_occurrence` | `p_template_id`, `p_starts_at`, plus `p_reason` (trimmed) only when not blank; `data` is the number cancelled |
 | `topUp(client, customerId, amount, note)` | `top_up` | `p_customer_id`, `p_amount`, `p_note` (omitted when null) |
 | `adjust(client, customerId, amount, note)` | `adjust` | same as `topUp` |

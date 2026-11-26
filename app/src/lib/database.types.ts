@@ -357,16 +357,19 @@ export type Database = {
       }
       settings: {
         Row: {
+          customer_booking_enabled: boolean
           id: number
           late_cancel_hours: number
           timezone: string
         }
         Insert: {
+          customer_booking_enabled?: boolean
           id?: number
           late_cancel_hours?: number
           timezone?: string
         }
         Update: {
+          customer_booking_enabled?: boolean
           id?: number
           late_cancel_hours?: number
           timezone?: string
@@ -502,6 +505,7 @@ export type Database = {
         Args: { p_amount: number; p_customer_id: string; p_note?: string }
         Returns: string
       }
+      undo_cancel: { Args: { p_appointment_id: string }; Returns: undefined }
     }
     Enums: {
       appointment_source: "recurring" | "self_booked" | "trainer"
@@ -519,6 +523,7 @@ export type Database = {
         | "credit_topup"
         | "credit_adjustment"
         | "appointment_cancelled_by_trainer"
+        | "booking_restored"
       transaction_type:
         | "topup"
         | "session"
@@ -671,6 +676,7 @@ export const Constants = {
         "credit_topup",
         "credit_adjustment",
         "appointment_cancelled_by_trainer",
+        "booking_restored",
       ],
       transaction_type: [
         "topup",
