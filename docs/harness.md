@@ -226,10 +226,12 @@ How to run, in `app/`:
 2. Install Chromium once: `npx playwright install chromium`.
 3. Run `npm run e2e`. `npm run e2e:ui` opens Playwright's UI.
 
-`npm run e2e` builds the app with `vite build --mode e2e`, serves it with `vite preview` on
-port 4173 and runs the tests. The build gets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
-as process environment variables, so it never loads `app/.env.production.local` (the hosted
-project). The HTML report goes to `app/playwright-report/` (open it with
+`npm run e2e` builds the app with `vite build --mode e2e` into `app/dist-e2e`, serves it with
+`vite preview` on port 4173 and runs the tests. The own output folder keeps a production build
+in `app/dist` safe. The build gets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as process
+environment variables. Mode `e2e` keeps `app/.env.production.local` (the hosted project) out.
+In mode `e2e`, `app/vite.config.ts` also sets `envDir: false`, so the build reads no `.env`
+file at all, not even `app/.env.local`. `app/dist-e2e` is ignored by git. The HTML report goes to `app/playwright-report/` (open it with
 `npx playwright show-report`); traces and other output go to `app/test-results/`. Both are
 ignored by git.
 
@@ -237,21 +239,31 @@ ignored by git.
 uses the local stack's demo values when they are not set. It throws when the URL's host is not
 `127.0.0.1` or `localhost`. A global setup (`app/e2e/global-setup.ts`) calls the local REST
 endpoint once and stops the run with `Local Supabase is not running. Run "supabase start"
-first.` when nothing answers.
+first.` when nothing answers or the endpoint answers with status 500 or higher.
+
+Every browser context in a test blocks requests to hosts other than `127.0.0.1` and
+`localhost` (`LOCAL_HOSTS` in `app/e2e/env.ts`). The fixtures abort such a request and record
+its host. After the test, the test fails with a message that lists the hosts. The default
+`page` gets this through the fixtures. For a second user in the same test, use
+`newGuardedPage()` from the fixtures; do not make a context with `browser.newContext()`.
 
 How the fixtures in `app/e2e/fixtures.ts` make data:
 
 - `customer`: a new auth user (admin API, email confirmed) and its linked `customers` row,
   with a unique email `e2e-<random>@test.local`. After the test the fixture deletes the
   customer's credit transactions, appointments and recurring rules (in that order, because of
-  the foreign keys), then the row and the auth user.
+  the foreign keys), then the row and the auth user. It deletes the credit transactions again
+  after the appointments, because a charge job can add one in between.
 - `slotTemplate`: a new active slot template, made as the trainer: Thursday (weekday 3),
   capacity 5, start time 12:00 plus a random minute (12:00 to 12:59). The random minute keeps
-  sessions of tests that run at the same time apart on screen. The template is deactivated
-  after the test.
+  sessions of tests that run at the same time apart on screen. After the test the fixture
+  deletes the credit transactions of the template's appointments, the appointments, the
+  recurring rules and then the template. When the template delete fails, it deactivates the
+  template instead.
 - `fixedAppointment`: a recurring rule for `customer` on `slotTemplate`, made as the trainer
   with the same calls as `addRule` in `app/src/data/rules.ts` (insert the rule, then
-  `activate_rule`). It gives the template id, the rule id and the start time.
+  `activate_rule`). It fails when `activate_rule` creates no appointments. It gives the
+  template id, the rule id and the start time.
 - `signIn(page, who)`: fills the real login page and waits for the role's home (`/t` or `/c`).
 - `TRAINER`: the seeded `trainer@amrap.local` from `supabase/seeds/dev.sql`.
 
@@ -274,6 +286,6 @@ Rules that keep the tests stable:
 
 | File | Covers |
 |---|---|
-| `auth.spec.ts` | the trainer lands on `/t` and a customer on `/c` after sign-in; a wrong password shows the invalid-credentials error; a customer who opens `/t` is sent to `/c`; every auth and REST request during a sign-in goes to `127.0.0.1` or `localhost` |
+| `auth.spec.ts` | the trainer lands on `/t` and a customer on `/c` after sign-in; a wrong password shows the invalid-credentials error; a customer who opens `/t` is sent to `/c`; during a customer sign-in the app sends at least one auth and one REST request, all to `127.0.0.1` or `localhost` |
 | `customer.spec.ts` | a customer with a fixed appointment sees at least three upcoming rows on Home; they cancel the last one, it moves to the cancelled list, they undo it and it is back in the upcoming list with the "restored" status; next week's calendar shows free places on their session and no book button |
 | `trainer.spec.ts` | the trainer adds a fixed appointment on the customer's page, then the customer (in a second browser context) sees it on Home; the trainer cancels the customer's next appointment with a reason, then the customer sees it in History as cancelled by the trainer, with the reason |

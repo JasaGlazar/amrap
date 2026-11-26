@@ -1,9 +1,9 @@
 import { randomInt, randomUUID } from 'node:crypto';
-import { test as base, expect, type Page } from '@playwright/test';
+import { test as base, devices, expect, type BrowserContext, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../src/lib/database.types';
 import { sl } from '../src/i18n/sl';
-import { env } from './env';
+import { env, LOCAL_HOSTS } from './env';
 
 type Client = SupabaseClient<Database>;
 type Credentials = { email: string; password: string };
@@ -20,13 +20,28 @@ function newClient(key: string): Client {
   return createClient<Database>(env.supabaseUrl, key, clientOptions);
 }
 
-async function bestEffort(what: string, step: () => PromiseLike<{ error: unknown }>) {
+async function bestEffort(
+  what: string,
+  step: () => PromiseLike<{ error: unknown }>,
+): Promise<boolean> {
   try {
     const { error } = await step();
-    if (error) console.warn(`e2e cleanup: ${what} failed`, error);
+    if (!error) return true;
+    console.warn(`e2e cleanup: ${what} failed`, error);
   } catch (error) {
     console.warn(`e2e cleanup: ${what} failed`, error);
   }
+  return false;
+}
+
+// data: and blob: URLs have no host and never leave the browser.
+async function blockNonLocalRequests(context: BrowserContext, blocked: Set<string>) {
+  await context.route('**/*', (route) => {
+    const host = new URL(route.request().url()).hostname;
+    if (host === '' || LOCAL_HOSTS.includes(host)) return route.fallback();
+    blocked.add(host);
+    return route.abort('blockedbyclient');
+  });
 }
 
 export async function signIn(page: Page, who: Credentials): Promise<void> {
@@ -38,6 +53,8 @@ export async function signIn(page: Page, who: Credentials): Promise<void> {
 }
 
 type TestFixtures = {
+  blockedHosts: Set<string>;
+  newGuardedPage: () => Promise<Page>;
   customer: Customer;
   slotTemplate: SlotTemplate;
   fixedAppointment: FixedAppointment;
@@ -65,6 +82,37 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     { scope: 'worker' },
   ],
 
+  // Fails the test after it ran when any of its pages sent a request outside the local stack.
+  blockedHosts: async ({}, use) => {
+    const blocked = new Set<string>();
+    await use(blocked);
+    if (blocked.size > 0) {
+      throw new Error(
+        `e2e: blocked requests to hosts outside the local stack: ${[...blocked].join(', ')}`,
+      );
+    }
+  },
+
+  context: async ({ context, blockedHosts }, use) => {
+    await blockNonLocalRequests(context, blockedHosts);
+    await use(context);
+  },
+
+  // A page in a second browser context, for a second user in the same test.
+  newGuardedPage: async ({ browser, blockedHosts }, use, testInfo) => {
+    const contexts: BrowserContext[] = [];
+    await use(async () => {
+      const context = await browser.newContext({
+        ...devices['Pixel 7'],
+        baseURL: testInfo.project.use.baseURL,
+      });
+      contexts.push(context);
+      await blockNonLocalRequests(context, blockedHosts);
+      return context.newPage();
+    });
+    for (const context of contexts) await context.close();
+  },
+
   customer: async ({ admin }, use) => {
     const tag = randomUUID().slice(0, 8);
     const email = `e2e-${tag}@test.local`;
@@ -88,13 +136,17 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
     await use({ id, name, email, password });
 
-    // The customer row cannot go while rows that reference it remain.
-    await bestEffort('deleting credit transactions', () =>
-      admin.from('credit_transactions').delete().eq('customer_id', id),
-    );
+    // The customer row cannot go while rows that reference it remain. A charge job can add a
+    // credit transaction while the appointments are deleted, so the transactions go twice.
+    const deleteTransactions = () =>
+      bestEffort('deleting credit transactions', () =>
+        admin.from('credit_transactions').delete().eq('customer_id', id),
+      );
+    await deleteTransactions();
     await bestEffort('deleting appointments', () =>
       admin.from('appointments').delete().eq('customer_id', id),
     );
+    await deleteTransactions();
     await bestEffort('deleting recurring rules', () =>
       admin.from('recurring_rules').delete().eq('customer_id', id),
     );
@@ -105,7 +157,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   },
 
   // Thursday 12:xx: a random minute keeps parallel tests' sessions apart on screen.
-  slotTemplate: async ({ trainerClient }, use) => {
+  slotTemplate: async ({ admin, trainerClient }, use) => {
     const weekday = 3;
     const startTime = `12:${String(randomInt(60)).padStart(2, '0')}`;
     const template = await trainerClient
@@ -119,9 +171,26 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
     await use({ id, weekday, startTime });
 
-    await bestEffort('deactivating the slot template', () =>
-      trainerClient.from('slot_templates').update({ active: false }).eq('id', id),
+    // The template is this test's own, so every row that references it is too.
+    const appointments = await admin.from('appointments').select('id').eq('slot_template_id', id);
+    const appointmentIds = (appointments.data ?? []).map((row) => row.id);
+    await bestEffort("deleting the template's credit transactions", () =>
+      admin.from('credit_transactions').delete().in('appointment_id', appointmentIds),
     );
+    await bestEffort("deleting the template's appointments", () =>
+      admin.from('appointments').delete().eq('slot_template_id', id),
+    );
+    await bestEffort("deleting the template's recurring rules", () =>
+      admin.from('recurring_rules').delete().eq('slot_template_id', id),
+    );
+    const deleted = await bestEffort('deleting the slot template', () =>
+      admin.from('slot_templates').delete().eq('id', id),
+    );
+    if (!deleted) {
+      await bestEffort('deactivating the slot template', () =>
+        admin.from('slot_templates').update({ active: false }).eq('id', id),
+      );
+    }
   },
 
   // The same calls as addRule in src/data/rules.ts, made as the trainer.
@@ -134,6 +203,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     if (rule.error) throw new Error(`e2e: creating a recurring rule failed: ${rule.error.message}`);
     const activated = await trainerClient.rpc('activate_rule', { p_rule_id: rule.data.id });
     if (activated.error) throw new Error(`e2e: activate_rule failed: ${activated.error.message}`);
+    if (activated.data === 0) {
+      throw new Error(`e2e: activate_rule created no appointments for rule ${rule.data.id}`);
+    }
 
     await use({
       templateId: slotTemplate.id,

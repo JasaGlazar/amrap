@@ -33,8 +33,10 @@ if (!process.env.VITEST) {
   );
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins,
+  // The browser tests pass the local stack's values as process variables; no .env file may leak in.
+  envDir: mode === 'e2e' ? false : undefined,
   build: {
     rollupOptions: {
       output: {
@@ -52,4 +54,4 @@ export default defineConfig({
     css: false,
     exclude: [...defaultExclude, 'e2e/**'],
   },
-});
+}));

@@ -17,8 +17,10 @@ export default defineConfig({
   },
   projects: [{ name: 'Pixel 7', use: { ...devices['Pixel 7'] } }],
   webServer: {
-    // Mode e2e keeps .env.production.local (the hosted project) out of the build.
-    command: 'npx vite build --mode e2e && npx vite preview --port 4173 --strictPort',
+    // Mode e2e reads no .env file (vite.config.ts), so only the values below reach the build.
+    // Its own output folder leaves a production build in dist untouched.
+    command:
+      'npx vite build --mode e2e --outDir dist-e2e && npx vite preview --outDir dist-e2e --port 4173 --strictPort',
     url: 'http://localhost:4173',
     reuseExistingServer: false,
     env: {

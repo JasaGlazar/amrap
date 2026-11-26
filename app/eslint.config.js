@@ -21,6 +21,7 @@ export default tseslint.config(
   {
     ignores: [
       'dist',
+      'dist-e2e',
       'dev-dist',
       'coverage',
       'src/lib/database.types.ts',
@@ -52,9 +53,12 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
-    // Playwright fixtures take `use` and `{}` by design; neither is React.
     files: ['e2e/**/*.ts', 'playwright.config.ts'],
     languageOptions: { globals: globals.node },
+  },
+  {
+    // Playwright fixtures take `use` and `{}` by design; neither is React.
+    files: ['e2e/fixtures.ts'],
     rules: {
       'react-hooks/rules-of-hooks': 'off',
       'no-empty-pattern': 'off',

@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-e2e/
 .env
 .env.*
 !.env.example
@@ -10,6 +11,7 @@ supabase/.branches/
 .DS_Store
 coverage/
 dev-dist/
+dist-e2e/
 .cloudflare/
 .wrangler/
 app/playwright-report/

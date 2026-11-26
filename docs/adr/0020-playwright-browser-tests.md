@@ -26,10 +26,13 @@ the hosted project. Tests must never write to it.
   A `supabase db reset` before each test would take many seconds.
 - Build in Vite mode `e2e` (`vite build --mode e2e`) and pass `VITE_SUPABASE_URL` and
   `VITE_SUPABASE_ANON_KEY` as process environment variables. Vite loads `.env.[mode].local`
-  only for its own mode, so mode `e2e` never loads `.env.production.local`. Process
-  environment variables take priority over every `.env` file.
-- `app/e2e/env.ts` refuses any Supabase URL whose host is not `127.0.0.1` or `localhost`. A
-  test fails when the app sends an auth or REST request to any other host.
+  only for its own mode, so mode `e2e` keeps `.env.production.local` out. In mode `e2e`,
+  `app/vite.config.ts` also sets `envDir: false`, so the build reads no `.env` file at all.
+- Build into `app/dist-e2e` and serve it from there, so a production build in `app/dist`
+  that waits for deploy is never replaced.
+- `app/e2e/env.ts` refuses any Supabase URL whose host is not `127.0.0.1` or `localhost`.
+  Every browser context in a test aborts requests to any other host. The test then fails and
+  lists those hosts.
 - Tests find elements by role and accessible name, with the names imported from
   `app/src/i18n/sl.ts`.
 
@@ -39,7 +42,7 @@ the hosted project. Tests must never write to it.
 - One more dev dependency and a Chromium download (cached in CI).
 - Rules about time (the cutoff, charging, materialization) stay in pgTAP, where time can be
   controlled. Push delivery stays a manual check on a phone.
-- The local stack allows 30 sign-ins per 5 minutes per IP address (`supabase/config.toml`).
-  The fixtures sign the trainer in through the API once per worker, but many reruns in a row
-  can still hit the limit.
+- The local stack allows 1000 sign-ins and sign-ups per 5 minutes per IP address
+  (`supabase/config.toml`). The fixtures sign the trainer in through the API once per worker,
+  but very many reruns in a row can still hit the limit.
 - A WebKit phone project can be added later if a Safari-only bug gets through.
