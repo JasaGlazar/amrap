@@ -1,6 +1,6 @@
 # Self-registration — design
 
-Date: 2026-11-19. Status: waiting for owner approval. Five decisions are open; see the end.
+Date: 2026-11-19. Status: the five open decisions were settled by the owner on 2026-11-26; waiting for final approval.
 
 ## Intent
 
@@ -61,7 +61,7 @@ This is the third of three projects. It builds on the minimal customer scope
 | Approach | Trade-off |
 |---|---|
 | A. Anyone who has the link | Simplest. The link is public once someone shares it, so anyone can add records to the trainer's list. |
-| B. The link carries a gym code that the database checks | A person must have seen the QR code. The trainer can change the code if it leaks, and then prints a new QR. One settings column and one check. **Recommended.** |
+| B. The link carries a gym code that the database checks | A person must have seen the QR code. The trainer can change the code if it leaks, and then prints a new QR. One settings column and one check. **Chosen.** |
 | C. Trainer approves each registration | Strongest, but it adds a step and a screen, and the trainer already controls everything that matters (appointments, credits). Rejected. |
 
 ## Design
@@ -86,8 +86,8 @@ This is the third of three projects. It builds on the minimal customer scope
   3. Registration is open and `p_code` equals the gym code → else new error
      `AMRAP_REGISTRATION_CLOSED` (one error for "closed" and "wrong code", so the code cannot
      be guessed from the answer).
-  4. `p_name` trimmed is 2 to 80 characters; `p_phone` trimmed is empty or at most 30
-     characters → else `AMRAP_INVALID_ARGUMENT`.
+  4. `p_name` trimmed is 2 to 80 characters; `p_phone` trimmed is 6 to 30 characters (the
+     phone number is required) → else `AMRAP_INVALID_ARGUMENT`.
 
   Effect: one `customers` row with role `customer`, the name, the phone, the email of the auth
   user, `auth_user_id = auth.uid()` and `registered_at = now()`. Returns its id. Granted to
@@ -100,9 +100,9 @@ This is the third of three projects. It builds on the minimal customer scope
 Route `/registracija`, outside `RequireAuth`, like `/invite/:token`. The QR code holds
 `https://<app address>/registracija?koda=<gym code>`.
 
-1. Fields: name, email, password, password again, phone (optional).
-2. Client checks as on the invite page: password at least 6 characters and both equal; name not
-   empty.
+1. Fields: name, phone, email, password, password again. All are required.
+2. Client checks as on the invite page: password at least 6 characters and both equal; name and
+   phone not empty.
 3. `supabase.auth.signUp`. If the account already exists, the page signs in with the same
    password, as the invite page does. A wrong password shows "an account with this email
    exists, sign in" with a link to `/login`.
@@ -178,18 +178,13 @@ was in the gym). Updates to `docs/auth.md`, `docs/rpcs.md`, `docs/schema.md`,
   empty Home; the trainer sees the new customer with the tag, assigns a fixed appointment, and
   the customer sees it. A wrong code is refused.
 
-## Open decisions for the owner
+## Decisions by the owner (2026-11-26)
 
-1. **Gym code in the QR link (approach B).** Recommended. Without it, anyone with the address
-   can add records to the customer list. With it, a leaked code means printing a new QR.
-2. **Phone number: optional or required?** The design says optional. Required gives the trainer
-   a way to reach every customer, but more people give up on longer forms.
-3. **Keep the invite flow.** Recommended, because imported customers with a balance need it.
-   The other choice is to remove it and always start from registration.
-4. **Push to the trainer on each registration.** Recommended. The other choice is the "Nov" tag
-   only.
-5. **QR made outside the app.** Recommended, to avoid a new library. The other choice is to
-   show the QR image in Settings, which needs a QR dependency.
+1. **Gym code in the QR link:** yes.
+2. **Phone number:** required.
+3. **Invite flow:** kept.
+4. **Push to the trainer on each registration:** yes.
+5. **QR image:** made outside the app; the owner handles it.
 
 ## Left to the builder
 

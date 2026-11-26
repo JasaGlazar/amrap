@@ -126,7 +126,7 @@ depend on the weekday or the hour.
 | File | Flow |
 |---|---|
 | `auth.spec.ts` | Trainer signs in and lands on `/t`. Customer signs in and lands on `/c`. A wrong password shows the error. A customer who opens `/t` is sent to `/c`. |
-| `customer.spec.ts` | A customer with a fixed appointment sees it on Home. They cancel one, it moves to the cancelled list, they undo it, and it is back in the upcoming list. The calendar entry is not shown and `/c/koledar` redirects to `/c`. |
+| `customer.spec.ts` | A customer with a fixed appointment sees it on Home. They cancel one, it moves to the cancelled list, they undo it, and it is back in the upcoming list. The calendar shows free places and has no book button (see `2026-11-26-free-slots-overview-design.md`). |
 | `trainer.spec.ts` | The trainer assigns a fixed appointment to a customer on the customer's page; the customer then sees it. The trainer cancels one appointment with a reason; the customer sees it as cancelled by the trainer in History with the reason. |
 
 The registration project adds `registration.spec.ts`.
