@@ -88,7 +88,16 @@ export function RegisterPage() {
       </h1>
       <h2>{t.register.title}</h2>
       {code === '' ? (
-        <p>{t.register.noCode}</p>
+        <>
+          <p>{t.register.noCode}</p>
+          {signedIn && (
+            <div className="actions">
+              <Link to="/logout" className="button secondary">
+                {t.common.signOut}
+              </Link>
+            </div>
+          )}
+        </>
       ) : (
         <>
           <p>{signedIn ? t.register.finishIntro : t.register.intro}</p>

@@ -94,10 +94,11 @@ code makes every old QR code fail. If the sign-up worked but `register_customer`
 was refused, the auth user exists but has no record, as in the invite flow.
 
 To finish, the person scans the QR code again. The not-linked page says to do this and links
-to `/registracija`. That link has no code, so the page there also says to scan the QR code.
-With the code in the link and a session, the page shows a short form with name and phone only.
-It calls `register_customer` without `signUp`. If the refusal came right after a fresh sign-up,
-the page already shows the short form, so a retry needs no new sign-up.
+to `/registracija`. That link has no code, so the page there also says to scan the QR code
+and offers a sign-out link. With the code in the link and a session, the page shows a short
+form with name and phone only. It calls `register_customer` without `signUp`. If the refusal
+came right after a fresh sign-up, the page already shows the short form, so a retry needs no
+new sign-up.
 
 A person who already had a record and registers anyway gets a second record. The trainer
 deletes the new one with `delete_customer` ([rpcs.md](../rpcs.md#delete_customer)), which only

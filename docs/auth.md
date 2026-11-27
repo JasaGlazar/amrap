@@ -101,7 +101,8 @@ page reads the code from the `koda` query parameter.
    failed customer lookup → `LookupFailedPage`. While a submit runs, the page keeps its form
    on screen even though signing up changes the auth state.
 2. No `koda` → only `register.noCode` (scan the QR code in the gym). No form, so no account is
-   created without a code.
+   created without a code. A signed-in user without a record also gets a sign-out link to
+   `/logout`, so the page is not a dead end.
 3. Signed out → name, phone, email, password and password again, all required. Signed in
    without a record → name and phone only (the finish-registration case).
 4. Client checks, before any request: name and phone trimmed, name 2 to 80 characters, phone

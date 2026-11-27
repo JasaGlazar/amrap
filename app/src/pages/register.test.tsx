@@ -78,14 +78,18 @@ describe('registration without a code', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/registracija');
+    expect(screen.queryByRole('link', { name: t.common.signOut })).not.toBeInTheDocument();
   });
 
-  it('shows no form to a signed-in person without a record either', async () => {
+  it('shows no form to a signed-in person without a record, only the text and sign out', async () => {
     resetFake({ session: makeSession('user-new') });
-    renderAt('/registracija');
+    const router = renderAt('/registracija');
     expect(await screen.findByText(t.register.noCode)).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('link', { name: t.common.signOut }));
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    expect(fakeSupabase.auth.signOut).toHaveBeenCalledTimes(1);
   });
 });
 

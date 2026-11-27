@@ -45,6 +45,11 @@ test.describe('with the gym code set', { lock: 'registration-code' }, () => {
     await form.getByRole('button', { name: sl.customerDetail.addRule }).click();
     await expect(rules.getByRole('button', { name: sl.customerDetail.stopRule })).toBeVisible();
 
+    await trainerPage.goto('/t/stranke');
+    await trainerPage.getByLabel(sl.customers.search).fill(registrant.name);
+    await expect(row.getByRole('link', { name: registrant.name })).toBeVisible();
+    await expect(row.getByText(sl.customers.newTag, { exact: true })).toHaveCount(0);
+
     await page.reload();
     await expect(page.getByRole('heading', { name: sl.customer.upcomingTitle })).toBeVisible();
     await expect(

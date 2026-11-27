@@ -48,9 +48,9 @@ environment variables, the push secrets and the Vault rows have to be set again.
 
 ## Bootstrap the trainer
 
-The trainer is the only user not created through an invite. This is done once per environment,
-after the initial schema migration is deployed. Locally, `supabase db reset` already seeds a
-trainer (`trainer@amrap.local` / `password`, see `supabase/seeds/dev.sql`).
+The trainer is the only user who neither accepts an invite nor registers. This is done once
+per environment, after the initial schema migration is deployed. Locally, `supabase db reset`
+already seeds a trainer (`trainer@amrap.local` / `password`, see `supabase/seeds/dev.sql`).
 
 1. Create the trainer's auth user in the dashboard (Authentication, Users, Add user, Create new
    user) with email and password, and tick "Auto Confirm User". Copy the new user's UID.
@@ -154,8 +154,9 @@ image; any QR generator does.
    makes a random gym code and shows the full link
    (`https://<pages-domain>/registracija?koda=<gym code>`).
 2. Tap **Kopiraj** and paste the link into any QR generator.
-3. Print the QR code and put it up in the gym. Scan it once with a phone to check that the
-   registration page opens with the form.
+3. Print the QR code and put it up in the gym. Scan it once with a phone or a private tab
+   that is not signed in, to check that the registration page opens with the form. A
+   signed-in phone goes to its own home instead.
 
 **Nova koda** replaces the gym code and **Zapri registracijo** clears it. Both ask for a second
 tap and warn first. After either one the printed QR code stops working: a person who scans it

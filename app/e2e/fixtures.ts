@@ -208,6 +208,10 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
   // The service-role client bypasses RLS; set_registration_code accepts only the trainer.
   registrationCode: async ({ admin }, use) => {
+    const stored = await admin.from('registration_settings').select('code').eq('id', 1).single();
+    if (stored.error)
+      throw new Error(`e2e: reading the registration code failed: ${stored.error.message}`);
+    const previous = stored.data.code;
     const code = `e2e-${randomUUID()}`;
     const set = await setRegistrationCode(admin, code);
     if (set.error)
@@ -217,7 +221,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
     await use(code);
 
-    await bestEffort('clearing the registration code', () => setRegistrationCode(admin, null));
+    await bestEffort('restoring the registration code', () => setRegistrationCode(admin, previous));
   },
 
   // The test signs up through the app, so cleanup finds what it made by the email.

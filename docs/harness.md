@@ -257,7 +257,7 @@ full list of the files.
 
 | File | Covers |
 |---|---|
-| `app/src/pages/register.test.tsx` | the registration page: no code shows the scan-the-QR copy and no form, signed out and signed in without a record; the fields signed out (all required, the phone keyboard, autofill hints) and signed in without a record (name and phone only); name, phone and password checks before any request, with the trimmed bounds; sign-up, `register_customer` with the trimmed fields and the code, then the customer Home; a sign-up with no session; an existing account with the right password (registered), with the wrong password (a link to sign in) and with a record already (ends on Home); other sign-up and sign-in errors; a refused code shows the closed copy and the short form, and a retry calls `register_customer` again with no new sign-up; a failed customer lookup shows the lookup-failed page and no form; a linked user sent to the customer Home |
+| `app/src/pages/register.test.tsx` | the registration page: no code shows the scan-the-QR copy and no form, signed out (no sign-out link) and signed in without a record (a sign-out link that signs out); the fields signed out (all required, the phone keyboard, autofill hints) and signed in without a record (name and phone only); name, phone and password checks before any request, with the trimmed bounds; sign-up, `register_customer` with the trimmed fields and the code, then the customer Home; a sign-up with no session; an existing account with the right password (registered), with the wrong password (a link to sign in) and with a record already (ends on Home); other sign-up and sign-in errors; a refused code shows the closed copy and the short form, and a retry calls `register_customer` again with no new sign-up; a failed customer lookup shows the lookup-failed page and no form; a linked user sent to the customer Home |
 
 ### Browser tests
 
@@ -324,7 +324,7 @@ How the fixtures in `app/e2e/fixtures.ts` make data:
 - `registrationCode`: sets a fresh gym code `e2e-<random>` on the one row of
   `registration_settings`, through the service-role client (it bypasses RLS;
   `set_registration_code` accepts only the trainer). It fails when the row (id 1) is missing.
-  After the test it sets the code back to null.
+  It reads the stored code first and writes it back after the test.
 - `registrant`: a unique email `e2e-<random>@test.local`, a password, a name and a phone for a
   person who signs up through the app. It makes no data itself. After the test it finds the
   auth user by the email (it reads every page of the admin user list). When a customer row is
@@ -372,4 +372,4 @@ Rules that keep the tests stable:
 | `auth.spec.ts` | the trainer lands on `/t` and a customer on `/c` after sign-in; a wrong password shows the invalid-credentials error; a customer who opens `/t` is sent to `/c`; during a customer sign-in the app sends at least one auth and one REST request, all to `127.0.0.1` or `localhost` |
 | `customer.spec.ts` | a customer with a fixed appointment sees at least three upcoming rows on Home; they cancel the last one, it moves to the cancelled list, they undo it and it is back in the upcoming list with the "restored" status; next week's calendar shows free places on their session and no book button |
 | `trainer.spec.ts` | the trainer adds a fixed appointment on the customer's page, then the customer (in a second browser context) sees it on Home; the trainer cancels the customer's last upcoming appointment with a reason, then the customer sees it in History as cancelled by the trainer, with the reason |
-| `registration.spec.ts` | a person opens the registration link with the gym code, signs up and lands on `/c` with the empty-Home copy; the trainer finds them in the customer list with the "Nov" tag and adds a fixed appointment on their page; the person reloads Home and sees an upcoming appointment. A wrong code shows the registration-closed copy and stays on `/registracija`. The link without a code shows no form |
+| `registration.spec.ts` | a person opens the registration link with the gym code, signs up and lands on `/c` with the empty-Home copy; the trainer finds them in the customer list with the "Nov" tag and adds a fixed appointment on their page, and the tag is gone from the list; the person reloads Home and sees an upcoming appointment. A wrong code shows the registration-closed copy and stays on `/registracija`. The link without a code shows no form |

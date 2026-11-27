@@ -203,7 +203,7 @@ select is((select code from public.registration_settings where id = 1), null::te
 select tests.clear_authentication();
 
 select tests.authenticate_as((select id from fx where key = 'user_second'));
-select throws_matching($$select public.register_customer('Druga Stranka', '040123456', '12345678')$$,
+select throws_matching($$select public.register_customer('Druga Stranka', '040123456', '87654321')$$,
   '^AMRAP_REGISTRATION_CLOSED:', 'after the code is cleared, the old code is refused');
 select tests.clear_authentication();
 
