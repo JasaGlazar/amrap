@@ -321,6 +321,16 @@ How the fixtures in `app/e2e/fixtures.ts` make data:
   `activate_rule`). It fails when `activate_rule` creates fewer than 3 appointments; a blocked
   period in the local database is the likely cause. It gives the template id, the rule id, the
   start time and the capacity.
+- `registrationCode`: sets a fresh gym code `e2e-<random>` on the one row of
+  `registration_settings`, through the service-role client (it bypasses RLS;
+  `set_registration_code` accepts only the trainer). It fails when the row (id 1) is missing.
+  After the test it sets the code back to null.
+- `registrant`: a unique email `e2e-<random>@test.local`, a password, a name and a phone for a
+  person who signs up through the app. It makes no data itself. After the test it finds the
+  auth user by the email (it reads every page of the admin user list). When a customer row is
+  linked to that user, it deletes the row's credit transactions, appointments, recurring rules
+  and the row, the same way and with the same retry as `customer`. Then it deletes the auth
+  user. This runs even when the test fails part way.
 - `signIn(page, who)`: fills the real login page and waits for the role's home (`/t` or `/c`).
 - `TRAINER`: the seeded `trainer@amrap.local` from `supabase/seeds/dev.sql`.
 
@@ -346,9 +356,18 @@ Rules that keep the tests stable:
 - The tests assume the local database is at seed defaults: `customer_booking_enabled` is false,
   the cutoff is the default and no blocked period falls in the next four weeks. CI always
   starts from seed defaults.
+- The gym code is one shared row. Tests that use `registrationCode` sit in a describe block
+  with Playwright's test lock `registration-code` (`{ lock: 'registration-code' }`). Tests
+  that share a lock never run at the same time, on any worker. They also run in serial mode.
+  Serial mode is not enough on its own: with `--repeat-each`, each repeat of a serial block is
+  its own group, and the groups run on different workers at the same time. The lock lives in
+  the Playwright runner, so it guards one run only. Two runs at once cannot happen locally:
+  with `reuseExistingServer: false`, Playwright stops the second run because
+  `http://localhost:4173` is already used. No other spec reads or sets the gym code.
 
 | File | Covers |
 |---|---|
 | `auth.spec.ts` | the trainer lands on `/t` and a customer on `/c` after sign-in; a wrong password shows the invalid-credentials error; a customer who opens `/t` is sent to `/c`; during a customer sign-in the app sends at least one auth and one REST request, all to `127.0.0.1` or `localhost` |
 | `customer.spec.ts` | a customer with a fixed appointment sees at least three upcoming rows on Home; they cancel the last one, it moves to the cancelled list, they undo it and it is back in the upcoming list with the "restored" status; next week's calendar shows free places on their session and no book button |
 | `trainer.spec.ts` | the trainer adds a fixed appointment on the customer's page, then the customer (in a second browser context) sees it on Home; the trainer cancels the customer's last upcoming appointment with a reason, then the customer sees it in History as cancelled by the trainer, with the reason |
+| `registration.spec.ts` | a person opens the registration link with the gym code, signs up and lands on `/c` with the empty-Home copy; the trainer finds them in the customer list with the "Nov" tag and adds a fixed appointment on their page; the person reloads Home and sees an upcoming appointment. A wrong code shows the registration-closed copy and stays on `/registracija`. The link without a code shows no form |

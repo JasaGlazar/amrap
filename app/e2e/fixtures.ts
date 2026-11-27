@@ -9,6 +9,7 @@ type Client = SupabaseClient<Database>;
 type Credentials = { email: string; password: string };
 
 export type Customer = Credentials & { id: string; name: string };
+export type Registrant = Credentials & { name: string; phone: string };
 export type SlotTemplate = { id: string; weekday: number; startTime: string; capacity: number };
 export type FixedAppointment = {
   templateId: string;
@@ -49,6 +50,49 @@ async function deleteAppointmentsAndCharges(
   }
 }
 
+// A charge can land between the two deletes and block the appointments delete, so retry.
+async function deleteCustomerAndUser(admin: Client, id: string, userId: string): Promise<void> {
+  await deleteAppointmentsAndCharges(
+    () =>
+      bestEffort('deleting credit transactions', () =>
+        admin.from('credit_transactions').delete().eq('customer_id', id),
+      ),
+    () =>
+      bestEffort('deleting appointments', () =>
+        admin.from('appointments').delete().eq('customer_id', id),
+      ),
+  );
+  await bestEffort('deleting recurring rules', () =>
+    admin.from('recurring_rules').delete().eq('customer_id', id),
+  );
+  await bestEffort('deleting the customer row', () =>
+    admin.from('customers').delete().eq('id', id),
+  );
+  await bestEffort('deleting the auth user', () => admin.auth.admin.deleteUser(userId));
+}
+
+async function findAuthUserId(admin: Client, email: string): Promise<string | null> {
+  const perPage = 1000;
+  for (let page = 1; ; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) {
+      console.warn(`e2e cleanup: listing auth users to find ${email} failed`, error);
+      return null;
+    }
+    const user = data.users.find((candidate) => candidate.email === email);
+    if (user) return user.id;
+    if (data.users.length < perPage) return null;
+  }
+}
+
+async function setRegistrationCode(admin: Client, code: string | null) {
+  return admin
+    .from('registration_settings')
+    .update({ code, updated_at: new Date().toISOString() })
+    .eq('id', 1)
+    .select('id');
+}
+
 // data: and blob: URLs have no host and never leave the browser.
 async function blockNonLocalRequests(context: BrowserContext, blocked: Set<string>) {
   await context.route('**/*', (route) => {
@@ -80,6 +124,8 @@ type TestFixtures = {
   customer: Customer;
   slotTemplate: SlotTemplate;
   fixedAppointment: FixedAppointment;
+  registrationCode: string;
+  registrant: Registrant;
 };
 type WorkerFixtures = { admin: Client; trainerClient: Client };
 
@@ -157,24 +203,44 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
     await use({ id, name, email, password });
 
-    // A charge can land between the two deletes and block the appointments delete, so retry.
-    await deleteAppointmentsAndCharges(
-      () =>
-        bestEffort('deleting credit transactions', () =>
-          admin.from('credit_transactions').delete().eq('customer_id', id),
-        ),
-      () =>
-        bestEffort('deleting appointments', () =>
-          admin.from('appointments').delete().eq('customer_id', id),
-        ),
-    );
-    await bestEffort('deleting recurring rules', () =>
-      admin.from('recurring_rules').delete().eq('customer_id', id),
-    );
-    await bestEffort('deleting the customer row', () =>
-      admin.from('customers').delete().eq('id', id),
-    );
-    await bestEffort('deleting the auth user', () => admin.auth.admin.deleteUser(userId));
+    await deleteCustomerAndUser(admin, id, userId);
+  },
+
+  // The service-role client bypasses RLS; set_registration_code accepts only the trainer.
+  registrationCode: async ({ admin }, use) => {
+    const code = `e2e-${randomUUID()}`;
+    const set = await setRegistrationCode(admin, code);
+    if (set.error)
+      throw new Error(`e2e: setting the registration code failed: ${set.error.message}`);
+    if (set.data.length !== 1)
+      throw new Error('e2e: the registration_settings row (id 1) is missing');
+
+    await use(code);
+
+    await bestEffort('clearing the registration code', () => setRegistrationCode(admin, null));
+  },
+
+  // The test signs up through the app, so cleanup finds what it made by the email.
+  registrant: async ({ admin }, use) => {
+    const tag = randomUUID().slice(0, 8);
+    const email = `e2e-${tag}@test.local`;
+    await use({
+      email,
+      password: `e2e-${randomUUID()}`,
+      name: `E2E ${tag}`,
+      phone: `040 ${randomInt(100_000, 1_000_000)}`,
+    });
+
+    const userId = await findAuthUserId(admin, email);
+    if (userId === null) return;
+    const row = await admin.from('customers').select('id').eq('auth_user_id', userId).maybeSingle();
+    if (row.error)
+      console.warn(`e2e cleanup: finding the customer row of ${email} failed`, row.error);
+    if (row.data) {
+      await deleteCustomerAndUser(admin, row.data.id, userId);
+    } else {
+      await bestEffort('deleting the auth user', () => admin.auth.admin.deleteUser(userId));
+    }
   },
 
   // Thursday 12:xx: a random minute keeps parallel tests' sessions apart on screen.
