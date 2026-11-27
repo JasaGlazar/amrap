@@ -117,8 +117,7 @@ select pg_temp.register('two', 'Regnotify Two');
 
 select is(
   (select count(*)::int from mine),
-  (select count(*)::int from public.customers
-   where id in (select id from registered) and registered_at is not null),
+  (select count(*)::int from registered where key in ('one', 'two')),
   'two registrations write two notifications');
 select set_eq(
   $$select data ->> 'customer_name' from mine$$,

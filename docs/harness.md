@@ -330,9 +330,9 @@ How the fixtures in `app/e2e/fixtures.ts` make data:
   auth user by the email (it reads every page of the admin user list). When a customer row is
   linked to that user, it first deletes the trainer's `customer_registered` notification for
   that customer (`data->>'customer_id'`). The trigger writes it only when push is set up locally
-  and the trainer has a device, and it does not cascade. Then it deletes the row's credit transactions, appointments, recurring
-  rules and the row, the same way and with the same retry as `customer`. Then it deletes the
-  auth user. This runs even when the test fails part way.
+  and the trainer has a device, and it does not cascade. Then it deletes the row's credit
+  transactions, appointments, recurring rules and the row, the same way and with the same retry
+  as `customer`. Then it deletes the auth user. This runs even when the test fails part way.
 - `signIn(page, who)`: fills the real login page and waits for the role's home (`/t` or `/c`).
 - `TRAINER`: the seeded `trainer@amrap.local` from `supabase/seeds/dev.sql`.
 

@@ -630,13 +630,12 @@ the occurrence).
 
 - **Closed:** one button named after the action, at the right of the heading the form belongs
   to; on a narrow screen it wraps below the heading (**Izbriši stranko** sits under the details
-  instead). Its weight follows the heading: a
-  page-level action in the page head is the one primary (black) button (**Nova stranka**,
-  **Nov termin po dogovoru**; on customer detail the always-open **Dodaj kredite** plays that
-  part), a section-level one is secondary, outlined (**Nov termin**, **Novo zaprto obdobje**,
-  **Dodaj stalni termin**, **Uredi podatke**, the calendar's small **Dodaj stranko**). "New"
-  actions carry a `+`, **Uredi podatke** does not. So a screen never has two black buttons
-  competing for the main action.
+  instead). Its weight follows the heading: a page-level action in the page head is the one
+  primary (black) button (**Nova stranka**, **Nov termin po dogovoru**; on customer detail the
+  always-open **Dodaj kredite** plays that part), a section-level one is secondary, outlined
+  (**Nov termin**, **Novo zaprto obdobje**, **Dodaj stalni termin**, **Uredi podatke**, the
+  calendar's small **Dodaj stranko**). "New" actions carry a `+`, **Uredi podatke** does not. So
+  a screen never has two black buttons competing for the main action.
 - **Open:** pressing it replaces the button with the form, as a card under the heading,
   above the list (**Izbriši stranko** opens its card in place, under the details); focus
   moves to the form's first field (on **Izbriši stranko**, which has no field, to **Potrdi
