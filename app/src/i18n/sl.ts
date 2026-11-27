@@ -414,6 +414,8 @@ export const sl = {
     AMRAP_NOT_CANCELLABLE: 'Tega termina ni mogoče odpovedati.',
     AMRAP_NOT_FOUND: 'Zapisa ni mogoče najti.',
     AMRAP_NOT_UNDOABLE: 'Te odpovedi ni več mogoče razveljaviti.',
+    AMRAP_REGISTRATION_CLOSED:
+      'Registracija ni mogoča. Skenirajte QR kodo v telovadnici ali se obrnite na trenerja.',
     AMRAP_SETTINGS_MISSING: 'Nastavitve niso na voljo. Obrnite se na trenerja.',
     AMRAP_SLOT_INACTIVE: 'Ta termin ni več na voljo.',
     AMRAP_SLOT_MISMATCH: 'Čas ne ustreza izbranemu terminu.',

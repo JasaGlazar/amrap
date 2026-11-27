@@ -28,6 +28,7 @@ of it changes).
 | [0018](0018-customers-do-not-book-in-first-release.md) | Customers do not book in the first release | Accepted |
 | [0019](0019-customers-see-the-calendar-read-only.md) | Customers see the calendar read-only | Accepted |
 | [0020](0020-playwright-browser-tests.md) | Playwright browser tests against the built app and the local stack | Accepted |
+| [0021](0021-customers-register-with-a-gym-code.md) | Customers register themselves with a gym code | Accepted |
 
 ## Template
 

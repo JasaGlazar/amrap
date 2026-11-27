@@ -11,7 +11,10 @@ otherwise none. `push_subscriptions.user_id` and `credit_transactions.created_by
 `slot_occupancy` (not drawn) counts `booked` and `charged` appointments per slot template and
 `starts_at` for linked callers; it runs as its owner and exposes counts only, never customer
 identities. `notifications` is the push log (ADR 0009): one row per push the database decided to
-send, unique per `(kind, appointment_id)`, closed to the API. All tables are under RLS and all credit and capacity changes go
+send, unique per `(kind, appointment_id)`, closed to the API. `registration_settings` holds the
+gym code in one row; only the trainer can read it, and it changes only through
+`set_registration_code()` (ADR 0021). It has no relationships. `customers.registered_at` is set
+when a person registered themselves and is null for records the trainer created. All tables are under RLS and all credit and capacity changes go
 through RPCs. Column lists show the main fields; the migration is the exact definition and
 `docs/schema.md` is the reference.
 
@@ -27,6 +30,7 @@ erDiagram
         text invite_token "nullable, unique, single use, cleared on accept"
         timestamptz invite_expires_at "nullable, token expiry 7 days"
         timestamptz created_at
+        timestamptz registered_at "nullable, set by register_customer"
     }
     slot_templates {
         uuid id PK
@@ -79,6 +83,11 @@ erDiagram
         int late_cancel_hours "default 8"
         boolean customer_booking_enabled "default false"
         text timezone "default Europe/Ljubljana"
+    }
+    registration_settings {
+        int id PK "single row"
+        text code "nullable, 8 or more characters, null means closed, trainer reads only"
+        timestamptz updated_at
     }
     push_subscriptions {
         uuid id PK

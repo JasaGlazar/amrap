@@ -194,6 +194,7 @@ export type Database = {
           invite_token: string | null
           name: string
           phone: string | null
+          registered_at: string | null
           role: Database["public"]["Enums"]["customer_role"]
         }
         Insert: {
@@ -205,6 +206,7 @@ export type Database = {
           invite_token?: string | null
           name: string
           phone?: string | null
+          registered_at?: string | null
           role?: Database["public"]["Enums"]["customer_role"]
         }
         Update: {
@@ -216,6 +218,7 @@ export type Database = {
           invite_token?: string | null
           name?: string
           phone?: string | null
+          registered_at?: string | null
           role?: Database["public"]["Enums"]["customer_role"]
         }
         Relationships: []
@@ -354,6 +357,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      registration_settings: {
+        Row: {
+          code: string | null
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       settings: {
         Row: {
@@ -496,11 +517,16 @@ export type Database = {
           push_secret: string
         }[]
       }
+      register_customer: {
+        Args: { p_code: string; p_name: string; p_phone: string }
+        Returns: string
+      }
       save_push_subscription: {
         Args: { p_auth: string; p_endpoint: string; p_p256dh: string }
         Returns: undefined
       }
       send_cutoff_reminders: { Args: never; Returns: number }
+      set_registration_code: { Args: { p_code: string }; Returns: undefined }
       top_up: {
         Args: { p_amount: number; p_customer_id: string; p_note?: string }
         Returns: string

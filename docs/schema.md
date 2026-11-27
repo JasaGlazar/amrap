@@ -24,6 +24,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `20261119123322_customer_booking_switch.sql` | `settings.late_cancel_hours` default and current value 8; `settings.customer_booking_enabled`; `book()` replaced to refuse customer bookings while that setting is false ([rpcs.md](rpcs.md#book), [ADR 0018](adr/0018-customers-do-not-book-in-first-release.md)). |
 | `20261119125501_undo_cancel.sql` | `undo_cancel()` and its grants: a customer restores their own free cancel before the cutoff ([rpcs.md](rpcs.md#undo_cancel)). |
 | `20261119131643_booking_restored_notification.sql` | The `booking_restored` notification kind; `notify_booking_restored()` and its trigger; `notify_booking_cancelled()` replaced to delete the appointment's earlier `booking_cancelled` row first, so a repeat cancel is pushed again ([rpcs.md](rpcs.md#helpers), [notifications.md](notifications.md#repeat-cancel-and-undo)). |
+| `20261127073814_self_registration.sql` | `registration_settings` table (the gym code), its row, select policy and grants; `customers.registered_at`; `register_customer()`, `set_registration_code()` and their grants ([rpcs.md](rpcs.md#register_customer), [ADR 0021](adr/0021-customers-register-with-a-gym-code.md)). |
 
 ## Enums
 
@@ -55,6 +56,7 @@ A person who trains at the gym, or the trainer. May or may not have an app accou
 | `invite_token` | text | unique; single use, cleared on accept |
 | `invite_expires_at` | timestamptz | token expiry (7 days) |
 | `created_at` | timestamptz | |
+| `registered_at` | timestamptz | set by `register_customer()` when the person registered themselves; null for records the trainer created |
 
 Invite status is derived, not stored: **linked** when `auth_user_id` is not null, **pending**
 when `invite_token` is not null and `invite_expires_at > now()`, otherwise **none**.
@@ -175,6 +177,20 @@ Single-row configuration; the row (`id = 1`, defaults) is inserted by the migrat
 | `customer_booking_enabled` | boolean | not null, default false; when false, `book()` refuses customers (`AMRAP_BOOKING_DISABLED`) |
 | `timezone` | text | not null, default `Europe/Ljubljana`; the gym's timezone |
 
+### registration_settings
+
+Single-row table for the gym code ([ADR 0021](adr/0021-customers-register-with-a-gym-code.md));
+the row (`id = 1`, code null) is inserted by the migration. It is separate from `settings`
+because customers can read `settings`, and the code must stay hidden from them. Only the
+trainer can read it. Nobody writes it through the API: the trainer changes the code with
+`set_registration_code()` ([rpcs.md](rpcs.md#set_registration_code)).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | int | PK, default 1, check `id = 1` |
+| `code` | text | check: null or 8 or more characters; null means registration is closed |
+| `updated_at` | timestamptz | not null, default `now()`; set by `set_registration_code()` |
+
 ### push_subscriptions
 
 Web Push subscriptions, one per device/browser endpoint. Owned by an auth user, so it reaches
@@ -288,6 +304,7 @@ Policies apply to `authenticated`. `is_trainer()` and `current_customer_id()` ar
 | `credit_transactions` | all | select own |
 | `blocked_periods` | all | select all |
 | `settings` | all | select |
+| `registration_settings` | select | none |
 | `push_subscriptions` | all | all on own rows (`user_id = auth.uid()`), linked customers only |
 | `notifications` | none | none |
 | `customer_balances` (view) | all rows via invoker RLS | own row via invoker RLS |
@@ -305,6 +322,9 @@ sign-up without an invite) can neither read nor write any row.
   revoked from `public` and `anon`.
 - `authenticated`: `select, insert, update, delete` on every table (RLS decides rows),
   `select` only on `customer_balances` and `slot_occupancy`. No `truncate`, `references`, `trigger` or `maintain`.
+- `registration_settings`: `select` only for `authenticated` (insert, update and delete
+  revoked), nothing for `anon`. A direct write fails with `42501`, for the trainer too; a
+  signed-out read fails with `42501`; a customer reads zero rows.
 - `notifications`: RLS enabled with no policy, and every privilege revoked from `anon` and
   `authenticated`, so the trainer cannot read it either (SQLSTATE `42501`). Only the owner's
   `security definer` functions and `service_role` touch it.

@@ -10,8 +10,8 @@ app relies on.
   caller's transaction, so each call is all-or-nothing.
 - **Role check, always explicit.** `public.is_trainer()` decides whether the caller is the
   trainer. A customer may act only on their own record (`public.current_customer_id()`). An
-  auth user without a `customers` row is neither, so every RPC except `accept_invite` rejects
-  them with `AMRAP_FORBIDDEN`.
+  auth user without a `customers` row is neither, so every RPC except `accept_invite` and
+  `register_customer` rejects them with `AMRAP_FORBIDDEN`.
 - **Errors.** Every rejection is `raise exception` with SQLSTATE `P0001` and a message of the
   form `AMRAP_<CODE>: <English detail>`. The app maps the token before the colon to Slovenian
   copy in `app/src/i18n/sl.ts`; the detail after it is for logs only and may change.
@@ -31,8 +31,8 @@ app relies on.
 
 | Token | Meaning | Raised by |
 |---|---|---|
-| `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record or gives a cancel reason (`cancel`), or (`accept_invite`) there is no signed-in user | all except `charge_due_appointments`, `send_cutoff_reminders`, `prune_cron_history` and `claim_notifications` |
-| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record; for `cancel` and `cancel_occurrence`: a reason over 200 characters) | `book`, `cancel`, `undo_cancel`, `cancel_occurrence`, `top_up`, `adjust`, `create_invite`, `materialize_recurring`, `save_push_subscription` |
+| `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record or gives a cancel reason (`cancel`), or (`accept_invite`, `register_customer`) there is no signed-in user | all except `charge_due_appointments`, `send_cutoff_reminders`, `prune_cron_history` and `claim_notifications` |
+| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record; for `cancel` and `cancel_occurrence`: a reason over 200 characters; for `register_customer`: a name or phone out of range; for `set_registration_code`: a code under 8 characters) | `book`, `cancel`, `undo_cancel`, `cancel_occurrence`, `top_up`, `adjust`, `create_invite`, `materialize_recurring`, `save_push_subscription`, `register_customer`, `set_registration_code` |
 | `AMRAP_NOT_FOUND` | The referenced customer, slot template, appointment or recurring rule does not exist | `book`, `cancel`, `undo_cancel`, `cancel_occurrence`, `top_up`, `adjust`, `create_invite`, `activate_rule`, `deactivate_rule` |
 | `AMRAP_SLOT_INACTIVE` | The slot template is deactivated | `book`, `undo_cancel`, `cancel_occurrence` |
 | `AMRAP_IN_PAST` | A customer tried to book a start that is not in the future | `book` |
@@ -42,9 +42,10 @@ app relies on.
 | `AMRAP_ALREADY_BOOKED` | The customer already has a live (`booked`/`charged`) appointment at that start | `book`, `undo_cancel` |
 | `AMRAP_INVITE_INVALID` | The invite token is unknown, empty, replaced by a newer invite, already redeemed (redeeming clears it) or expired | `accept_invite` |
 | `AMRAP_INVITE_USED` | The token belongs to a customer record that is already linked | `accept_invite` |
-| `AMRAP_ALREADY_LINKED` | The customer record already has an account (`create_invite`), or the caller is already linked to a customer (`accept_invite`) | `create_invite`, `accept_invite` |
+| `AMRAP_ALREADY_LINKED` | The customer record already has an account (`create_invite`), or the caller is already linked to a customer (`accept_invite`, `register_customer`) | `create_invite`, `accept_invite`, `register_customer` |
+| `AMRAP_REGISTRATION_CLOSED` | Registration is closed (no gym code), or the given code is missing or wrong; one token for all three, so the answer never tells whether a code is right | `register_customer` |
 | `AMRAP_BOOKING_DISABLED` | A customer tried to book while customer booking is turned off (`settings.customer_booking_enabled` is false) | `book` |
-| `AMRAP_SETTINGS_MISSING` | The `settings` row (`id = 1`) is missing, so the timezone, cutoff or booking setting is unknown; the call fails closed | `book` (customer, or trainer with a template), `cancel` (customer), `undo_cancel`, `cancel_occurrence`, `materialize_recurring` (when there is an active rule) |
+| `AMRAP_SETTINGS_MISSING` | The `settings` row (`id = 1`) is missing, so the timezone, cutoff or booking setting is unknown; the call fails closed | `book` (customer, or trainer with a template), `cancel` (customer), `undo_cancel`, `cancel_occurrence`, `materialize_recurring` (when there is an active rule), `set_registration_code` (here the missing row is `registration_settings`) |
 | `AMRAP_NOT_CANCELLABLE` | The appointment is not in a state the caller may cancel (customer: not `booked` or already started; anyone: already cancelled) | `cancel` |
 | `AMRAP_NOT_UNDOABLE` | The cancel cannot be undone: the appointment is not `cancelled` (a free customer cancel), the cutoff has passed, or its recurring rule is no longer active | `undo_cancel` |
 
@@ -314,6 +315,49 @@ public.accept_invite(p_token text) returns uuid
   `invite_expires_at = null`. Returns the customer id. From then on `current_customer_id()` and
   `is_trainer()` resolve for that user.
 - **Diagram:** [architecture/auth-invite-flow.md](architecture/auth-invite-flow.md).
+
+## register_customer
+
+```sql
+public.register_customer(p_name text, p_phone text, p_code text) returns uuid
+```
+
+- **Who may call:** any signed-in (`authenticated`) user who has no customer record yet,
+  typically one who just signed up on the registration page ([ADR 0021](adr/0021-customers-register-with-a-gym-code.md)).
+- **Rules, in order:**
+  1. A signed-in user is required (`AMRAP_FORBIDDEN`, e.g. service role without a user).
+  2. The caller must not be linked to a customer (`AMRAP_ALREADY_LINKED`). This covers the
+     trainer and a second call by the same user.
+  3. The gym code in `registration_settings` must be set and equal `p_code`
+     (`AMRAP_REGISTRATION_CLOSED`). A null `p_code` or a missing settings row is refused the
+     same way, with the same detail text. The code is checked before the name and phone, so
+     invalid fields with a wrong code still get `AMRAP_REGISTRATION_CLOSED` and the answer
+     never confirms a code.
+  4. `p_name` trimmed must be 2 to 80 characters and `p_phone` trimmed 6 to 30 characters;
+     null counts as empty (`AMRAP_INVALID_ARGUMENT`).
+- **Concurrency:** two calls by the same user at once both pass step 2. The second insert hits
+  the unique `auth_user_id`, and the `unique_violation` is reported as `AMRAP_ALREADY_LINKED`,
+  so exactly one record exists. No row is locked.
+- **Side effects:** inserts one `customers` row with `role = 'customer'` (always; nothing the
+  caller passes changes it), the trimmed name and phone, `email` from `auth.users` for the
+  caller, `auth_user_id = auth.uid()` and `registered_at = now()`. Returns its id. The email is
+  not confirmed and stays contact data only (ADR 0006).
+- **Diagram:** [architecture/auth-invite-flow.md](architecture/auth-invite-flow.md#registration-with-the-gym-code).
+
+## set_registration_code
+
+```sql
+public.set_registration_code(p_code text) returns void
+```
+
+- **Who may call:** the trainer only (`AMRAP_FORBIDDEN`).
+- **Rules:** a non-null `p_code` must be 8 or more characters (`AMRAP_INVALID_ARGUMENT`). Null
+  clears the code, which closes registration. The app generates a random code; the trainer
+  never types it. The value is stored as given.
+- **Errors:** `AMRAP_FORBIDDEN`, `AMRAP_INVALID_ARGUMENT`, `AMRAP_SETTINGS_MISSING` (the
+  `registration_settings` row is missing).
+- **Side effects:** sets `registration_settings.code = p_code` and `updated_at = now()`. A new
+  code makes every old QR code fail with `AMRAP_REGISTRATION_CLOSED`.
 
 ## charge_due_appointments
 

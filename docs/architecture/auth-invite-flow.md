@@ -1,6 +1,8 @@
 # Auth and invite flow
 
-How a customer gets an account (ADR 0006). The trainer creates the customer record on the
+How a customer gets an account. There are two ways in: the trainer's invite (ADR 0006), below,
+and registration with the gym code (ADR 0021), in
+[Registration with the gym code](#registration-with-the-gym-code). The trainer creates the customer record on the
 Customers screen and, on the customer's page, taps **Ustvari povabilo** (steps in
 [runbook.md](../runbook.md#invite-a-customer); an SQL fallback is there too). The app creates an invite for an unlinked
 customer record with `create_invite(customer_id)`, which returns a single-use token (24 random
@@ -71,5 +73,53 @@ sequenceDiagram
     else caller already linked to another customer
         DB-->>App: AMRAP_ALREADY_LINKED
         App-->>C: invite rejected
+    end
+```
+
+## Registration with the gym code
+
+A person scans the QR code in the gym. The link holds the gym code
+(`/registracija?koda=<gym code>`). The person signs up with email and password (no
+confirmation email), and the app calls `register_customer(name, phone, code)`
+([rpcs.md](../rpcs.md#register_customer)). The function checks, in this order: a signed-in
+user, the caller not linked yet, the gym code, then name and phone. It then creates the
+customer record linked to the caller. Registration only ever creates the role `customer`.
+
+"Closed" and "wrong code" give the same error, `AMRAP_REGISTRATION_CLOSED`, so the answer never
+confirms a code. The trainer sets or clears the code with `set_registration_code(code)`; a new
+code makes every old QR code fail. If the sign-up worked but `register_customer` did not run or
+was refused, the auth user exists but has no record, as in the invite flow.
+
+```mermaid
+sequenceDiagram
+    actor T as Trainer
+    actor P as Person
+    participant App as PWA
+    participant Auth as Supabase Auth
+    participant DB as Postgres RPCs
+
+    T->>App: Settings: open registration (new code)
+    App->>DB: set_registration_code(code)
+    DB->>DB: is_trainer(), code 8 or more characters, else AMRAP_FORBIDDEN / AMRAP_INVALID_ARGUMENT
+    T->>P: QR code with the link and the gym code, printed in the gym
+    P->>App: scan QR, open link with the code
+    App->>Auth: sign up (email, password)
+    Auth-->>App: session (no email confirmation)
+    Note over App,Auth: user_already_exists: sign in with the same email and password instead
+    App->>DB: register_customer(name, phone, code)
+    alt no signed-in user
+        DB-->>App: AMRAP_FORBIDDEN
+    else caller already linked (also a second call or a second tab)
+        DB-->>App: AMRAP_ALREADY_LINKED
+    else code null, missing or not equal to the stored code
+        DB-->>App: AMRAP_REGISTRATION_CLOSED
+        App-->>P: scan the QR code in the gym or ask the trainer
+    else name not 2 to 80 or phone not 6 to 30 characters (trimmed)
+        DB-->>App: AMRAP_INVALID_ARGUMENT
+    else all checks pass
+        DB->>DB: insert customers row (role customer, trimmed name and phone, auth email, auth_user_id, registered_at)
+        DB-->>App: customer id
+        App->>DB: reload own customers row (role)
+        App-->>P: customer Home
     end
 ```

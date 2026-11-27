@@ -127,6 +127,7 @@ export function makeCustomer(overrides: Partial<CustomerRow>): CustomerRow {
     auth_user_id: 'user-1',
     invite_token: null,
     invite_expires_at: null,
+    registered_at: null,
     created_at: '2026-01-01T00:00:00Z',
     ...overrides,
   };

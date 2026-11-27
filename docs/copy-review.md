@@ -482,6 +482,7 @@ is a question below.
 | `errors.AMRAP_NOT_CANCELLABLE` | Tega termina ni mogoče odpovedati. |  |
 | `errors.AMRAP_NOT_FOUND` | Zapisa ni mogoče najti. |  |
 | `errors.AMRAP_NOT_UNDOABLE` | Te odpovedi ni več mogoče razveljaviti. | Novo: stranka to vidi, če poskusi razveljaviti odpoved, ko je rok že mimo, termin ni več brezplačno odpovedan ali stalni termin ni več aktiven. |
+| `errors.AMRAP_REGISTRATION_CLOSED` | Registracija ni mogoča. Skenirajte QR kodo v telovadnici ali se obrnite na trenerja. | Novo: oseba to vidi, če je registracija zaprta ali če povezava nima prave kode (na primer stara QR koda po menjavi kode). Ista napaka za oba primera, da ni mogoče ugibati kode. |
 | `errors.AMRAP_SETTINGS_MISSING` | Nastavitve niso na voljo. Obrnite se na trenerja. |  |
 | `errors.AMRAP_SLOT_INACTIVE` | Ta termin ni več na voljo. |  |
 | `errors.AMRAP_SLOT_MISMATCH` | Čas ne ustreza izbranemu terminu. |  |
