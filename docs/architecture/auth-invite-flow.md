@@ -2,7 +2,7 @@
 
 How a customer gets an account. There are two ways in: the trainer's invite (ADR 0006), below,
 and registration with the gym code (ADR 0021), in
-[Registration with the gym code](#registration-with-the-gym-code). The trainer creates the customer record on the
+[Registration with the gym code](#registration-with-the-gym-code). In the invite flow, the trainer creates the customer record on the
 Customers screen and, on the customer's page, taps **Ustvari povabilo** (steps in
 [runbook.md](../runbook.md#invite-a-customer); an SQL fallback is there too). The app creates an invite for an unlinked
 customer record with `create_invite(customer_id)`, which returns a single-use token (24 random

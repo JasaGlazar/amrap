@@ -18,8 +18,9 @@ These constraints bind every task and are what the reviewer checks against (alon
 - Slovenian UI; every user-visible string lives in `app/src/i18n/sl.ts`. No hardcoded UI strings.
 - Docs 1:1 (below), no generated artifacts except the DB types, tests derive counts, no
   blocking hooks (all below).
-- Auth: email/password with email confirmations disabled. Customers join only via trainer
-  invite token (`create_invite` / `accept_invite`). Magic links and OTP are not used.
+- Auth: email/password with email confirmations disabled. Customers join in one of two ways:
+  the trainer invite (`create_invite` / `accept_invite`) or registration with the gym code
+  (`register_customer`, ADR 0021). Magic links and OTP are not used.
 - Tests: pgTAP via `supabase test db` (`supabase/tests/*.sql`); frontend logic tests with Vitest;
   edge function tests with Deno (`scripts/test-functions.sh`); browser tests with Playwright
   (`app/e2e/`, see [Browser tests](#browser-tests)).
@@ -210,7 +211,7 @@ run, so test files do not create it.
 | `035_booking_switch.sql` | the cutoff (8 hours in the row and as the default), `customer_booking_enabled` (default false, not null); a customer `book()` refused while it is false, the trainer's `book()` and `materialize_recurring` still booking, a customer `book()` once it is true, a missing settings row |
 | `036_undo_cancel.sql` | `undo_cancel`: definition and grants, `book()`'s lock held and taken before the blocked check; a customer's own free cancel restored with no ledger row and later charged once by the charge job; another customer, the trainer, an unlinked user and anon refused; unknown and null id; `booked`, `charged`, `cancelled_late` and `cancelled_by_trainer` refused; exactly at the cutoff refused and one second before it allowed; blocked period, full slot (count stays at capacity), inactive template, another live booking at the same start, inactive and active recurring rule, ad-hoc appointment; missing settings |
 | `037_booking_restored.sql` | the `booking_restored` notification: definition and grants, the enum value; a customer's undo notifies the trainer with the name, start and timezone and queues its request; the customer gets nothing; `cancelled_late` → `booked` notifies nobody; no trainer device records nothing and the undo still succeeds; cancel, undo, cancel, undo on one appointment writes a new undispatched row of the step's kind each time and queues each one; a status change succeeds when its push request cannot be queued or its notification fails |
-| `038_registration.sql` | `register_customer` and `set_registration_code`: definitions and grants, `registration_settings` shape, default row and table grants, `customers.registered_at`; signed out and no user refused; closed, wrong and null code refused with one token, also with invalid fields; name and phone bounds, spaces and null; the new record (role, trimmed fields, auth email, link, `registered_at`); a second call, a linked customer and the trainer refused with exactly one record kept; who can read and write `registration_settings`; the trainer sets, refuses a 7-character code and clears the code, after which the old code is refused; a missing settings row fails closed |
+| `038_registration.sql` | `register_customer` and `set_registration_code`: definitions and grants, `registration_settings` shape, default row and table grants, `customers.registered_at`; signed out and no user refused; closed, wrong and null code refused with one token, also with invalid fields; name and phone bounds, spaces and null; the new record (role, trimmed fields, auth email, link, `registered_at`); a second call, a linked customer and the trainer refused with exactly one record kept; who can read and write `registration_settings`; the trainer sets, refuses a 7-character code, replaces and clears the code; a replaced code is refused and, after the clear, the old code is refused; a missing settings row fails closed |
 
 Helpers in `supabase/seeds/test_helpers.sql` (schema `tests`, local only):
 

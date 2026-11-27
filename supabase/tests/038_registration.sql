@@ -4,7 +4,7 @@
 -- registration_settings is readable by the trainer only.
 begin;
 
-select plan(43);
+select plan(45);
 
 -- Fixtures ---------------------------------------------------------------------------------
 
@@ -186,6 +186,17 @@ select throws_matching($$select public.set_registration_code('1234567')$$,
 select public.set_registration_code('12345678');
 select is((select code from public.registration_settings where id = 1), '12345678',
   'a code of 8 characters is stored');
+select public.set_registration_code('87654321');
+select is((select code from public.registration_settings where id = 1), '87654321',
+  'a new code replaces the old code');
+select tests.clear_authentication();
+
+select tests.authenticate_as((select id from fx where key = 'user_second'));
+select throws_matching($$select public.register_customer('Druga Stranka', '040123456', '12345678')$$,
+  '^AMRAP_REGISTRATION_CLOSED:', 'after the code is replaced, the old code is refused');
+select tests.clear_authentication();
+
+select tests.authenticate_as((select id from fx where key = 'trainer_user'));
 select public.set_registration_code(null);
 select is((select code from public.registration_settings where id = 1), null::text,
   'a null code clears the code');
