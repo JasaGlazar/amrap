@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-e2e/
 .env
 .env.*
 !.env.example
@@ -12,3 +13,5 @@ coverage/
 dev-dist/
 .cloudflare/
 .wrangler/
+app/playwright-report/
+app/test-results/

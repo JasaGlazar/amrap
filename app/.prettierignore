@@ -1,7 +1,10 @@
 dist
+dist-e2e
 dev-dist
 node_modules
 coverage
 src/lib/database.types.ts
 deploy/.cloudflare
 deploy/.wrangler
+playwright-report
+test-results

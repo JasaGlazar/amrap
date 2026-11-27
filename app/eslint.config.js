@@ -21,11 +21,14 @@ export default tseslint.config(
   {
     ignores: [
       'dist',
+      'dist-e2e',
       'dev-dist',
       'coverage',
       'src/lib/database.types.ts',
       'deploy/.cloudflare',
       'deploy/.wrangler',
+      'playwright-report',
+      'test-results',
     ],
   },
   {
@@ -48,5 +51,42 @@ export default tseslint.config(
   {
     files: ['vite.config.ts', 'eslint.config.js'],
     languageOptions: { globals: globals.node },
+  },
+  {
+    files: ['e2e/**/*.ts', 'playwright.config.ts'],
+    languageOptions: { globals: globals.node },
+  },
+  {
+    files: ['e2e/**/*.spec.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'CallExpression[callee.property.name=/^(newContext|newPage)$/]',
+          message:
+            'Use newGuardedPage() from the fixtures; it blocks requests outside the local stack.',
+        },
+      ],
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@playwright/test',
+              message: 'Import test and expect from ./fixtures',
+              allowTypeImports: true,
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // Playwright fixtures take `use` and `{}` by design; neither is React.
+    files: ['e2e/fixtures.ts'],
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
+      'no-empty-pattern': 'off',
+    },
   },
 );
