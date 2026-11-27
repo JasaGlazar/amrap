@@ -100,7 +100,7 @@ erDiagram
     notifications {
         uuid id PK
         uuid customer_id FK "recipient"
-        notification_kind kind "cutoff_reminder, booking_created, booking_cancelled, credit_topup, credit_adjustment, appointment_cancelled_by_trainer, booking_restored"
+        notification_kind kind "cutoff_reminder, booking_created, booking_cancelled, credit_topup, credit_adjustment, appointment_cancelled_by_trainer, booking_restored, customer_registered"
         uuid appointment_id FK "nullable, unique with kind"
         uuid transaction_id FK "nullable"
         jsonb data

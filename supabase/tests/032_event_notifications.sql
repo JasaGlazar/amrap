@@ -136,15 +136,18 @@ select set_eq(
   $$select p.proname::text, p.prosecdef, array_to_string(p.proconfig, ',')
     from pg_proc p where p.pronamespace = 'public'::regnamespace
       and p.proname in ('enqueue_notification', 'notify_booking_created', 'notify_booking_cancelled',
-                        'notify_cancelled_by_trainer', 'notify_credit_change', 'save_push_subscription')$$,
+                        'notify_cancelled_by_trainer', 'notify_credit_change', 'notify_customer_registered',
+                        'save_push_subscription')$$,
   $$select f, true as secdef, 'search_path=""' as config from unnest(array['enqueue_notification', 'notify_booking_created',
-    'notify_booking_cancelled', 'notify_cancelled_by_trainer', 'notify_credit_change', 'save_push_subscription']) f$$,
+    'notify_booking_cancelled', 'notify_cancelled_by_trainer', 'notify_credit_change', 'notify_customer_registered',
+    'save_push_subscription']) f$$,
   'the event functions are security definer with an empty search_path');
 select is_empty(
   $$select r, f from unnest(array['anon', 'authenticated', 'service_role']) r,
                      unnest(array['public.enqueue_notification(uuid, public.notification_kind, jsonb, uuid, uuid)',
                                   'public.notify_booking_created()', 'public.notify_booking_cancelled()',
-                                  'public.notify_cancelled_by_trainer()', 'public.notify_credit_change()']) f
+                                  'public.notify_cancelled_by_trainer()', 'public.notify_credit_change()',
+                                  'public.notify_customer_registered()']) f
     where has_function_privilege(r, f, 'EXECUTE')$$,
   'enqueue_notification and the trigger functions are executable by nobody but their owner');
 select results_eq(
@@ -154,13 +157,15 @@ select results_eq(
   'save_push_subscription is granted to authenticated only');
 select set_eq(
   $$select tgrelid::regclass::text, tgname::text from pg_trigger
-    where not tgisinternal and tgrelid in ('public.appointments'::regclass, 'public.credit_transactions'::regclass)$$,
+    where not tgisinternal and tgrelid in ('public.appointments'::regclass, 'public.credit_transactions'::regclass,
+                                           'public.customers'::regclass)$$,
   $$values ('appointments', 'appointments_notify_booking_created'),
            ('appointments', 'appointments_notify_booking_cancelled'),
            ('appointments', 'appointments_notify_cancelled_by_trainer'),
            ('appointments', 'appointments_notify_booking_restored'),
-           ('credit_transactions', 'credit_transactions_notify_credit_change')$$,
-  'the five notification triggers exist');
+           ('credit_transactions', 'credit_transactions_notify_credit_change'),
+           ('customers', 'customers_notify_registered')$$,
+  'the six notification triggers exist');
 
 -- Bookings ---------------------------------------------------------------------------------
 

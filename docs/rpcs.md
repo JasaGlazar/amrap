@@ -341,7 +341,9 @@ public.register_customer(p_name text, p_phone text, p_code text) returns uuid
 - **Side effects:** inserts one `customers` row with `role = 'customer'` (always; nothing the
   caller passes changes it), the trimmed name and phone, `email` from `auth.users` for the
   caller, `auth_user_id = auth.uid()` and `registered_at = now()`. Returns its id. The email is
-  not confirmed and stays contact data only (ADR 0006).
+  not confirmed and stays contact data only (ADR 0006). The trainer is notified
+  (`customer_registered`) by trigger and best effort
+  ([notifications.md](notifications.md#event-notifications)).
 - **Diagram:** [architecture/auth-invite-flow.md](architecture/auth-invite-flow.md#registration-with-the-gym-code).
 
 ## set_registration_code
@@ -617,7 +619,13 @@ grant for the role that fires it). See [notifications.md](notifications.md#event
   `timezone`, `refunded` and `reason` (`cancel_reason`). `refunded` is `old.status =
   'charged'`: the refund row is inserted after the status update, when this row trigger has
   already run, and every trainer cancel of a charged appointment refunds it.
+- `public.notify_customer_registered() returns trigger` — trigger
+  `customers_notify_registered` (`after insert`, `registered_at is not null`, which only
+  `register_customer()` sets), defined in
+  `20261127080341_customer_registered_notification.sql`: enqueues `customer_registered` for
+  the trainer with `customer_id` and `customer_name`, and no appointment or transaction. Same
+  recipient as `notify_booking_cancelled()`.
 
 Each trigger function, like `enqueue_notification` itself, catches every error and reports it
 with `raise warning`, so a notification problem never fails `book`, `cancel`, `undo_cancel`,
-`cancel_occurrence`, `deactivate_rule`, `top_up` or `adjust`.
+`cancel_occurrence`, `deactivate_rule`, `top_up`, `adjust` or `register_customer`.

@@ -437,6 +437,8 @@ is a question below.
 | `push.bookingCancelledLateTitle` | Pozna odpoved termina |  |
 | `push.bookingRestoredTitle` | Razveljavljena odpoved termina | Novo: naslov obvestila trenerju, ko stranka razveljavi svojo odpoved in je termin spet njen. Besedilo pod naslovom je kot pri odpovedi (»{name}: {day} ob {time}«). |
 | `push.bookingBody` | {name}: {day} ob {time} |  |
+| `push.customerRegisteredTitle` | Nova registracija | Novo: naslov obvestila trenerju, ko se nova stranka registrira s QR kodo. Dotik odpre stran stranke. |
+| `push.customerRegisteredBody` | Nova stranka: {name} | Novo. Primer: »Nova stranka: Ana Novak«. Ali raje »Ana Novak se je registrirala.« (oblika je odvisna od spola)? |
 | `push.topupTitle` | Dodani krediti |  |
 | `push.topupBody` | Dodano: {amount}. Novo stanje: {balance}. | »Dodano: +8. Novo stanje: 10.« ali »Dodanih 8 kreditov, novo stanje 10.«? |
 | `push.adjustmentTitle` | Popravek stanja kreditov |  |

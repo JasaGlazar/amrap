@@ -83,7 +83,9 @@ A person scans the QR code in the gym. The link holds the gym code
 confirmation email), and the app calls `register_customer(name, phone, code)`
 ([rpcs.md](../rpcs.md#register_customer)). The function checks, in this order: a signed-in
 user, the caller not linked yet, the gym code, then name and phone. It then creates the
-customer record linked to the caller. Registration only ever creates the role `customer`.
+customer record linked to the caller. Registration only ever creates the role `customer`. A
+trigger then sends the trainer a push (`customer_registered`, best effort,
+[notifications.md](../notifications.md#event-notifications)).
 
 "Closed" and "wrong code" give the same error, `AMRAP_REGISTRATION_CLOSED`, so the answer never
 confirms a code. The trainer sets or clears the code with `set_registration_code(code)`; a new
@@ -118,6 +120,7 @@ sequenceDiagram
         DB-->>App: AMRAP_INVALID_ARGUMENT
     else all checks pass
         DB->>DB: insert customers row (role customer, trimmed name and phone, auth email, auth_user_id, registered_at)
+        DB->>DB: trigger notify_customer_registered, trainer push after commit (best effort)
         DB-->>App: customer id
         App->>DB: reload own customers row (role)
         App-->>P: customer Home

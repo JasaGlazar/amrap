@@ -71,8 +71,8 @@ select is((select extnamespace::regnamespace::text from pg_extension where extna
 select has_table('public', 'notifications', 'table notifications exists');
 select enum_has_labels('public', 'notification_kind',
   array['cutoff_reminder', 'booking_created', 'booking_cancelled', 'credit_topup', 'credit_adjustment',
-        'appointment_cancelled_by_trainer', 'booking_restored'],
-  'notification_kind has the seven kinds');
+        'appointment_cancelled_by_trainer', 'booking_restored', 'customer_registered'],
+  'notification_kind has the eight kinds');
 select throws_ok(
   $$insert into public.notifications (customer_id, kind, appointment_id)
     select (select id from fx where key = 'cust_a'), 'cutoff_reminder', (select id from fx where key = 'appt_a')$$,

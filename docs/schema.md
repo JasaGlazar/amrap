@@ -25,6 +25,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `20261119125501_undo_cancel.sql` | `undo_cancel()` and its grants: a customer restores their own free cancel before the cutoff ([rpcs.md](rpcs.md#undo_cancel)). |
 | `20261119131643_booking_restored_notification.sql` | The `booking_restored` notification kind; `notify_booking_restored()` and its trigger; `notify_booking_cancelled()` replaced to delete the appointment's earlier `booking_cancelled` row first, so a repeat cancel is pushed again ([rpcs.md](rpcs.md#helpers), [notifications.md](notifications.md#repeat-cancel-and-undo)). |
 | `20261127073814_self_registration.sql` | `registration_settings` table (the gym code), its row, select policy and grants; `customers.registered_at`; `register_customer()`, `set_registration_code()` and their grants ([rpcs.md](rpcs.md#register_customer), [ADR 0021](adr/0021-customers-register-with-a-gym-code.md)). |
+| `20261127080341_customer_registered_notification.sql` | The `customer_registered` notification kind; `notify_customer_registered()` and its trigger on `customers`, so a registration notifies the trainer ([rpcs.md](rpcs.md#helpers), [notifications.md](notifications.md#event-notifications)). |
 
 ## Enums
 
@@ -34,7 +35,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `appointment_status` | `booked`, `charged`, `cancelled`, `cancelled_late`, `cancelled_by_trainer` |
 | `appointment_source` | `recurring`, `self_booked`, `trainer` |
 | `transaction_type` | `topup`, `session`, `late_cancel`, `refund`, `adjustment` |
-| `notification_kind` | `cutoff_reminder`, `booking_created`, `booking_cancelled`, `credit_topup`, `credit_adjustment`, `appointment_cancelled_by_trainer`, `booking_restored` |
+| `notification_kind` | `cutoff_reminder`, `booking_created`, `booking_cancelled`, `credit_topup`, `credit_adjustment`, `appointment_cancelled_by_trainer`, `booking_restored`, `customer_registered` |
 
 ## Tables
 
@@ -56,7 +57,7 @@ A person who trains at the gym, or the trainer. May or may not have an app accou
 | `invite_token` | text | unique; single use, cleared on accept |
 | `invite_expires_at` | timestamptz | token expiry (7 days) |
 | `created_at` | timestamptz | |
-| `registered_at` | timestamptz | set by `register_customer()` when the person registered themselves; null for records the trainer created |
+| `registered_at` | timestamptz | set by `register_customer()` when the person registered themselves; null for records the trainer created. An insert with it set notifies the trainer ([Triggers](#triggers)) |
 
 Invite status is derived, not stored: **linked** when `auth_user_id` is not null, **pending**
 when `invite_token` is not null and `invite_expires_at > now()`, otherwise **none**.
@@ -222,7 +223,7 @@ API.
 | `customer_id` | uuid | not null, references `customers(id)` on delete cascade; the recipient |
 | `kind` | `notification_kind` | not null |
 | `appointment_id` | uuid | references `appointments(id)` on delete cascade; set for appointment kinds |
-| `transaction_id` | uuid | references `credit_transactions(id)` on delete cascade; set for credit kinds |
+| `transaction_id` | uuid | references `credit_transactions(id)` on delete cascade; set for credit kinds (neither is set for `customer_registered`) |
 | `data` | jsonb | not null, default `{}`; what the service worker renders (per kind in notifications.md) |
 | `created_at` | timestamptz | not null, default `now()` |
 | `dispatched_at` | timestamptz | set once by `claim_notifications()`; null until the edge function claims the row |
@@ -250,6 +251,7 @@ Notification triggers (ADR 0009, [notifications.md](notifications.md#event-notif
 | `appointments_notify_cancelled_by_trainer` | `appointments` | `after update of status` when `old.status in ('booked', 'charged')` and `new.status = 'cancelled_by_trainer'` | `notify_cancelled_by_trainer()` |
 | `appointments_notify_booking_restored` | `appointments` | `after update of status` when `old.status = 'cancelled'` and `new.status = 'booked'` | `notify_booking_restored()` |
 | `credit_transactions_notify_credit_change` | `credit_transactions` | `after insert` when `new.type in ('topup', 'adjustment')` | `notify_credit_change()` |
+| `customers_notify_registered` | `customers` | `after insert` when `new.registered_at is not null` | `notify_customer_registered()` |
 
 ## Views
 

@@ -337,6 +337,8 @@ export const sl = {
     bookingCancelledLateTitle: 'Pozna odpoved termina',
     bookingRestoredTitle: 'Razveljavljena odpoved termina',
     bookingBody: '{name}: {day} ob {time}',
+    customerRegisteredTitle: 'Nova registracija',
+    customerRegisteredBody: 'Nova stranka: {name}',
     topupTitle: 'Dodani krediti',
     topupBody: 'Dodano: {amount}. Novo stanje: {balance}.',
     adjustmentTitle: 'Popravek stanja kreditov',
