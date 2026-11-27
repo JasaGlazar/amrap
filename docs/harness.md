@@ -214,7 +214,6 @@ run, so test files do not create it.
 | `038_registration.sql` | `register_customer` and `set_registration_code`: definitions and grants, `registration_settings` shape, default row and table grants, `customers.registered_at`; signed out and no user refused; closed, wrong and null code refused with one token, also with invalid fields; name and phone bounds, spaces and null; the new record (role, trimmed fields, auth email, link, `registered_at`); a second call, a linked customer and the trainer refused with exactly one record kept; who can read and write `registration_settings`; the trainer sets, refuses a 7-character code, replaces and clears the code; a replaced code is refused and, after the clear, the old code is refused; a missing settings row fails closed |
 | `039_customer_registered.sql` | the `customer_registered` notification: definition and grants, the enum value, the trigger on `customers`; a registration notifies the trainer with the customer's id and name and queues its request; the new customer gets nothing; a record the trainer creates notifies nobody; two registrations write two rows; no trainer device records nothing and the registration still succeeds; a registration succeeds when its push request cannot be queued (the row stays undispatched) or its notification fails (nothing recorded) |
 | `040_delete_customer.sql` | `delete_customer()`: definition and grants; a customer is refused, a null id and an unknown id are refused; a record with an appointment (here a future cancelled one), a credit transaction or an inactive rule is refused, and so is a trainer record, and each refused record keeps its rows; a record with no history is deleted, its notifications go with it, its auth user stays; a second delete finds nothing |
-| `app/src/pages/register.test.tsx` (Vitest) | the registration page: no code shows no form; the fields signed out (all required) and signed in without a record (name and phone only); name, phone and password checks before any request, with the trimmed bounds; sign-up, `register_customer` with the trimmed fields and the code, then the customer Home; an existing account with the right and the wrong password; other sign-up and sign-in errors; a refused code; a linked user sent to `/` |
 
 Helpers in `supabase/seeds/test_helpers.sql` (schema `tests`, local only):
 
@@ -248,6 +247,17 @@ How to write a test:
 5. Call `tests.clear_authentication()` before going back to superuser fixtures.
 6. Write the test first and watch it fail, then write the migration; run
    `supabase db reset && supabase test db` until the output is green with no notices.
+
+### App tests
+
+Vitest tests sit next to the code in `app/src/` (`*.test.ts`, `*.test.tsx`) and run with
+`npm test` in `app/`. Page tests use the fake Supabase client in `app/src/test/fakeSupabase.ts`
+([app-structure.md](app-structure.md#testing-with-the-fake-client)). The table below is not a
+full list of the files.
+
+| File | Covers |
+|---|---|
+| `app/src/pages/register.test.tsx` | the registration page: no code shows the scan-the-QR copy and no form, signed out and signed in without a record; the fields signed out (all required, the phone keyboard, autofill hints) and signed in without a record (name and phone only); name, phone and password checks before any request, with the trimmed bounds; sign-up, `register_customer` with the trimmed fields and the code, then the customer Home; a sign-up with no session; an existing account with the right password (registered), with the wrong password (a link to sign in) and with a record already (ends on Home); other sign-up and sign-in errors; a refused code shows the closed copy and the short form, and a retry calls `register_customer` again with no new sign-up; a failed customer lookup shows the lookup-failed page and no form; a linked user sent to the customer Home |
 
 ### Browser tests
 

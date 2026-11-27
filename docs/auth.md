@@ -47,9 +47,9 @@ signed-in user, the lookup for that user has finished), `session`, `customer`, `
 | `RequireRole role` | inside `RequireAuth`: a user of the other role is redirected to their own home (`homePath`: `/t` trainer, `/c` customer). |
 | `RoleRedirect` | the `/` route: redirects to `homePath(role)`. |
 
-`/login`, `/invite/:token`, `/registracija` and `/logout` are outside `RequireAuth`. `/login` redirects a
-signed-in user to `/`; after a successful sign-in the session change does that redirect, so the
-page only handles failures.
+`/login`, `/invite/:token`, `/registracija` and `/logout` are outside `RequireAuth`. `/login`
+redirects a signed-in user to `/`; after a successful sign-in the session change does that
+redirect, so the page only handles failures.
 
 ## Lookup failed vs not linked
 
@@ -98,8 +98,8 @@ sign-out control links to `/logout`: the account menu in the top bar of both she
 page reads the code from the `koda` query parameter.
 
 1. Loading → loading line. A signed-in user with a customer record → redirect to `/`. A
-   failed customer lookup → `LookupFailedPage`. While a submit runs, the page keeps its form on
-   screen even though signing up changes the auth state.
+   failed customer lookup → `LookupFailedPage`. While a submit runs, the page keeps its form
+   on screen even though signing up changes the auth state.
 2. No `koda` → only `register.noCode` (scan the QR code in the gym). No form, so no account is
    created without a code.
 3. Signed out → name, phone, email, password and password again, all required. Signed in

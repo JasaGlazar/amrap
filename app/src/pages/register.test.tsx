@@ -85,6 +85,7 @@ describe('registration without a code', () => {
     renderAt('/registracija');
     expect(await screen.findByText(t.register.noCode)).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });
 

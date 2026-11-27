@@ -184,7 +184,8 @@ vi.mock('./lib/supabase', async () => ({
   token), `delete_customer` (removes the row, `AMRAP_NOT_FOUND` when there is none),
   `register_customer` (refuses with `AMRAP_REGISTRATION_CLOSED` unless `p_code` equals
   `db.registrationCode`, which `resetFake` sets to null; otherwise sets `db.customer` to a new
-  record linked to the session's user and returns its id),
+  record linked to the session's user and returns its id; it never returns
+  `AMRAP_INVALID_ARGUMENT`, because the page checks name and phone before the call),
   `activate_rule` / `deactivate_rule` (flip `active`; deactivating cancels the rule's future
   booked appointments) and `save_push_subscription` (upserts the signed-in user's row by
   endpoint). Any other RPC throws unless a test mocks it. Tests mock a rejection with

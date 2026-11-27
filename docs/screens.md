@@ -11,7 +11,7 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 |---|---|---|---|---|
 | `/login` | anyone; a signed-in user is sent to `/` | Email and password sign-in: heading **Prijava**, button **Prijavi se** (a heading and its button never say the same thing). A failed sign-in shows `authErrors` copy. | `login`, `authErrors` | Stage 1 |
 | `/invite/:token` | anyone | Sign-up from an invite link (heading **Nov račun**, button **Ustvari račun**): email, password, confirm password. Creates the auth user (or signs in when that account already exists but is unlinked), calls `accept_invite(token)`, reloads the customer record and goes to `/`. A rejected invite shows its `errors.AMRAP_*` copy. | `invite`, `errors`, `authErrors` | Stage 1 |
-| `/registracija` | anyone; a signed-in user with a record is sent to `/` | Registration with the gym code from the QR link (`?koda=<gym code>`), heading **Registracija**, intro `register.intro`. Without `koda` it shows only `register.noCode` and no form. Signed out: name, phone (`type="tel"`), email, password, password again, button **Ustvari račun**. Signed in without a record: name and phone only, button **Dokončaj registracijo**. Checks name (trimmed, 2 to 80 characters), phone (trimmed, 6 to 30) and the passwords before any request; signs up (or signs in when the account exists and the password is right; a wrong password shows `register.accountExists` with a link to `/login`), calls `register_customer`, reloads the customer record and goes to `/`. A refusal shows its `errors.AMRAP_*` copy. Details in [auth.md](auth.md#registration). | `register`, `errors`, `authErrors` | self-registration |
+| `/registracija` | anyone; a signed-in user with a record is sent to `/` | Registration with the gym code from the QR link (`?koda=<gym code>`), heading **Registracija**, intro `register.intro` (signed out) or `register.finishIntro` (signed in without a record). Without `koda` it shows only `register.noCode` and no form. If the customer lookup fails it shows `LookupFailedPage` and no form. Signed out: name, phone (`type="tel"`), email, password, password again, button **Ustvari račun**. Signed in without a record: name and phone only, button **Dokončaj registracijo**. Checks name (trimmed, 2 to 80 characters), phone (trimmed, 6 to 30) and the passwords before any request; signs up (or signs in when the account exists and the password is right; a wrong password shows `register.accountExists` with a link to `/login`), calls `register_customer`, reloads the customer record and goes to `/`. A refusal shows its `errors.AMRAP_*` copy. Details in [auth.md](auth.md#registration). | `register`, `errors`, `authErrors` | self-registration |
 | `/logout` | anyone | Removes this device's push subscription (best effort), signs out and redirects to `/login` (a route loader). If signing out fails it stays and shows the error with a continue link. | `logoutFailed`, `common.continue`, `genericError` | Stage 1, push Stage 3 |
 | `/` | signed in | Redirects to `/t` for the trainer or `/c` for a customer. | none | Stage 1 |
 | (any route below `/`) | signed in, customer lookup failed | Error page with a retry button and a sign-out link to `/logout`. | `lookupFailed`, `common.signOut` | Stage 1 |
@@ -719,10 +719,9 @@ state is loaded once and again after each action; the button is disabled while o
 How the guards and the auth state work is in [auth.md](auth.md).
 
 - `RequireAuth` wraps every route except `/login`, `/invite/:token`, `/registracija` and
-  `/logout`. While the
-  stored session and the customer record are loading it shows a loading line, so a reload never
-  flashes the login page. No session redirects to `/login`; a session without a `customers` row
-  shows the not-linked page.
+  `/logout`. While the stored session and the customer record are loading it shows a loading
+  line, so a reload never flashes the login page. No session redirects to `/login`; a session
+  without a `customers` row shows the not-linked page.
 - `RequireRole('customer' | 'trainer')` wraps `/c` and `/t`. A user of the other role is
   redirected straight to their own home (`/t` or `/c`).
 - If the customers lookup fails (network, server error, paused project) `RequireAuth` shows an
@@ -772,8 +771,8 @@ How the guards and the auth state work is in [auth.md](auth.md).
 
 - **Brand mark.** The framed AMRAP wordmark (`public/brand-mark.png`, alt `app.name`) replaces
   the plain "AMRAP" text: at the left of the top bar in both shells, and as the `h1` above the
-  heading on `/login`, `/invite/:token` and `/registracija`. It is black on white in the light theme and white on
-  black in the dark theme.
+  heading on `/login`, `/invite/:token` and `/registracija`. It is black on white in the light
+  theme and white on black in the dark theme.
 
 - **Type.** One family, Archivo ([app-structure.md](app-structure.md#font)), tabular figures
   everywhere so times and amounts line up. Scale (tokens `--text-xs` to `--text-2xl`): 0.8125
