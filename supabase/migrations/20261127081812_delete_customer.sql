@@ -17,8 +17,7 @@ begin
     raise exception 'AMRAP_INVALID_ARGUMENT: p_customer_id is required' using errcode = 'P0001';
   end if;
 
-  -- for update conflicts with the key share lock an insert of a referencing row takes, so no
-  -- appointment, transaction or rule can be added between the checks and the delete.
+  -- conflicts with the key share lock of a referencing insert
   select * into v_customer from public.customers c where c.id = p_customer_id for update;
   if not found then
     raise exception 'AMRAP_NOT_FOUND: customer % does not exist', p_customer_id using errcode = 'P0001';
@@ -40,7 +39,6 @@ begin
       using errcode = 'P0001';
   end if;
 
-  -- notifications cascade; the auth user stays until removed in the dashboard.
   delete from public.customers c where c.id = p_customer_id;
 end;
 $$;

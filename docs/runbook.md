@@ -153,7 +153,7 @@ history, and a new one linked to their account. Keep the old record and move the
 
 1. Note the new record's `auth_user_id` before you delete the record (the app does not show
    it): `select id, name, auth_user_id, registered_at from public.customers where name ilike
-   '%<name>%';`. The new record is the one with `registered_at` set.
+   '%<name>%';`. The new record is the one with no history (and the later `registered_at`).
 2. On the new record's page tap **Izbriši stranko**, then **Potrdi izbris**. The button shows
    only for a record with no appointments, no credit transactions and no recurring rules
    (`delete_customer`, [rpcs.md](rpcs.md#delete_customer)); a record with history cannot be

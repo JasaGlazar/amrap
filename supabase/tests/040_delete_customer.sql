@@ -52,7 +52,8 @@ with t as (
 insert into public.appointments (customer_id, slot_template_id, starts_at, ends_at, status, source,
                                  cancelled_at)
 select (select id from fx where key = 'cust_appt'), (select id from fx where key = 'tpl'),
-       now() + interval '3 days', now() + interval '3 days 1 hour', 'cancelled', 'self_booked', now();
+       now() + interval '3 days', now() + interval '3 days 1 hour', 'cancelled', 'self_booked',
+       now();
 insert into public.credit_transactions (customer_id, amount, type)
 select id, 5, 'topup' from fx where key = 'cust_tx';
 insert into public.recurring_rules (customer_id, slot_template_id, active)
@@ -117,22 +118,27 @@ select tests.clear_authentication();
 select is(
   (select count(*)::int from public.customers c join fx on fx.id = c.id
    where fx.key in ('cust_appt', 'cust_tx', 'cust_rule', 'trainer_2', 'trainer')),
-  (select count(*)::int from fx where key in ('cust_appt', 'cust_tx', 'cust_rule', 'trainer_2', 'trainer')),
+  (select count(*)::int from fx
+   where key in ('cust_appt', 'cust_tx', 'cust_rule', 'trainer_2', 'trainer')),
   'every refused record still exists');
 select isnt_empty(
-  format('select 1 from public.appointments where customer_id = %L', (select id from fx where key = 'cust_appt')),
+  format('select 1 from public.appointments where customer_id = %L',
+         (select id from fx where key = 'cust_appt')),
   'the refused record keeps its appointment');
 select isnt_empty(
-  format('select 1 from public.credit_transactions where customer_id = %L', (select id from fx where key = 'cust_tx')),
+  format('select 1 from public.credit_transactions where customer_id = %L',
+         (select id from fx where key = 'cust_tx')),
   'the refused record keeps its transaction');
 select isnt_empty(
-  format('select 1 from public.recurring_rules where customer_id = %L', (select id from fx where key = 'cust_rule')),
+  format('select 1 from public.recurring_rules where customer_id = %L',
+         (select id from fx where key = 'cust_rule')),
   'the refused record keeps its rule');
 
 -- A record with no history -----------------------------------------------------------------
 
 select isnt_empty(
-  format('select 1 from public.notifications where customer_id = %L', (select id from fx where key = 'cust_clean')),
+  format('select 1 from public.notifications where customer_id = %L',
+         (select id from fx where key = 'cust_clean')),
   'the record to delete has a notification before the delete');
 
 select tests.authenticate_as((select id from fx where key = 'trainer_user'));
@@ -142,13 +148,16 @@ select lives_ok(
 select tests.clear_authentication();
 
 select is_empty(
-  format('select 1 from public.customers where id = %L', (select id from fx where key = 'cust_clean')),
+  format('select 1 from public.customers where id = %L',
+         (select id from fx where key = 'cust_clean')),
   'the record is gone');
 select is_empty(
-  format('select 1 from public.notifications where customer_id = %L', (select id from fx where key = 'cust_clean')),
+  format('select 1 from public.notifications where customer_id = %L',
+         (select id from fx where key = 'cust_clean')),
   'its notifications are gone with it');
 select isnt_empty(
-  format('select 1 from auth.users where id = %L', (select id from fx where key = 'user_clean')),
+  format('select 1 from auth.users where id = %L',
+         (select id from fx where key = 'user_clean')),
   'its auth user still exists');
 
 select tests.authenticate_as((select id from fx where key = 'trainer_user'));

@@ -896,6 +896,40 @@ describe('customer delete', () => {
     expect(deleteButton()).toBeNull();
   });
 
+  it('offers no delete for a record with only a future booked appointment', async () => {
+    const future = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    db.tables.appointments = [
+      {
+        id: 'booked-1',
+        customer_id: cvet.id,
+        slot_template_id: template.id,
+        starts_at: future,
+        ends_at: future,
+        status: 'booked',
+      },
+    ];
+    renderAt(`/t/stranke/${cvet.id}`);
+    await loaded(cvet.id);
+    expect(deleteButton()).toBeNull();
+  });
+
+  it('offers no delete for a record with only a past charged appointment', async () => {
+    const past = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    db.tables.appointments = [
+      {
+        id: 'charged-1',
+        customer_id: cvet.id,
+        slot_template_id: template.id,
+        starts_at: past,
+        ends_at: past,
+        status: 'charged',
+      },
+    ];
+    renderAt(`/t/stranke/${cvet.id}`);
+    await loaded(cvet.id);
+    expect(deleteButton()).toBeNull();
+  });
+
   it('offers no delete for a record with only a credit transaction', async () => {
     db.tables.credit_transactions = [
       {
@@ -927,6 +961,7 @@ describe('customer delete', () => {
     await userEvent.click(deleteButton() as HTMLElement);
     expect(fakeSupabase.rpc).not.toHaveBeenCalledWith('delete_customer', expect.anything());
     expect(screen.getByText(t.customerDetail.deleteWarning)).toBeVisible();
+    expect(screen.getByRole('button', { name: t.customerDetail.confirmDelete })).toHaveFocus();
     await userEvent.click(screen.getByRole('button', { name: t.customerDetail.confirmDelete }));
     expect(fakeSupabase.rpc).toHaveBeenCalledWith('delete_customer', { p_customer_id: cvet.id });
     await waitFor(() => expect(router.state.location.pathname).toBe('/t/stranke'));
@@ -955,6 +990,34 @@ describe('customer delete', () => {
     await userEvent.click(screen.getByRole('button', { name: t.customerDetail.confirmDelete }));
     expect(await screen.findByRole('alert')).toHaveTextContent(t.errors.AMRAP_NOT_DELETABLE);
     expect(router.state.location.pathname).toBe(`/t/stranke/${cvet.id}`);
+    expect(screen.queryByRole('button', { name: t.customerDetail.confirmDelete })).toBeNull();
+  });
+
+  it('moves focus to the details heading when a refusal removes the delete', async () => {
+    const past = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    fakeSupabase.rpc.mockImplementationOnce(() => {
+      db.tables.appointments = [
+        {
+          id: 'charged-1',
+          customer_id: cvet.id,
+          slot_template_id: template.id,
+          starts_at: past,
+          ends_at: past,
+          status: 'charged',
+        },
+      ];
+      return Promise.resolve({
+        data: null,
+        error: { message: 'AMRAP_NOT_DELETABLE: customer has appointments' },
+      });
+    });
+    renderAt(`/t/stranke/${cvet.id}`);
+    await loaded(cvet.id);
+    await userEvent.click(deleteButton() as HTMLElement);
+    await userEvent.click(screen.getByRole('button', { name: t.customerDetail.confirmDelete }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(t.errors.AMRAP_NOT_DELETABLE);
+    await waitFor(() => expect(deleteButton()).toBeNull());
+    expect(screen.getByRole('heading', { name: t.customerDetail.detailsTitle })).toHaveFocus();
   });
 });
 

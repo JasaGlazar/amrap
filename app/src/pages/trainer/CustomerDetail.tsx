@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import {
   chargedSince,
@@ -94,6 +94,8 @@ export function TrainerCustomerDetail() {
   const [addingRule, setAddingRule] = useState(false);
   const [editingDetails, setEditingDetails] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const deleteRefused = useRef(false);
+  const detailsHeading = useRef<HTMLHeadingElement>(null);
   const [cancelling, setCancelling] = useState<{
     appointment: Appointment;
     section: string;
@@ -106,6 +108,14 @@ export function TrainerCustomerDetail() {
       state: listSearch === '' ? null : { listSearch },
     });
   }, [location.pathname, startingError, listSearch, navigate]);
+
+  useEffect(() => {
+    if (busy || !deleteRefused.current) return;
+    deleteRefused.current = false;
+    if (document.activeElement === null || document.activeElement === document.body) {
+      detailsHeading.current?.focus();
+    }
+  }, [busy]);
 
   async function run<T>(
     section: string,
@@ -247,6 +257,7 @@ export function TrainerCustomerDetail() {
     setNotices((current) => ({ ...current, delete: { error: true, text: result.message } }));
     setConfirmingDelete(false);
     await reload();
+    deleteRefused.current = true;
     setBusy(false);
   }
 
@@ -473,7 +484,9 @@ export function TrainerCustomerDetail() {
       </section>
       <section aria-label={t.customerDetail.detailsTitle}>
         <div className="head">
-          <h2>{t.customerDetail.detailsTitle}</h2>
+          <h2 ref={detailsHeading} tabIndex={-1}>
+            {t.customerDetail.detailsTitle}
+          </h2>
           <OnDemand
             label={t.customerDetail.editDetails}
             className="button secondary"
@@ -526,25 +539,27 @@ export function TrainerCustomerDetail() {
               setConfirmingDelete(true);
             }}
           >
-            <p>{t.customerDetail.deleteWarning}</p>
-            <div className="actions">
-              <button
-                type="button"
-                className="button danger"
-                disabled={busy}
-                autoFocus
-                onClick={() => void removeCustomer()}
-              >
-                {t.customerDetail.confirmDelete}
-              </button>
-              <button
-                type="button"
-                className="button secondary"
-                disabled={busy}
-                onClick={() => setConfirmingDelete(false)}
-              >
-                {t.common.cancel}
-              </button>
+            <div className="card">
+              <p>{t.customerDetail.deleteWarning}</p>
+              <div className="actions">
+                <button
+                  type="button"
+                  className="button danger"
+                  disabled={busy}
+                  autoFocus
+                  onClick={() => void removeCustomer()}
+                >
+                  {t.customerDetail.confirmDelete}
+                </button>
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={busy}
+                  onClick={() => setConfirmingDelete(false)}
+                >
+                  {t.common.cancel}
+                </button>
+              </div>
             </div>
           </OnDemand>
         )}

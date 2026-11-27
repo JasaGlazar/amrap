@@ -437,11 +437,12 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   status), no ledger rows and no recurring rules, active or not. A tap opens the confirmation
   in place ([on demand](#forms-on-demand)): `customerDetail.deleteWarning`, then **Potrdi
   izbris** (a danger button, focused) and **Prekliči** (closes it and puts focus back on
-  **Izbriši stranko**). Only the second tap calls `delete_customer`; on success the page goes
-  back to the list (with its search and filter). A refusal (for example
-  `errors.AMRAP_NOT_DELETABLE` when history appeared meanwhile) shows under the details, the
-  confirmation closes, and the page reloads. Used for fake registrations and for a person who
-  registered twice (runbook "A customer registered twice").
+  **Izbriši stranko**), in a card like the other forms. Only the second tap calls
+  `delete_customer`; on success the page goes back to the list (with its search and filter). A
+  refusal (for example `errors.AMRAP_NOT_DELETABLE` when history appeared meanwhile) shows under
+  the details, the confirmation closes, and the page reloads. If the reload hides **Izbriši
+  stranko**, focus moves to the **Podatki** heading. Used for fake registrations and for a
+  person who registered twice (runbook "A customer registered twice").
 
 ### Settings (`/t/nastavitve`)
 
@@ -601,8 +602,9 @@ the occurrence).
   actions carry a `+`, **Uredi podatke** does not. So a screen never has two black buttons
   competing for the main action.
 - **Open:** pressing it replaces the button with the form, as a card under the heading,
-  above the list; focus moves to the form's first field (on **Izbriši stranko**, which has no
-  field, to **Potrdi izbris**). The form has **Prekliči** next to its submit button
+  above the list (**Izbriši stranko** opens its card in place, under the details); focus
+  moves to the form's first field (on **Izbriši stranko**, which has no field, to **Potrdi
+  izbris**). The form has **Prekliči** next to its submit button
   (`settings.cancelEdit` in Nastavitve, `common.cancel` elsewhere).
 - **Prekliči** closes it, drops what was typed (the next open starts empty) and returns focus
   to the button. It is disabled, like the submit button, while a save or the count before one
