@@ -32,8 +32,8 @@ app relies on.
 | Token | Meaning | Raised by |
 |---|---|---|
 | `AMRAP_FORBIDDEN` | The caller's role does not allow this call, a customer acts on someone else's record or gives a cancel reason (`cancel`), or (`accept_invite`, `register_customer`) there is no signed-in user | all except `charge_due_appointments`, `send_cutoff_reminders`, `prune_cron_history` and `claim_notifications` |
-| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record; for `cancel` and `cancel_occurrence`: a reason over 200 characters; for `register_customer`: a name or phone out of range; for `set_registration_code`: a code under 8 characters) | `book`, `cancel`, `undo_cancel`, `cancel_occurrence`, `top_up`, `adjust`, `create_invite`, `materialize_recurring`, `save_push_subscription`, `register_customer`, `set_registration_code` |
-| `AMRAP_NOT_FOUND` | The referenced customer, slot template, appointment or recurring rule does not exist | `book`, `cancel`, `undo_cancel`, `cancel_occurrence`, `top_up`, `adjust`, `create_invite`, `activate_rule`, `deactivate_rule` |
+| `AMRAP_INVALID_ARGUMENT` | A required argument is missing, out of range, or not allowed in this combination (for `create_invite`: the record is not a customer record; for `cancel` and `cancel_occurrence`: a reason over 200 characters; for `register_customer`: a name or phone out of range; for `set_registration_code`: a code under 8 characters) | `book`, `cancel`, `undo_cancel`, `cancel_occurrence`, `top_up`, `adjust`, `create_invite`, `materialize_recurring`, `save_push_subscription`, `register_customer`, `set_registration_code`, `delete_customer` |
+| `AMRAP_NOT_FOUND` | The referenced customer, slot template, appointment or recurring rule does not exist | `book`, `cancel`, `undo_cancel`, `cancel_occurrence`, `top_up`, `adjust`, `create_invite`, `activate_rule`, `deactivate_rule`, `delete_customer` |
 | `AMRAP_SLOT_INACTIVE` | The slot template is deactivated | `book`, `undo_cancel`, `cancel_occurrence` |
 | `AMRAP_IN_PAST` | A customer tried to book a start that is not in the future | `book` |
 | `AMRAP_SLOT_MISMATCH` | The start is not on the template's weekday and start time (in `settings.timezone`), so it is not an occurrence | `book`, `cancel_occurrence` |
@@ -47,6 +47,7 @@ app relies on.
 | `AMRAP_BOOKING_DISABLED` | A customer tried to book while customer booking is turned off (`settings.customer_booking_enabled` is false) | `book` |
 | `AMRAP_SETTINGS_MISSING` | The `settings` row (`id = 1`) is missing, so the timezone, cutoff or booking setting is unknown; the call fails closed | `book` (customer, or trainer with a template), `cancel` (customer), `undo_cancel`, `cancel_occurrence`, `materialize_recurring` (when there is an active rule), `set_registration_code` (here the missing row is `registration_settings`) |
 | `AMRAP_NOT_CANCELLABLE` | The appointment is not in a state the caller may cancel (customer: not `booked` or already started; anyone: already cancelled) | `cancel` |
+| `AMRAP_NOT_DELETABLE` | The record has history (an appointment of any status, a credit transaction or a recurring rule, active or not), or it is a trainer record | `delete_customer` |
 | `AMRAP_NOT_UNDOABLE` | The cancel cannot be undone: the appointment is not `cancelled` (a free customer cancel), the cutoff has passed, or its recurring rule is no longer active | `undo_cancel` |
 
 ## book
@@ -360,6 +361,32 @@ public.set_registration_code(p_code text) returns void
   `registration_settings` row is missing).
 - **Side effects:** sets `registration_settings.code = p_code` and `updated_at = now()`. A new
   code makes every old QR code fail with `AMRAP_REGISTRATION_CLOSED`.
+
+## delete_customer
+
+```sql
+public.delete_customer(p_customer_id uuid) returns void
+```
+
+- **Who may call:** the trainer only.
+- **Purpose:** remove a record that should not exist: a fake registration, or the new record of
+  a person who registered while the trainer already had a record for them
+  (`docs/runbook.md` "A customer registered twice").
+- **Rules, in order:**
+  1. The caller must be the trainer (`AMRAP_FORBIDDEN`).
+  2. `p_customer_id` must not be null (`AMRAP_INVALID_ARGUMENT`).
+  3. The customer row is locked `for update` and must exist (`AMRAP_NOT_FOUND`).
+  4. The record must have `role = 'customer'`, no appointments of any status, no credit
+     transactions and no recurring rules, active or not (`AMRAP_NOT_DELETABLE`). The ledger
+     and the appointment history are never deleted.
+- **Concurrency:** an insert of an appointment, a transaction or a rule takes a key share lock
+  on the customer row. That lock conflicts with `for update`, so nothing new can reference the
+  record between the checks and the delete.
+- **Side effects:** deletes the `customers` row. Its `notifications` rows go with it (foreign
+  key `on delete cascade`). The auth user is not touched: the trainer deletes it in the
+  Supabase dashboard (ADR 0007). Until then that user signs in to the not-linked page. A
+  `customer_registered` notification the trainer got about the record keeps its
+  `data.customer_id`; it then opens a page that cannot load.
 
 ## charge_due_appointments
 

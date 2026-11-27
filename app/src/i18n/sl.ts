@@ -217,6 +217,9 @@ export const sl = {
     refund: 'Vrni kredit',
     historyTitle: 'Zgodovina terminov',
     ledgerTitle: 'Zgodovina kreditov',
+    delete: 'Izbriši stranko',
+    deleteWarning: 'Zapis stranke bo izbrisan za vedno.',
+    confirmDelete: 'Potrdi izbris',
   },
   settings: {
     sectionsLabel: 'Razdelki nastavitev',
@@ -414,6 +417,7 @@ export const sl = {
     AMRAP_INVITE_USED: 'To povabilo je že uporabljeno.',
     AMRAP_IN_PAST: 'Termina v preteklosti ni mogoče rezervirati.',
     AMRAP_NOT_CANCELLABLE: 'Tega termina ni mogoče odpovedati.',
+    AMRAP_NOT_DELETABLE: 'Stranke z zgodovino ni mogoče izbrisati.',
     AMRAP_NOT_FOUND: 'Zapisa ni mogoče najti.',
     AMRAP_NOT_UNDOABLE: 'Te odpovedi ni več mogoče razveljaviti.',
     AMRAP_REGISTRATION_CLOSED:

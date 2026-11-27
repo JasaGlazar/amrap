@@ -367,6 +367,9 @@ is a question below.
 | `customerDetail.refund` | Vrni kredit | Gumb pri opravljenem terminu: odpove termin in stranki vrne kredit. Novo (prej »Odpovej«, kot pri prihajajočih). V redu? |
 | `customerDetail.historyTitle` | Zgodovina terminov | Novo (Stage 11): vsi pretekli in odpovedani termini stranke s stanjem in razlogom odpovedi, kot jih vidi stranka. |
 | `customerDetail.ledgerTitle` | Zgodovina kreditov |  |
+| `customerDetail.delete` | Izbriši stranko | Novo: gumb pod podatki, samo pri stranki brez terminov, kreditov in stalnih terminov (npr. lažna registracija ali oseba, ki se je registrirala dvakrat). |
+| `customerDetail.deleteWarning` | Zapis stranke bo izbrisan za vedno. | Novo: opozorilo po prvem tapu na »Izbriši stranko«. |
+| `customerDetail.confirmDelete` | Potrdi izbris | Novo: drugi tap, ki stranko res izbriše. |
 
 ### Trener: Nastavitve
 
@@ -482,6 +485,7 @@ is a question below.
 | `errors.AMRAP_INVITE_USED` | To povabilo je že uporabljeno. |  |
 | `errors.AMRAP_IN_PAST` | Termina v preteklosti ni mogoče rezervirati. |  |
 | `errors.AMRAP_NOT_CANCELLABLE` | Tega termina ni mogoče odpovedati. |  |
+| `errors.AMRAP_NOT_DELETABLE` | Stranke z zgodovino ni mogoče izbrisati. | Novo: trener to vidi, če stranka, ki jo briše, medtem dobi termin, kredit ali stalni termin. |
 | `errors.AMRAP_NOT_FOUND` | Zapisa ni mogoče najti. |  |
 | `errors.AMRAP_NOT_UNDOABLE` | Te odpovedi ni več mogoče razveljaviti. | Novo: stranka to vidi, če poskusi razveljaviti odpoved, ko je rok že mimo, termin ni več brezplačno odpovedan ali stalni termin ni več aktiven. |
 | `errors.AMRAP_REGISTRATION_CLOSED` | Registracija ni mogoča. Skenirajte QR kodo v telovadnici ali se obrnite na trenerja. | Novo: oseba to vidi, če je registracija zaprta ali če povezava nima prave kode (na primer stara QR koda po menjavi kode). Ista napaka za oba primera, da ni mogoče ugibati kode. |

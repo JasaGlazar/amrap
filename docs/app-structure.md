@@ -180,8 +180,9 @@ vi.mock('./lib/supabase', async () => ({
   `slot_occupancy` when it has a template), `cancel` (marks it `cancelled`, or
   `cancelled_by_trainer` with a `refund` row when the trainer cancels a charged one, and
   uncounts it), `top_up` and `adjust` (add a ledger row), `create_invite` (sets and returns a
-  token) and `activate_rule` / `deactivate_rule` (flip `active`; deactivating cancels the rule's
-  future booked appointments) and `save_push_subscription` (upserts the signed-in user's row by
+  token), `delete_customer` (removes the row, `AMRAP_NOT_FOUND` when there is none),
+  `activate_rule` / `deactivate_rule` (flip `active`; deactivating cancels the rule's future
+  booked appointments) and `save_push_subscription` (upserts the signed-in user's row by
   endpoint). Any other RPC throws unless a test mocks it. Tests mock a rejection with
   `mockResolvedValueOnce({ data: null, error: { message: 'AMRAP_…: detail' } })`.
 - `holdTable(table)` holds every read and write of that table (`then`, `single`,

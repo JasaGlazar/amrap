@@ -145,6 +145,29 @@ trainer, create a new auth user as in "Bootstrap the trainer" step 1, then run
 `update public.customers set auth_user_id = '<new auth user uid>' where role = 'trainer';`
 (after deleting the old auth user).
 
+## A customer registered twice
+
+A person the trainer already had a record for (for example with a credit balance) registered
+with the gym code instead of using an invite. Now there are two records: the old one with the
+history, and a new one linked to their account. Keep the old record and move the person to it.
+
+1. Note the new record's `auth_user_id` before you delete the record (the app does not show
+   it): `select id, name, auth_user_id, registered_at from public.customers where name ilike
+   '%<name>%';`. The new record is the one with `registered_at` set.
+2. On the new record's page tap **Izbriši stranko**, then **Potrdi izbris**. The button shows
+   only for a record with no appointments, no credit transactions and no recurring rules
+   (`delete_customer`, [rpcs.md](rpcs.md#delete_customer)); a record with history cannot be
+   deleted. Its notifications go with it.
+3. In the Supabase dashboard open Authentication, Users, find the user with the UID from step
+   1, and delete it. This frees the email for the invite.
+4. Issue an invite on the old record's page and send the link, as in
+   [Invite a customer](#invite-a-customer). The person signs up through it again.
+
+Deleting a record never deletes its auth user. Until you remove that user in the dashboard,
+they can still sign in and see the not-linked page. The same steps without step 4 remove a
+fake registration. The trainer's `customer_registered` push about a deleted record still
+opens its page, which shows the load error with the back link.
+
 ## Deploy migrations after merge
 
 Migrations reach the remote project only after the PR is merged. Never from a feature branch.

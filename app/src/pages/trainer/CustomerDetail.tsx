@@ -8,7 +8,13 @@ import {
 } from '../../data/appointments';
 import type { ActionResult } from '../../data/client';
 import { adjust, balanceOf, ledgerOf, topUp } from '../../data/credits';
-import { createInvite, getCustomer, inviteStatus, updateCustomer } from '../../data/customers';
+import {
+  createInvite,
+  deleteCustomer,
+  getCustomer,
+  inviteStatus,
+  updateCustomer,
+} from '../../data/customers';
 import { activateRule, addRule, deactivateRule, rulesOf } from '../../data/rules';
 import { getSettings } from '../../data/settings';
 import { allTemplates } from '../../data/slots';
@@ -87,6 +93,7 @@ export function TrainerCustomerDetail() {
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [addingRule, setAddingRule] = useState(false);
   const [editingDetails, setEditingDetails] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [cancelling, setCancelling] = useState<{
     appointment: Appointment;
     section: string;
@@ -159,6 +166,11 @@ export function TrainerCustomerDetail() {
     });
   };
   const noteShown = note ?? (ledger.rows.length === 0 ? t.customerDetail.startingNote : '');
+  const deletable =
+    upcoming.length === 0 &&
+    past.rows.length === 0 &&
+    ledger.rows.length === 0 &&
+    rules.length === 0;
   const ruleTemplates = new Set(rules.map((rule) => rule.slotTemplateId));
   const addableTemplates = templates.filter(
     (template) => template.active && !ruleTemplates.has(template.id),
@@ -223,6 +235,20 @@ export function TrainerCustomerDetail() {
         ))}
       </ul>
     );
+
+  async function removeCustomer() {
+    setBusy(true);
+    setNotices((current) => ({ ...current, delete: null }));
+    const result = await deleteCustomer(supabase, customer.id);
+    if (result.ok) {
+      void navigate(backTo);
+      return;
+    }
+    setNotices((current) => ({ ...current, delete: { error: true, text: result.message } }));
+    setConfirmingDelete(false);
+    await reload();
+    setBusy(false);
+  }
 
   async function changeCredits(kind: 'topUp' | 'adjust') {
     const value = Number(amount);
@@ -489,6 +515,39 @@ export function TrainerCustomerDetail() {
             <dd>{customer.email ?? t.customerDetail.notGiven}</dd>
           </div>
         </dl>
+        <NoticeLine notice={notices.delete} />
+        {deletable && (
+          <OnDemand
+            label={t.customerDetail.delete}
+            className="button secondary"
+            open={confirmingDelete}
+            onOpen={() => {
+              setNotices((current) => ({ ...current, delete: null }));
+              setConfirmingDelete(true);
+            }}
+          >
+            <p>{t.customerDetail.deleteWarning}</p>
+            <div className="actions">
+              <button
+                type="button"
+                className="button danger"
+                disabled={busy}
+                autoFocus
+                onClick={() => void removeCustomer()}
+              >
+                {t.customerDetail.confirmDelete}
+              </button>
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={() => setConfirmingDelete(false)}
+              >
+                {t.common.cancel}
+              </button>
+            </div>
+          </OnDemand>
+        )}
       </section>
 
       {cancelling !== null && (

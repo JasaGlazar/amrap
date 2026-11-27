@@ -93,3 +93,10 @@ export function createInvite(
 ): Promise<ActionResult<string | null>> {
   return runAction(() => client.rpc('create_invite', { p_customer_id: customerId }));
 }
+
+export function deleteCustomer(client: Client, customerId: string): Promise<ActionResult<null>> {
+  return runAction(async () => {
+    const { error } = await client.rpc('delete_customer', { p_customer_id: customerId });
+    return { data: null, error };
+  });
+}

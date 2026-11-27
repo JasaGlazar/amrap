@@ -26,6 +26,7 @@ write (booking, cancelling, accepting an invite) and every credit change goes th
 | `20261119131643_booking_restored_notification.sql` | The `booking_restored` notification kind; `notify_booking_restored()` and its trigger; `notify_booking_cancelled()` replaced to delete the appointment's earlier `booking_cancelled` row first, so a repeat cancel is pushed again ([rpcs.md](rpcs.md#helpers), [notifications.md](notifications.md#repeat-cancel-and-undo)). |
 | `20261127073814_self_registration.sql` | `registration_settings` table (the gym code), its row, select policy and grants; `customers.registered_at`; `register_customer()`, `set_registration_code()` and their grants ([rpcs.md](rpcs.md#register_customer), [ADR 0021](adr/0021-customers-register-with-a-gym-code.md)). |
 | `20261127080341_customer_registered_notification.sql` | The `customer_registered` notification kind; `notify_customer_registered()` and its trigger on `customers`, so a registration notifies the trainer ([rpcs.md](rpcs.md#helpers), [notifications.md](notifications.md#event-notifications)). |
+| `20261127081812_delete_customer.sql` | `delete_customer()` and its grants: the trainer deletes a customer record that has no history ([rpcs.md](rpcs.md#delete_customer)). |
 
 ## Enums
 
@@ -237,7 +238,10 @@ first, so a repeat cancel or undo is pushed again
 
 Foreign keys not listed with an `on delete` action use the default (no action): customers,
 slot templates, rules and appointments with dependent rows cannot be deleted, which keeps the
-ledger intact. Deactivate instead (`active = false`).
+ledger intact. Deactivate instead (`active = false`). The app deletes a customer record only
+through `delete_customer()`. It checks for history first, so the app gets
+`AMRAP_NOT_DELETABLE` instead of a foreign-key error, and it also refuses a trainer record.
+The record's notifications cascade ([rpcs.md](rpcs.md#delete_customer)).
 
 ## Triggers
 

@@ -21,7 +21,7 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 | `/t` | trainer | Trainer shell: the same top bar with the [account menu](#account-menu), the [install card](#install-card), the [main navigation](#main-navigation) (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `account`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. A day view below 1024 px and a week grid from 1024 px; the selected day (and so the week) in `?dan=YYYY-MM-DD`. | `trainer`, `calendar`, `slot`, `cancelDialog`, `common` | Stage 2, add control and forms on demand Stage 7, day view and week grid Stage 10 |
 | `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; search and filters kept in the query (`?q=…&f=…`); create a customer. | `trainer`, `customers`, `common` | Stage 2, form on demand Stage 7, search and filters Stage 9 |
-| `/t/stranke/:id` | trainer | One customer: balance and credits, upcoming appointments, recurring rules, recent sessions, ledger, invite link, details. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType`, `common` | Stage 2, order and forms on demand Stage 7 |
+| `/t/stranke/:id` | trainer | One customer: balance and credits, upcoming appointments, recurring rules, recent sessions, ledger, invite link, details; delete a record with no history. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType`, `common` | Stage 2, order and forms on demand Stage 7, delete with self-registration |
 | `/t/nastavitve` | trainer | Settings, one tab per topic ([Settings](#settings-tnastavitve)); the bare path redirects to `/t/nastavitve/urnik`. | `settings` | Stage 2, tabs Stage 7 |
 | `/t/nastavitve/urnik` | trainer | Tab **Urnik**: slot templates, a week grid from 768 px and day groups below. | `settings`, `trainer` | Stage 2, own route Stage 7, week grid Stage 9 |
 | `/t/nastavitve/odpoved` | trainer | Tab **Odpoved**: cutoff hours. | `settings` | Stage 2, own route Stage 7 |
@@ -432,6 +432,16 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   title). **Uredi podatke** at the right of the heading opens the form ([on
   demand](#forms-on-demand)) with name, phone and email filled in; **Shrani** updates the record
   through RLS, closes the form and shows `customerDetail.saved`; an error stays in the form.
+- **Izbriši stranko:** a secondary button under the details, shown only once the page has
+  loaded and the record has no appointments (upcoming and history together hold every
+  status), no ledger rows and no recurring rules, active or not. A tap opens the confirmation
+  in place ([on demand](#forms-on-demand)): `customerDetail.deleteWarning`, then **Potrdi
+  izbris** (a danger button, focused) and **Prekliči** (closes it and puts focus back on
+  **Izbriši stranko**). Only the second tap calls `delete_customer`; on success the page goes
+  back to the list (with its search and filter). A refusal (for example
+  `errors.AMRAP_NOT_DELETABLE` when history appeared meanwhile) shows under the details, the
+  confirmation closes, and the page reloads. Used for fake registrations and for a person who
+  registered twice (runbook "A customer registered twice").
 
 ### Settings (`/t/nastavitve`)
 
@@ -577,9 +587,10 @@ until it is asked for (`pages/shared/OnDemand.tsx`,
 [ADR 0011](adr/0011-responsive-navigation-and-on-demand-forms.md)). Where it is used: **Nov termin**
 (Urnik), **Novo zaprto obdobje** (Zaprta obdobja), **Nova stranka** (Stranke, at the page
 title), **Nov termin po dogovoru** (Koledar, at the page title), **Dodaj stalni termin** and
-**Uredi podatke** (customer detail; the latter a secondary button without `+`), and **Dodaj
-stranko** on each
-occurrence of the trainer calendar (a small secondary button at the right of the occurrence).
+**Uredi podatke** (customer detail; the latter a secondary button without `+`), **Izbriši
+stranko** (customer detail, under the details: a confirmation with no fields), and **Dodaj
+stranko** on each occurrence of the trainer calendar (a small secondary button at the right of
+the occurrence).
 
 - **Closed:** one button named after the action, at the right of the heading the form belongs
   to; on a narrow screen it wraps below the heading. Its weight follows the heading: a
@@ -590,8 +601,9 @@ occurrence of the trainer calendar (a small secondary button at the right of the
   actions carry a `+`, **Uredi podatke** does not. So a screen never has two black buttons
   competing for the main action.
 - **Open:** pressing it replaces the button with the form, as a card under the heading,
-  above the list; focus moves to the form's first field. The form has **Prekliči** next to
-  its submit button (`settings.cancelEdit` in Nastavitve, `common.cancel` elsewhere).
+  above the list; focus moves to the form's first field (on **Izbriši stranko**, which has no
+  field, to **Potrdi izbris**). The form has **Prekliči** next to its submit button
+  (`settings.cancelEdit` in Nastavitve, `common.cancel` elsewhere).
 - **Prekliči** closes it, drops what was typed (the next open starts empty) and returns focus
   to the button. It is disabled, like the submit button, while a save or the count before one
   (stranded or overlapping bookings) runs, so a late answer never lands on a closed or

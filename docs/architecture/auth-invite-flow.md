@@ -92,6 +92,11 @@ confirms a code. The trainer sets or clears the code with `set_registration_code
 code makes every old QR code fail. If the sign-up worked but `register_customer` did not run or
 was refused, the auth user exists but has no record, as in the invite flow.
 
+A person who already had a record and registers anyway gets a second record. The trainer
+deletes the new one with `delete_customer` ([rpcs.md](../rpcs.md#delete_customer)), which only
+accepts a record with no history, deletes its auth user in the dashboard, and invites the
+person to the old record (runbook "A customer registered twice").
+
 ```mermaid
 sequenceDiagram
     actor T as Trainer

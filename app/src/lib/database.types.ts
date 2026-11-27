@@ -492,6 +492,7 @@ export type Database = {
       create_invite: { Args: { p_customer_id: string }; Returns: string }
       current_customer_id: { Args: never; Returns: string }
       deactivate_rule: { Args: { p_rule_id: string }; Returns: number }
+      delete_customer: { Args: { p_customer_id: string }; Returns: undefined }
       dispatch_notifications: { Args: { p_ids: string[] }; Returns: undefined }
       enqueue_notification: {
         Args: {

@@ -425,6 +425,15 @@ function fakeCreateInvite(args: Row): Result {
   return { data: token, error: null };
 }
 
+function fakeDeleteCustomer(args: Row): Result {
+  const before = db.tables.customers.length;
+  db.tables.customers = db.tables.customers.filter((row) => row.id !== args.p_customer_id);
+  if (db.tables.customers.length === before) {
+    return { data: null, error: { message: 'AMRAP_NOT_FOUND: x' } };
+  }
+  return { data: null, error: null };
+}
+
 function fakeSetRule(args: Row, active: boolean): Result {
   const rule = db.tables.recurring_rules.find((row) => row.id === args.p_rule_id);
   if (rule === undefined) return { data: null, error: { message: 'AMRAP_NOT_FOUND: x' } };
@@ -462,6 +471,7 @@ const rpcs: Record<string, (args: Row) => Result> = {
   top_up: (args) => fakeCredit('topup', args),
   adjust: (args) => fakeCredit('adjustment', args),
   create_invite: fakeCreateInvite,
+  delete_customer: fakeDeleteCustomer,
   activate_rule: (args) => fakeSetRule(args, true),
   deactivate_rule: (args) => fakeSetRule(args, false),
   save_push_subscription: fakeSavePushSubscription,

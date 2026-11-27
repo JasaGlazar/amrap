@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { t } from '../i18n';
 import { db, fakeSupabase, makeCustomer, resetFake } from '../test/fakeSupabase';
 import { book } from './appointments';
 import type { Client } from './client';
@@ -6,6 +7,7 @@ import { adjust, allBalances, topUp } from './credits';
 import {
   createCustomer,
   createInvite,
+  deleteCustomer,
   inviteStatus,
   listCustomers,
   type Customer,
@@ -64,6 +66,23 @@ describe('customers', () => {
     expect(result).toEqual({
       ok: true,
       data: db.tables.customers.find((row) => row.id === 'c-b')?.invite_token,
+    });
+  });
+
+  it('deletes a record through delete_customer', async () => {
+    expect(await deleteCustomer(client, 'c-b')).toEqual({ ok: true, data: null });
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('delete_customer', { p_customer_id: 'c-b' });
+    expect(db.tables.customers.some((row) => row.id === 'c-b')).toBe(false);
+  });
+
+  it('turns a refused delete into its copy', async () => {
+    fakeSupabase.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'AMRAP_NOT_DELETABLE: customer c-a has appointments' },
+    });
+    expect(await deleteCustomer(client, 'c-a')).toEqual({
+      ok: false,
+      message: t.errors.AMRAP_NOT_DELETABLE,
     });
   });
 });
