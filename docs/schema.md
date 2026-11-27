@@ -313,8 +313,8 @@ Policies apply to `authenticated`. `is_trainer()` and `current_customer_id()` ar
 Customers have no insert, update or delete policy on any table except `push_subscriptions`;
 such writes affect zero rows (update/delete) or fail with `42501` (insert). The shared reference
 tables (`slot_templates`, `blocked_periods`, `settings`) and `push_subscriptions` additionally
-require `current_customer_id() is not null`, so an auth user without a customer record (public
-sign-up without an invite) can neither read nor write any row.
+require `current_customer_id() is not null`, so an auth user without a customer record (a sign-up
+that has not accepted an invite or registered) can neither read nor write any row.
 
 ## Grants
 

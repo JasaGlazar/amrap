@@ -40,4 +40,5 @@ This refines ADR 0006. Invites stay, and registration is a second way in.
 - A person who already has a record from the trainer can register again and get a second
   record. The trainer fixes that by hand; invites stay the way to link an existing record.
 - `customers.registered_at` tells registered records from records the trainer created.
-- ADR 0006 still says customers join only through invites; this ADR replaces that sentence.
+- ADR 0006's rule that customers join only through trainer-generated invite tokens no longer
+  holds. Registration is a second way in.
