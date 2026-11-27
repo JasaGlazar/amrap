@@ -13,8 +13,9 @@ link, signs up with email and password (no confirmation email), and the app call
 `customers` row (the role comes from that row) and routes by role: the trainer sees the trainer
 shell, a customer lands on the customer Home, with the install card on top on a device where
 the app is not installed ([screens.md](../screens.md#install-card), [auth.md](../auth.md)). A
-user with no `customers` row has no data access and sees an "account not linked" page with a
-sign-out button.
+user with no `customers` row has no data access and sees an "account not linked" page. It has a
+link to `/registracija` to finish a registration (see
+[Registration with the gym code](#registration-with-the-gym-code)) and a sign-out button.
 
 If the sign-up already succeeded earlier but `accept_invite` did not run or was rejected (a
 dropped request, or an invite replaced by a newer one), the auth user exists but is unlinked.
@@ -92,6 +93,13 @@ confirms a code. The trainer sets or clears the code with `set_registration_code
 code makes every old QR code fail. If the sign-up worked but `register_customer` did not run or
 was refused, the auth user exists but has no record, as in the invite flow.
 
+To finish, the person scans the QR code again. The not-linked page says to do this and links
+to `/registracija`. That link has no code, so the page there also says to scan the QR code.
+With the code in the link and a session, the page shows a
+short form with name and phone only. It calls `register_customer` without `signUp`. If the
+refusal came right after a fresh sign-up, the page already shows the short form, so a retry
+needs no new sign-up.
+
 A person who already had a record and registers anyway gets a second record. The trainer
 deletes the new one with `delete_customer` ([rpcs.md](../rpcs.md#delete_customer)), which only
 accepts a record with no history, deletes its auth user in the dashboard, and invites the
@@ -120,7 +128,7 @@ sequenceDiagram
         DB-->>App: AMRAP_ALREADY_LINKED
     else code null, missing or not equal to the stored code
         DB-->>App: AMRAP_REGISTRATION_CLOSED
-        App-->>P: scan the QR code in the gym or ask the trainer
+        App-->>P: scan the QR code in the gym or ask the trainer, short form (name and phone)
     else name not 2 to 80 or phone not 6 to 30 characters (trimmed)
         DB-->>App: AMRAP_INVALID_ARGUMENT
     else all checks pass
@@ -129,5 +137,12 @@ sequenceDiagram
         DB-->>App: customer id
         App->>DB: reload own customers row (role)
         App-->>P: customer Home
+    end
+    opt finish later: signed in, no record
+        App-->>P: not-linked page: scan the QR code again, link to /registracija (no code)
+        P->>App: scan QR again, open link with the code
+        App-->>P: short form (name and phone only)
+        App->>DB: register_customer(name, phone, code), no sign-up
+        DB-->>App: same checks and answers as above
     end
 ```

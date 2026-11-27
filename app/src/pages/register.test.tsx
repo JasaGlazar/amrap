@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { t } from '../i18n';
 import { routes } from '../routes';
 import {
@@ -142,6 +142,16 @@ describe('registration while signed out', () => {
     });
   });
 
+  it('checks the upper bounds on the trimmed name and phone', async () => {
+    signUpCreatesSession();
+    renderAt(PATH);
+    await fillFull({ name: `  ${'A'.repeat(80)}  `, phone: `  ${'1'.repeat(30)}  ` });
+    await screen.findByRole('heading', { name: t.nav.home });
+    expect(registerCalls()).toEqual([
+      ['register_customer', { p_name: 'A'.repeat(80), p_phone: '1'.repeat(30), p_code: CODE }],
+    ]);
+  });
+
   it('signs up, registers with the trimmed fields and the code, and lands on the customer home', async () => {
     signUpCreatesSession();
     const router = renderAt(PATH);
@@ -227,6 +237,38 @@ describe('registration while signed out', () => {
     const router = renderAt(PATH);
     await fillFull();
     expect(await screen.findByRole('alert')).toHaveTextContent(t.errors.AMRAP_REGISTRATION_CLOSED);
+    expect(router.state.location.pathname).toBe('/registracija');
+    expect(screen.queryByLabelText(t.register.email)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(t.register.password)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: t.register.finish }));
+    await vi.waitFor(() => expect(registerCalls()).toHaveLength(2));
+    expect(fakeSupabase.auth.signUp).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends the owner of an account that already has a record to their home', async () => {
+    accountExists();
+    fakeSupabase.auth.signInWithPassword.mockImplementation(async () => {
+      db.customer = makeCustomer({ id: 'customer-1', auth_user_id: 'user-c' });
+      emitAuth('SIGNED_IN', makeSession('user-c'));
+      return { data: {}, error: null };
+    });
+    const router = renderAt(PATH);
+    await fillFull();
+    await screen.findByRole('heading', { name: t.nav.home });
+    expect(router.state.location.pathname).toBe('/c');
+  });
+});
+
+describe('registration when the customer lookup fails', () => {
+  beforeEach(() => vi.spyOn(console, 'warn').mockImplementation(() => {}));
+  afterEach(() => vi.restoreAllMocks());
+
+  it('shows the lookup-failed page and no form', async () => {
+    resetFake({ session: makeSession('user-new') });
+    db.customersError = { message: 'FetchError: network down' };
+    const router = renderAt(PATH);
+    await screen.findByRole('heading', { name: t.lookupFailed.title });
+    expect(screen.queryByLabelText(t.register.name)).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/registracija');
   });
 });
