@@ -647,11 +647,12 @@ grant for the role that fires it). See [notifications.md](notifications.md#event
   'charged'`: the refund row is inserted after the status update, when this row trigger has
   already run, and every trainer cancel of a charged appointment refunds it.
 - `public.notify_customer_registered() returns trigger` — trigger
-  `customers_notify_registered` (`after insert`, `registered_at is not null`, which only
-  `register_customer()` sets), defined in
+  `customers_notify_registered` (`after insert`, `registered_at is not null`), defined in
   `20261127080341_customer_registered_notification.sql`: enqueues `customer_registered` for
   the trainer with `customer_id` and `customer_name`, and no appointment or transaction. Same
-  recipient as `notify_booking_cancelled()`.
+  recipient as `notify_booking_cancelled()`. `register_customer()` sets `registered_at`. A
+  direct trainer insert could also set it (the trainer's table policy allows it). The app never
+  does that; if it did, the trigger would fire too.
 
 Each trigger function, like `enqueue_notification` itself, catches every error and reports it
 with `raise warning`, so a notification problem never fails `book`, `cancel`, `undo_cancel`,

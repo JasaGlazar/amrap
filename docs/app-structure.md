@@ -186,10 +186,11 @@ vi.mock('./lib/supabase', async () => ({
   `cancelled_by_trainer` with a `refund` row when the trainer cancels a charged one, and
   uncounts it), `top_up` and `adjust` (add a ledger row), `create_invite` (sets and returns a
   token), `delete_customer` (removes the row, `AMRAP_NOT_FOUND` when there is none),
-  `register_customer` (refuses with `AMRAP_REGISTRATION_CLOSED` unless `p_code` equals
-  `db.registrationCode`, which `resetFake` sets to null; otherwise sets `db.customer` to a new
-  record linked to the session's user and returns its id; it never returns
-  `AMRAP_INVALID_ARGUMENT`, because the page checks name and phone before the call),
+  `register_customer` (refuses with `AMRAP_FORBIDDEN` when there is no session, with
+  `AMRAP_ALREADY_LINKED` when `db.customer` is set, and with `AMRAP_REGISTRATION_CLOSED` unless
+  `p_code` equals `db.registrationCode`, which `resetFake` sets to null; otherwise sets
+  `db.customer` to a new record linked to the session's user and returns its id; it never
+  returns `AMRAP_INVALID_ARGUMENT`, because the page checks name and phone before the call),
   `set_registration_code` (the trainer only, else `AMRAP_FORBIDDEN`; a code under 8
   characters gets `AMRAP_INVALID_ARGUMENT`; otherwise sets `db.registrationCode`, null
   included),

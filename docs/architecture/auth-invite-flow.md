@@ -1,21 +1,21 @@
 # Auth and invite flow
 
 How a customer gets an account. There are two ways in: the trainer's invite (ADR 0006), below,
-and registration with the gym code (ADR 0021), in
-[Registration with the gym code](#registration-with-the-gym-code). In the invite flow, the trainer creates the customer record on the
-Customers screen and, on the customer's page, taps **Ustvari povabilo** (steps in
-[runbook.md](../runbook.md#invite-a-customer); an SQL fallback is there too). The app creates an invite for an unlinked
-customer record with `create_invite(customer_id)`, which returns a single-use token (24 random
-bytes, hex) valid for 7 days; re-issuing replaces the previous token. The customer opens the
-link, signs up with email and password (no confirmation email), and the app calls
-`accept_invite(token)`, which locks the record by token, checks it, links the new auth user
-(`customers.auth_user_id`) and clears the token. The app then reloads the user's own
-`customers` row (the role comes from that row) and routes by role: the trainer sees the trainer
-shell, a customer lands on the customer Home, with the install card on top on a device where
-the app is not installed ([screens.md](../screens.md#install-card), [auth.md](../auth.md)). A
-user with no `customers` row has no data access and sees an "account not linked" page. It has a
-link to `/registracija` to finish a registration (see
-[Registration with the gym code](#registration-with-the-gym-code)) and a sign-out button.
+and registration with the gym code (ADR 0021), in [Registration with the gym
+code](#registration-with-the-gym-code). In the invite flow, the trainer creates the customer
+record on the Customers screen and, on the customer's page, taps **Ustvari povabilo** (steps in
+[runbook.md](../runbook.md#invite-a-customer); an SQL fallback is there too). The app creates
+an invite for an unlinked customer record with `create_invite(customer_id)`, which returns a
+single-use token (24 random bytes, hex) valid for 7 days; re-issuing replaces the previous
+token. The customer opens the link, signs up with email and password (no confirmation email),
+and the app calls `accept_invite(token)`, which locks the record by token, checks it, links the
+new auth user (`customers.auth_user_id`) and clears the token. The app then reloads the user's
+own `customers` row (the role comes from that row) and routes by role: the trainer sees the
+trainer shell, a customer lands on the customer Home, with the install card on top on a device
+where the app is not installed ([screens.md](../screens.md#install-card),
+[auth.md](../auth.md)). A user with no `customers` row has no data access and sees an "account
+not linked" page. It has a link to `/registracija` to finish a registration (see [Registration
+with the gym code](#registration-with-the-gym-code)) and a sign-out button.
 
 If the sign-up already succeeded earlier but `accept_invite` did not run or was rejected (a
 dropped request, or an invite replaced by a newer one), the auth user exists but is unlinked.

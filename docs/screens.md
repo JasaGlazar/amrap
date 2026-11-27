@@ -629,7 +629,8 @@ the confirm button), and **Dodaj stranko** on each occurrence of the trainer cal
 the occurrence).
 
 - **Closed:** one button named after the action, at the right of the heading the form belongs
-  to; on a narrow screen it wraps below the heading. Its weight follows the heading: a
+  to; on a narrow screen it wraps below the heading (**Izbriši stranko** sits under the details
+  instead). Its weight follows the heading: a
   page-level action in the page head is the one primary (black) button (**Nova stranka**,
   **Nov termin po dogovoru**; on customer detail the always-open **Dodaj kredite** plays that
   part), a section-level one is secondary, outlined (**Nov termin**, **Novo zaprto obdobje**,

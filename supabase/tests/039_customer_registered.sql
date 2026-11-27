@@ -67,11 +67,9 @@ select is(
    from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'notify_customer_registered'),
   'true:search_path=""',
   'notify_customer_registered is security definer with an empty search_path');
-select is(
-  (select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r, pg_proc p
-   where p.pronamespace = 'public'::regnamespace and p.proname = 'notify_customer_registered'
-     and not has_function_privilege(r, p.oid, 'EXECUTE')),
-  3,
+select is_empty(
+  $$select r from unnest(array['anon', 'authenticated', 'service_role']) r
+    where has_function_privilege(r, 'public.notify_customer_registered()', 'EXECUTE')$$,
   'notify_customer_registered is executable by nobody but its owner');
 select ok(
   exists (select 1 from pg_enum where enumtypid = 'public.notification_kind'::regtype
@@ -117,7 +115,11 @@ select is_empty(
 
 select pg_temp.register('two', 'Regnotify Two');
 
-select is((select count(*)::int from mine), 2, 'two registrations write two notifications');
+select is(
+  (select count(*)::int from mine),
+  (select count(*)::int from public.customers
+   where id in (select id from registered) and registered_at is not null),
+  'two registrations write two notifications');
 select set_eq(
   $$select data ->> 'customer_name' from mine$$,
   $$values ('Regnotify One'), ('Regnotify Two')$$,

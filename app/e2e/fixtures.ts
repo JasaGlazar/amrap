@@ -237,7 +237,16 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     if (row.error)
       console.warn(`e2e cleanup: finding the customer row of ${email} failed`, row.error);
     if (row.data) {
-      await deleteCustomerAndUser(admin, row.data.id, userId);
+      const customerId = row.data.id;
+      // The trainer's notification about this registration does not cascade with the customer.
+      await bestEffort('deleting the registration notification', () =>
+        admin
+          .from('notifications')
+          .delete()
+          .eq('kind', 'customer_registered')
+          .eq('data->>customer_id', customerId),
+      );
+      await deleteCustomerAndUser(admin, customerId, userId);
     } else {
       await bestEffort('deleting the auth user', () => admin.auth.admin.deleteUser(userId));
     }

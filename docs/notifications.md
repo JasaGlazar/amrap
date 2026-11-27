@@ -148,13 +148,14 @@ knows about push:
 | A customer undoes a free cancel (`undo_cancel()`) | `after update of status`, `cancelled` → `booked` | the trainer, `booking_restored` |
 | The trainer cancels (`cancel()` by the trainer, `cancel_occurrence()`, `deactivate_rule()`) | `after update of status`, `booked` or `charged` → `cancelled_by_trainer` | the customer, `appointment_cancelled_by_trainer` |
 | The trainer tops up or adjusts | `after insert on credit_transactions`, `type in ('topup', 'adjustment')` | the customer, `credit_topup` / `credit_adjustment` |
-| A person registers (`register_customer()`) | `after insert on customers`, `registered_at is not null` | the trainer, `customer_registered` |
+| A person registers (`register_customer()` sets `registered_at`) | `after insert on customers`, `registered_at is not null` | the trainer, `customer_registered` |
 
 Nothing else notifies: trainer bookings (`source = 'trainer'`), materialization
 (`source = 'recurring'`, so the nightly run sends nothing), the charge job (`booked` →
 `charged`), charges and refunds (a refund is part of the trainer cancel's notification,
-`refunded`), and a customer record the trainer creates (no `registered_at`). The trainer is
-not notified of their own cancels.
+`refunded`), and a customer record the trainer creates in the app (the app never sends
+`registered_at`). The trainer's table policy would allow a direct insert with `registered_at`
+set, and that insert would notify too. The trainer is not notified of their own cancels.
 
 A trainer cancel tells the customer (issue #18, [ADR 0015](adr/0015-trainer-cancel-notifies-customer.md)).
 `refunded` comes from the old status (`charged`), because `cancel()` inserts the refund after

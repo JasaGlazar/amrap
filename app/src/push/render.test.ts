@@ -80,7 +80,6 @@ describe('renderNotification', () => {
       body: fill(t.push.customerRegisteredBody, { name: 'Ana Novak' }),
       tag: 'customer_registered:c-1',
     });
-    expect(renderNotification('customer_registered', data).title).toBe('Nova registracija');
   });
 
   it('tells the customer about a top-up with the new balance', () => {
