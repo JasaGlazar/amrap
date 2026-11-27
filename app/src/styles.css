@@ -1000,7 +1000,8 @@ h3 {
 }
 
 .form label > input:not([type='checkbox']),
-.form label > select {
+.form label > select,
+.form label > textarea {
   width: 100%;
   min-width: 0;
 }
