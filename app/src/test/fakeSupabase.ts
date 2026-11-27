@@ -54,6 +54,7 @@ export const db: {
   readErrors: Record<string, { message: string }>;
   writeErrors: Record<string, { message: string }>;
   held: Record<string, Promise<void>>;
+  registrationCode: string | null;
   tables: Tables;
 } = {
   session: null,
@@ -65,6 +66,7 @@ export const db: {
   readErrors: {},
   writeErrors: {},
   held: {},
+  registrationCode: null,
   tables: emptyTables(),
 };
 
@@ -434,6 +436,22 @@ function fakeDeleteCustomer(args: Row): Result {
   return { data: null, error: null };
 }
 
+function fakeRegisterCustomer(args: Row): Result {
+  if (db.session === null) return { data: null, error: { message: 'AMRAP_FORBIDDEN: x' } };
+  if (db.customer !== null) return { data: null, error: { message: 'AMRAP_ALREADY_LINKED: x' } };
+  if (db.registrationCode === null || args.p_code !== db.registrationCode) {
+    return { data: null, error: { message: 'AMRAP_REGISTRATION_CLOSED: x' } };
+  }
+  db.customer = makeCustomer({
+    id: `customers-${nextId++}`,
+    name: String(args.p_name),
+    phone: String(args.p_phone),
+    auth_user_id: db.session.user.id,
+    registered_at: new Date().toISOString(),
+  });
+  return { data: db.customer.id, error: null };
+}
+
 function fakeSetRule(args: Row, active: boolean): Result {
   const rule = db.tables.recurring_rules.find((row) => row.id === args.p_rule_id);
   if (rule === undefined) return { data: null, error: { message: 'AMRAP_NOT_FOUND: x' } };
@@ -472,6 +490,7 @@ const rpcs: Record<string, (args: Row) => Result> = {
   adjust: (args) => fakeCredit('adjustment', args),
   create_invite: fakeCreateInvite,
   delete_customer: fakeDeleteCustomer,
+  register_customer: fakeRegisterCustomer,
   activate_rule: (args) => fakeSetRule(args, true),
   deactivate_rule: (args) => fakeSetRule(args, false),
   save_push_subscription: fakeSavePushSubscription,
@@ -505,6 +524,7 @@ export function resetFake(initial: { session?: Session; customer?: CustomerRow |
   db.readErrors = {};
   db.writeErrors = {};
   db.held = {};
+  db.registrationCode = null;
   listeners.clear();
 
   fakeSupabase.auth.onAuthStateChange.mockReset().mockImplementation((listener: AuthListener) => {

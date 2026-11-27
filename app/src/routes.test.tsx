@@ -54,9 +54,16 @@ describe('unauthenticated visitor', () => {
     expect(router.state.location.pathname).toBe('/invite/abc');
   });
 
+  it('can open the registration page without signing in', async () => {
+    const router = renderAt('/registracija?koda=abc');
+    await screen.findByRole('heading', { name: t.register.title });
+    expect(router.state.location.pathname).toBe('/registracija');
+  });
+
   it.each([
     ['/login', t.login.title, t.login.submit],
     ['/invite/abc', t.invite.title, t.invite.submit],
+    ['/registracija?koda=abc', t.register.title, t.register.submit],
   ])('does not repeat the heading of %s on its submit button', async (path, title, submit) => {
     renderAt(path);
     const heading = await screen.findByRole('heading', { name: title });
@@ -66,14 +73,17 @@ describe('unauthenticated visitor', () => {
 });
 
 describe('brand mark', () => {
-  it.each(['/login', '/invite/abc'])('heads %s with the framed wordmark', async (path) => {
-    renderAt(path);
-    const heading = await screen.findByRole('heading', { level: 1, name: t.app.name });
-    expect(within(heading).getByRole('img', { name: t.app.name })).toHaveAttribute(
-      'src',
-      '/brand-mark.png',
-    );
-  });
+  it.each(['/login', '/invite/abc', '/registracija?koda=abc'])(
+    'heads %s with the framed wordmark',
+    async (path) => {
+      renderAt(path);
+      const heading = await screen.findByRole('heading', { level: 1, name: t.app.name });
+      expect(within(heading).getByRole('img', { name: t.app.name })).toHaveAttribute(
+        'src',
+        '/brand-mark.png',
+      );
+    },
+  );
 
   it.each([
     ['customer', customer, '/c'],
@@ -149,6 +159,15 @@ describe('signed-in user without a customers row', () => {
     const router = renderAt(path);
     await screen.findByRole('heading', { name: t.notLinked.title });
     expect(router.state.location.pathname).toBe(path);
+  });
+
+  it('tells the person to scan the QR code again and links to the registration', async () => {
+    renderAt('/');
+    expect(await screen.findByText(t.notLinked.finishHint)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: t.notLinked.finish })).toHaveAttribute(
+      'href',
+      '/registracija',
+    );
   });
 
   it('can sign out from the not-linked page', async () => {

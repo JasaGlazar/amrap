@@ -1,11 +1,13 @@
 # Auth in the app
 
 How the app (`app/src/auth/`, `app/src/pages/`) knows who is signed in and what they may see.
-Accounts are email/password with confirmations disabled; customers join only through a trainer
-invite ([ADR 0006](adr/0006-auth-invite-token-password.md)). The database enforces every rule
-again with RLS and RPC role checks, so everything here is navigation, not security. Routes and
-copy are in [screens.md](screens.md); the invite RPCs in [rpcs.md](rpcs.md#accept_invite); the
-sequence in [architecture/auth-invite-flow.md](architecture/auth-invite-flow.md).
+Accounts are email/password with confirmations disabled. Customers join through a trainer invite
+([ADR 0006](adr/0006-auth-invite-token-password.md)) or register themselves with the gym code
+from the QR code in the gym ([ADR 0021](adr/0021-customers-register-with-a-gym-code.md)). The
+database enforces every rule again with RLS and RPC role checks, so everything here is
+navigation, not security. Routes and copy are in [screens.md](screens.md); the invite and
+registration RPCs in [rpcs.md](rpcs.md); the sequences in
+[architecture/auth-invite-flow.md](architecture/auth-invite-flow.md).
 
 ## Session loading
 
@@ -25,9 +27,11 @@ carries the role; auth metadata is never read for it (ADR 0006).
 - **Lookup failed:** the query returns an error or throws (network, server, paused project) →
   `customer = null`, `lookupFailed = true`, logged with `console.warn`.
 - **Ordering:** each load gets a sequence number and only the newest one is applied, so the
-  refresh after `accept_invite` wins over a slower lookup started before it.
+  refresh after `accept_invite` or `register_customer` wins over a slower lookup started before
+  it.
 - **`refresh()`** reloads the row for the user of the latest auth event, not a session a
-  component captured earlier, so the invite page can sign up and then refresh in one handler.
+  component captured earlier, so the invite and registration pages can sign up and then refresh
+  in one handler.
 
 `AuthState` (`useAuth()`) exposes `loading` (true until the session is known and, for a
 signed-in user, the lookup for that user has finished), `session`, `customer`, `lookupFailed`,
@@ -43,15 +47,20 @@ signed-in user, the lookup for that user has finished), `session`, `customer`, `
 | `RequireRole role` | inside `RequireAuth`: a user of the other role is redirected to their own home (`homePath`: `/t` trainer, `/c` customer). |
 | `RoleRedirect` | the `/` route: redirects to `homePath(role)`. |
 
-`/login`, `/invite/:token` and `/logout` are outside `RequireAuth`. `/login` redirects a
+`/login`, `/invite/:token`, `/registracija` and `/logout` are outside `RequireAuth`. `/login` redirects a
 signed-in user to `/`; after a successful sign-in the session change does that redirect, so the
 page only handles failures.
 
 ## Lookup failed vs not linked
 
 The two states get different pages so an outage is never mistaken for an account without a
-customer record. `LookupFailedPage` offers retry (`refresh()`) and sign out; `NotLinkedPage`
-offers sign out only (the trainer has to invite or re-link the record, see ADR 0007).
+customer record. `LookupFailedPage` offers retry (`refresh()`) and sign out. `NotLinkedPage`
+offers two links: **Dokončaj registracijo** to `/registracija` and sign out. Its text says to
+ask the trainer, or to scan the QR code in the gym again to finish a registration. A person
+whose browser closed between sign-up and `register_customer` scans the code, signs in if asked,
+and finishes with name and phone ([Registration](#registration)). Without the code, the link
+only shows the advice to scan it. A record the trainer deleted, or one that was never linked,
+still needs the trainer (invite or re-link, see ADR 0007).
 
 ## Sign-out
 
@@ -82,6 +91,33 @@ sign-out control links to `/logout`: the account menu in the top bar of both she
 5. `refresh()` (the provider cached "not linked" while the account was being created), then
    navigate to `/`, which lands on the customer Home with the
    [install card](screens.md#install-card) on top on a device where the app is not installed.
+
+## Registration
+
+`RegisterPage` (`/registracija?koda=<gym code>`). The QR code in the gym holds this link. The
+page reads the code from the `koda` query parameter.
+
+1. Loading → loading line. A signed-in user with a customer record → redirect to `/`. A
+   failed customer lookup → `LookupFailedPage`. While a submit runs, the page keeps its form on
+   screen even though signing up changes the auth state.
+2. No `koda` → only `register.noCode` (scan the QR code in the gym). No form, so no account is
+   created without a code.
+3. Signed out → name, phone, email, password and password again, all required. Signed in
+   without a record → name and phone only (the finish-registration case).
+4. Client checks, before any request: name and phone trimmed, name 2 to 80 characters, phone
+   6 to 30 characters (the bounds `register_customer` checks); for a new account also the
+   password of at least 6 characters and both password fields equal.
+5. Signed out: `supabase.auth.signUp({ email, password })`, as on the invite page. No session
+   → `register.noSession`. If the account already exists, the page signs in with the same
+   password and continues. A wrong password (`invalid_credentials`) shows
+   `register.accountExists` with a link to `/login` and calls nothing more; no data of the
+   existing account is shown. Other errors show their `authErrors` copy.
+6. `registerCustomer` (`register_customer` with the trimmed name and phone and the code). A
+   refusal shows its `errors.AMRAP_*` copy and the user stays on the page. A wrong or replaced
+   code gives `AMRAP_REGISTRATION_CLOSED`, which also says to scan the code in the gym. If the
+   account was just created, the page now shows the short form, so a retry needs no new
+   sign-up.
+7. `refresh()`, then navigate to `/`, which lands on the customer Home.
 
 ## Token refused as issued in the future
 

@@ -12,6 +12,7 @@ import { CustomerHome } from './pages/customer/Home';
 import { InvitePage } from './pages/InvitePage';
 import { LoginPage } from './pages/LoginPage';
 import { LogoutFailedPage } from './pages/LogoutFailedPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { TrainerShell } from './pages/TrainerPages';
 import { TrainerSettings } from './pages/trainer/Settings';
 import { SettingsBlocked } from './pages/trainer/SettingsBlocked';
@@ -53,6 +54,7 @@ export const routes: RouteObject[] = [
     children: [
       { path: '/login', element: <LoginPage /> },
       { path: '/invite/:token', element: <InvitePage /> },
+      { path: '/registracija', element: <RegisterPage /> },
       { path: '/logout', loader: logout, element: <LogoutFailedPage /> },
       {
         element: <RequireAuth />,

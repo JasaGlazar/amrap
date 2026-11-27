@@ -75,7 +75,7 @@ black) with macOS `sips`, so no image tool is added to the build
 
 | File | Command | Used by |
 |---|---|---|
-| `brand-mark.png` (267 × 78) | `sips -c 78 267 --cropOffset 172 90 public/logo.png --out public/brand-mark.png` | `pages/shared/BrandMark.tsx`: the top bar (1.75 rem high) and the `h1` of `/login` and `/invite/:token` (3 rem), alt text `app.name` |
+| `brand-mark.png` (267 × 78) | `sips -c 78 267 --cropOffset 172 90 public/logo.png --out public/brand-mark.png` | `pages/shared/BrandMark.tsx`: the top bar (1.75 rem high) and the `h1` of `/login`, `/invite/:token` and `/registracija` (3 rem), alt text `app.name` |
 | `icon-512.png` | `sips -Z 380 public/brand-mark.png --out public/icon-512.png && sips -p 512 512 --padColor 060807 public/icon-512.png` | the manifest (`any` and `maskable`) |
 | `icon-192.png` | `sips -Z 142 public/brand-mark.png --out public/icon-192.png && sips -p 192 192 --padColor 060807 public/icon-192.png` | the manifest, the favicon and `apple-touch-icon` |
 
@@ -149,7 +149,8 @@ hardcoded Slovenian).
   argument, so tests pass the fake. Reads go to tables and views (RLS decides the rows); writes
   that touch credits or capacity go only through RPCs. Details: [data-layer.md](data-layer.md).
 - Auth calls (`supabase.auth.*`) and `accept_invite` stay in the auth and invite code
-  ([auth.md](auth.md)).
+  ([auth.md](auth.md)). The registration page calls `supabase.auth.*` itself and
+  `register_customer` through `registerCustomer` in `src/data/registration.ts`.
 
 ## Testing with the fake client
 
@@ -181,6 +182,9 @@ vi.mock('./lib/supabase', async () => ({
   `cancelled_by_trainer` with a `refund` row when the trainer cancels a charged one, and
   uncounts it), `top_up` and `adjust` (add a ledger row), `create_invite` (sets and returns a
   token), `delete_customer` (removes the row, `AMRAP_NOT_FOUND` when there is none),
+  `register_customer` (refuses with `AMRAP_REGISTRATION_CLOSED` unless `p_code` equals
+  `db.registrationCode`, which `resetFake` sets to null; otherwise sets `db.customer` to a new
+  record linked to the session's user and returns its id),
   `activate_rule` / `deactivate_rule` (flip `active`; deactivating cancels the rule's future
   booked appointments) and `save_push_subscription` (upserts the signed-in user's row by
   endpoint). Any other RPC throws unless a test mocks it. Tests mock a rejection with

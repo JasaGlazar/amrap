@@ -104,6 +104,7 @@ in the future stays in History and is also offered for undo on Home.
 | `topUp(client, customerId, amount, note)` | `top_up` | `p_customer_id`, `p_amount`, `p_note` (omitted when null) |
 | `adjust(client, customerId, amount, note)` | `adjust` | same as `topUp` |
 | `createInvite(client, customerId)` | `create_invite` | `p_customer_id`; `data` is the token |
+| `registerCustomer(client, { name, phone, code })` | `register_customer` | `p_name` and `p_phone` (both trimmed), `p_code`; `data` is the new customer id. The database checks the code and the lengths (`AMRAP_REGISTRATION_CLOSED`, `AMRAP_INVALID_ARGUMENT`). In `data/registration.ts`. |
 | `deleteCustomer(client, customerId)` | `delete_customer` | `p_customer_id`; `data` is null. The database decides whether the record may go (`AMRAP_NOT_DELETABLE`) |
 | `activateRule(client, ruleId)` / `deactivateRule(client, ruleId)` | `activate_rule` / `deactivate_rule` | `p_rule_id`; `data` is the number inserted / cancelled |
 | `savePushSubscription(client, { endpoint, p256dh, auth })` | `save_push_subscription` | `p_endpoint`, `p_p256dh`, `p_auth` |

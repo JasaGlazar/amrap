@@ -106,6 +106,30 @@ is a question below.
 | `invite.passwordTooShort` | Geslo mora imeti vsaj 6 znakov. |  |
 | `invite.noSession` | Račun je ustvarjen, vendar prijava ni uspela. Poskusite se prijaviti. |  |
 
+### Registracija (QR koda v telovadnici)
+
+| Ključ | Besedilo | Vprašanje |
+|---|---|---|
+| `register.title` | Registracija | Novo: naslov strani, ki se odpre s QR kodo v telovadnici. |
+| `register.intro` | Ustvarite račun. Termine vam nato dodeli trener. | Novo: uvod nad obrazcem za nov račun. |
+| `register.finishIntro` | Vpišite ime in telefon, da dokončate registracijo. | Novo: uvod, ko je oseba že prijavljena, a registracije še ni dokončala (npr. zaprla je brskalnik med registracijo). |
+| `register.noCode` | Za registracijo skenirajte QR kodo v telovadnici. | Novo: oseba to vidi, če odpre stran brez kode v povezavi. Obrazca takrat ni. |
+| `register.name` | Ime in priimek | Novo, enako kot pri trenerjevem obrazcu za stranko. |
+| `register.phone` | Telefon | Novo, obvezno polje. |
+| `register.email` | E-poštni naslov |  |
+| `register.password` | Geslo |  |
+| `register.confirmPassword` | Ponovite geslo |  |
+| `register.submit` | Ustvari račun | Novo: gumb za nov račun (enako kot pri povabilu). |
+| `register.finish` | Dokončaj registracijo | Novo: gumb, ko je oseba že prijavljena in vpiše samo ime in telefon. |
+| `register.submitting` | Pošiljanje … | Novo: gumb med pošiljanjem. V redu, ali raje »Ustvarjanje računa …«? |
+| `register.nameLength` | Ime mora imeti od 2 do 80 znakov. | Novo: presledki na začetku in koncu se ne štejejo. |
+| `register.phoneLength` | Telefon mora imeti od 6 do 30 znakov. | Novo: presledki na začetku in koncu se ne štejejo. |
+| `register.passwordMismatch` | Gesli se ne ujemata. |  |
+| `register.passwordTooShort` | Geslo mora imeti vsaj 6 znakov. |  |
+| `register.noSession` | Račun je ustvarjen, vendar prijava ni uspela. Poskusite se prijaviti. |  |
+| `register.accountExists` | Račun s tem e-poštnim naslovom že obstaja. Če je vaš, se prijavite. | Novo: oseba to vidi, če račun s tem e-poštnim naslovom že obstaja in geslo ni pravo. Podatkov tega računa ne pokažemo. |
+| `register.signIn` | Na prijavo | Novo: povezava na prijavo za `register.accountExists`. V redu, ali raje »Prijava«? |
+
 ### Stanja aplikacije (napake, nepovezan račun)
 
 | Ključ | Besedilo | Vprašanje |
@@ -119,6 +143,8 @@ is a question below.
 | `common.cancel` | Prekliči | Zapre odprt obrazec brez shranjevanja (nova stranka, termin po dogovoru, stalni termin, podatki, dodajanje stranke v termin). |
 | `notLinked.title` | Račun ni povezan |  |
 | `notLinked.body` | Vaš račun še ni povezan s stranko. Za povezavo se obrnite na trenerja. | »povezan s stranko« zveni nerodno. Predlog: »Vaš račun še ni povezan z vašimi podatki pri trenerju.« |
+| `notLinked.finishHint` | Če ste se registrirali s QR kodo, jo v telovadnici skenirajte še enkrat in dokončajte registracijo. | Novo: za osebo, ki je ustvarila račun, registracije pa ni dokončala. |
+| `notLinked.finish` | Dokončaj registracijo | Novo: povezava na stran za registracijo. |
 | `lookupFailed.title` | Podatkov ni mogoče naložiti |  |
 | `lookupFailed.body` | Povezava s strežnikom ni uspela. Preverite internet in poskusite znova. |  |
 | `lookupFailed.retry` | Poskusi znova |  |
