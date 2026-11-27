@@ -11,6 +11,7 @@ import { adjust, allBalances, topUp } from '../../data/credits';
 import {
   createCustomer,
   inviteStatus,
+  isNewCustomer,
   listCustomers,
   type CustomerFields,
 } from '../../data/customers';
@@ -222,6 +223,7 @@ function CustomerList({
                     >
                       {customer.name}
                     </Link>
+                    {isNewCustomer(customer) && <span className="tag">{t.customers.newTag}</span>}
                     {status !== 'linked' && (
                       <span className="tag">{t.customers.inviteStatus[status]}</span>
                     )}

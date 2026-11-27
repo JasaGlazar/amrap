@@ -13,7 +13,7 @@ screens are in [screens.md](screens.md), sign-in and role gating in [auth.md](au
 | `src/routes.tsx` | The route tree (React Router v7 data router). The tests render the same tree. |
 | `src/data/` | Typed reads and RPC wrappers ([data-layer.md](data-layer.md)). |
 | `src/auth/` | `AuthProvider`, `useAuth()`, the route guards ([auth.md](auth.md)). |
-| `src/pages/` | One component per screen or state page. The shells (`CustomerPages.tsx`, `TrainerPages.tsx`) use `AppShell`: a top bar with the framed wordmark, the main navigation and the account menu (theme and sign-out), then the install card and the page. `CustomerShell` has a fixed navigation and reads no settings; the customer calendar itself shows book buttons only while customer booking is on ([screens.md](screens.md#customer-booking-switch)). The navigation is one `nav` that CSS places: in the top bar from 768 px, a fixed bar at the bottom below that ([screens.md](screens.md#main-navigation)). The settings screen is a small layout of its own (`trainer/Settings.tsx`: title, tab row, `Outlet`) over one component per tab (`SettingsTemplates`, `SettingsCutoff`, `SettingsBlocked`, `SettingsNotifications`), each a child route ([ADR 0011](adr/0011-responsive-navigation-and-on-demand-forms.md)). Customer screens are in `pages/customer/`, trainer screens in `pages/trainer/`; the pieces several screens use (`WeekNav`, `WeekSlots`, `CancelDialog`, `LedgerList`, `Amount`, `NoticeLine`, `PushToggle`, `InstallCard`, `AccountMenu`, `BrandMark`, `OnDemand`, and `modal.ts` with `useModal`, the dialogs' focus, Escape and scroll lock) are in `pages/shared/` ([screens.md](screens.md#customer-screens)). |
+| `src/pages/` | One component per screen or state page. The shells (`CustomerPages.tsx`, `TrainerPages.tsx`) use `AppShell`: a top bar with the framed wordmark, the main navigation and the account menu (theme and sign-out), then the install card and the page. `CustomerShell` has a fixed navigation and reads no settings; the customer calendar itself shows book buttons only while customer booking is on ([screens.md](screens.md#customer-booking-switch)). The navigation is one `nav` that CSS places: in the top bar from 768 px, a fixed bar at the bottom below that ([screens.md](screens.md#main-navigation)). The settings screen is a small layout of its own (`trainer/Settings.tsx`: title, tab row, `Outlet`) over one component per tab (`SettingsTemplates`, `SettingsCutoff`, `SettingsBlocked`, `SettingsNotifications`, `SettingsRegistration`), each a child route ([ADR 0011](adr/0011-responsive-navigation-and-on-demand-forms.md)). Customer screens are in `pages/customer/`, trainer screens in `pages/trainer/`; the pieces several screens use (`WeekNav`, `WeekSlots`, `CancelDialog`, `LedgerList`, `Amount`, `NoticeLine`, `PushToggle`, `InstallCard`, `AccountMenu`, `BrandMark`, `OnDemand`, and `modal.ts` with `useModal`, the dialogs' focus, Escape and scroll lock) are in `pages/shared/` ([screens.md](screens.md#customer-screens)). |
 | `src/i18n/` | `sl.ts` (all copy), `errors.ts` (`fromError`), `fill.ts` (`fill` for `{name}` placeholders, `formatTimeUntil`, `plural`, the signed numbers `formatAmount` and `formatBalance`), `index.ts` (exports `t` and the helpers). |
 | `src/install/` | Install onboarding: the `beforeinstallprompt` capture and store, the install mode, the per-device dismissal ([Install onboarding](#install-onboarding)). |
 | `src/theme/` | The per-device theme preference and applying it to the page ([Theme](#theme)). |
@@ -75,7 +75,7 @@ black) with macOS `sips`, so no image tool is added to the build
 
 | File | Command | Used by |
 |---|---|---|
-| `brand-mark.png` (267 × 78) | `sips -c 78 267 --cropOffset 172 90 public/logo.png --out public/brand-mark.png` | `pages/shared/BrandMark.tsx`: the top bar (1.75 rem high) and the `h1` of `/login` and `/invite/:token` (3 rem), alt text `app.name` |
+| `brand-mark.png` (267 × 78) | `sips -c 78 267 --cropOffset 172 90 public/logo.png --out public/brand-mark.png` | `pages/shared/BrandMark.tsx`: the top bar (1.75 rem high) and the `h1` of `/login`, `/invite/:token` and `/registracija` (3 rem), alt text `app.name` |
 | `icon-512.png` | `sips -Z 380 public/brand-mark.png --out public/icon-512.png && sips -p 512 512 --padColor 060807 public/icon-512.png` | the manifest (`any` and `maskable`) |
 | `icon-192.png` | `sips -Z 142 public/brand-mark.png --out public/icon-192.png && sips -p 192 192 --padColor 060807 public/icon-192.png` | the manifest, the favicon and `apple-touch-icon` |
 
@@ -149,7 +149,8 @@ hardcoded Slovenian).
   argument, so tests pass the fake. Reads go to tables and views (RLS decides the rows); writes
   that touch credits or capacity go only through RPCs. Details: [data-layer.md](data-layer.md).
 - Auth calls (`supabase.auth.*`) and `accept_invite` stay in the auth and invite code
-  ([auth.md](auth.md)).
+  ([auth.md](auth.md)). The registration page calls `supabase.auth.*` itself and
+  `register_customer` through `registerCustomer` in `src/data/registration.ts`.
 
 ## Testing with the fake client
 
@@ -169,7 +170,11 @@ vi.mock('./lib/supabase', async () => ({
   table makes every insert, update and delete on it return that error), and `db.tables` with
   rows for `customers` and `customer_balances` (added to the signed-in row, for the trainer's
   lists), `recurring_rules`, `slot_templates`, `slot_occupancy`, `appointments`,
-  `credit_transactions`, `blocked_periods` and `push_subscriptions`. The query fake supports
+  `credit_transactions`, `blocked_periods` and `push_subscriptions`. `registration_settings`
+  answers one row with `db.registrationCode` to the trainer and none to anyone else. A
+  `customers` select that names `recurring_rules(count)` gets each row with
+  `recurring_rules: [{ count }]`, counting that customer's rules in `db.tables`, the shape
+  PostgREST answers. The query fake supports
   `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `or` (comma-separated `column.operator.value`),
   `order`, `limit` and `range(from, to)` (both ends inclusive, as in PostgREST), and applies
   them the way PostgREST would (timestamps compared as instants), so a test fails when the
@@ -180,8 +185,17 @@ vi.mock('./lib/supabase', async () => ({
   `slot_occupancy` when it has a template), `cancel` (marks it `cancelled`, or
   `cancelled_by_trainer` with a `refund` row when the trainer cancels a charged one, and
   uncounts it), `top_up` and `adjust` (add a ledger row), `create_invite` (sets and returns a
-  token) and `activate_rule` / `deactivate_rule` (flip `active`; deactivating cancels the rule's
-  future booked appointments) and `save_push_subscription` (upserts the signed-in user's row by
+  token), `delete_customer` (removes the row, `AMRAP_NOT_FOUND` when there is none),
+  `register_customer` (refuses with `AMRAP_FORBIDDEN` when there is no session, with
+  `AMRAP_ALREADY_LINKED` when `db.customer` is set, and with `AMRAP_REGISTRATION_CLOSED` unless
+  `p_code` equals `db.registrationCode`, which `resetFake` sets to null; otherwise sets
+  `db.customer` to a new record linked to the session's user and returns its id; it never
+  returns `AMRAP_INVALID_ARGUMENT`, because the page checks name and phone before the call),
+  `set_registration_code` (the trainer only, else `AMRAP_FORBIDDEN`; a code under 8
+  characters gets `AMRAP_INVALID_ARGUMENT`; otherwise sets `db.registrationCode`, null
+  included),
+  `activate_rule` / `deactivate_rule` (flip `active`; deactivating cancels the rule's future
+  booked appointments) and `save_push_subscription` (upserts the signed-in user's row by
   endpoint). Any other RPC throws unless a test mocks it. Tests mock a rejection with
   `mockResolvedValueOnce({ data: null, error: { message: 'AMRAP_…: detail' } })`.
 - `holdTable(table)` holds every read and write of that table (`then`, `single`,

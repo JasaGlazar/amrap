@@ -48,9 +48,9 @@ environment variables, the push secrets and the Vault rows have to be set again.
 
 ## Bootstrap the trainer
 
-The trainer is the only user not created through an invite. This is done once per environment,
-after the initial schema migration is deployed. Locally, `supabase db reset` already seeds a
-trainer (`trainer@amrap.local` / `password`, see `supabase/seeds/dev.sql`).
+The trainer is the only user who neither accepts an invite nor registers. This is done once
+per environment, after the initial schema migration is deployed. Locally, `supabase db reset`
+already seeds a trainer (`trainer@amrap.local` / `password`, see `supabase/seeds/dev.sql`).
 
 1. Create the trainer's auth user in the dashboard (Authentication, Users, Add user, Create new
    user) with email and password, and tick "Auto Confirm User". Copy the new user's UID.
@@ -144,6 +144,47 @@ This does not work for the trainer: only the trainer can create invites. To re-l
 trainer, create a new auth user as in "Bootstrap the trainer" step 1, then run
 `update public.customers set auth_user_id = '<new auth user uid>' where role = 'trainer';`
 (after deleting the old auth user).
+
+## Print the registration QR
+
+The QR code in the gym holds the registration link with the gym code. The app makes no QR
+image; any QR generator does.
+
+1. The trainer opens **Nastavitve → Registracija** and taps **Odpri registracijo**. The app
+   makes a random gym code and shows the full link
+   (`https://<pages-domain>/registracija?koda=<gym code>`).
+2. Tap **Kopiraj** and paste the link into any QR generator.
+3. Print the QR code and put it up in the gym. Scan it once with a phone or a private tab
+   that is not signed in, to check that the registration page opens with the form. A
+   signed-in phone goes to its own home instead.
+
+**Nova koda** replaces the gym code and **Zapri registracijo** clears it. Both ask for a second
+tap and warn first. After either one the printed QR code stops working: a person who scans it
+gets `AMRAP_REGISTRATION_CLOSED`. A new code needs a new print. Registration stays open until
+the trainer closes it.
+
+## A customer registered twice
+
+A person the trainer already had a record for (for example with a credit balance) registered
+with the gym code instead of using an invite. Now there are two records: the old one with the
+history, and a new one linked to their account. Keep the old record and move the person to it.
+
+1. Note the new record's `auth_user_id` before you delete the record (the app does not show
+   it): `select id, name, auth_user_id, registered_at from public.customers where name ilike
+   '%<name>%';`. The new record is the one with no history (and the later `registered_at`).
+2. On the new record's page tap **Izbriši stranko**, then **Potrdi izbris**. The button shows
+   only for a record with no appointments, no credit transactions and no recurring rules
+   (`delete_customer`, [rpcs.md](rpcs.md#delete_customer)); a record with history cannot be
+   deleted. Its notifications go with it.
+3. In the Supabase dashboard open Authentication, Users, find the user with the UID from step
+   1, and delete it. This frees the email for the invite.
+4. Issue an invite on the old record's page and send the link, as in
+   [Invite a customer](#invite-a-customer). The person signs up through it again.
+
+Deleting a record never deletes its auth user. Until you remove that user in the dashboard,
+they can still sign in and see the not-linked page. The same steps without step 4 remove a
+fake registration. The trainer's `customer_registered` push about a deleted record still
+opens its page, which shows the load error with the back link.
 
 ## Deploy migrations after merge
 

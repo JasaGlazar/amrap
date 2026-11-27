@@ -14,6 +14,7 @@ import {
   makeCustomer,
   makeSession,
   resetFake,
+  selects,
 } from '../../test/fakeSupabase';
 import {
   expectEveryPage,
@@ -116,6 +117,69 @@ describe('customer list', () => {
       expect(amount).not.toHaveClass('positive');
       expect(amount.classList.contains('negative')).toBe(balance < 0);
     }
+  });
+
+  describe('new registrations', () => {
+    const registered = '2026-10-20T08:00:00+00:00';
+    const nina = makeCustomer({ id: 'c-nina', name: 'Nina', registered_at: registered });
+    const rok = makeCustomer({ id: 'c-rok', name: 'Rok', registered_at: registered });
+    const tia = makeCustomer({ id: 'c-tia', name: 'Tia', registered_at: registered });
+
+    beforeEach(() => {
+      db.tables.customers = [cvet, ana, bor, nina, rok, tia];
+      db.tables.recurring_rules = [
+        { id: 'r-rok', customer_id: rok.id, slot_template_id: template.id, active: true },
+        { id: 'r-tia', customer_id: tia.id, slot_template_id: template.id, active: false },
+      ];
+    });
+
+    const rowOf = (list: HTMLElement, name: string) =>
+      within(list).getByRole('link', { name }).closest('li') as HTMLElement;
+
+    it('tags a registered customer without a rule as Nov', async () => {
+      renderAt('/t/stranke');
+      const list = await screen.findByRole('region', { name: t.customers.listTitle });
+      expect(within(rowOf(list, nina.name)).getByText(t.customers.newTag)).toBeVisible();
+    });
+
+    it('drops the tag once the customer has a rule, a stopped one included', async () => {
+      renderAt('/t/stranke');
+      const list = await screen.findByRole('region', { name: t.customers.listTitle });
+      for (const row of [rok, tia]) {
+        expect(within(rowOf(list, row.name)).queryByText(t.customers.newTag)).toBeNull();
+      }
+    });
+
+    it('does not tag a customer the trainer created', async () => {
+      renderAt('/t/stranke');
+      const list = await screen.findByRole('region', { name: t.customers.listTitle });
+      for (const row of [ana, bor, cvet]) {
+        expect(within(rowOf(list, row.name)).queryByText(t.customers.newTag)).toBeNull();
+      }
+    });
+
+    it('lists only the tagged customers under Novi', async () => {
+      renderAt('/t/stranke');
+      const list = await screen.findByRole('region', { name: t.customers.listTitle });
+      const group = screen.getByRole('group', { name: t.customers.filterLabel });
+      await userEvent.click(within(group).getByRole('button', { name: t.customers.filters.novi }));
+      expect(
+        within(list)
+          .getAllByRole('link')
+          .map((link) => link.textContent),
+      ).toEqual([nina.name]);
+    });
+
+    it('reads the Novi filter from the URL', async () => {
+      const router = renderAt('/t/stranke?f=novi');
+      const list = await screen.findByRole('region', { name: t.customers.listTitle });
+      expect(
+        within(list)
+          .getAllByRole('link')
+          .map((link) => link.textContent),
+      ).toEqual([nina.name]);
+      expect(router.state.location.search).toBe('?f=novi');
+    });
   });
 
   it('shows Nova stranka as a button in the page header until it is pressed', async () => {
@@ -848,6 +912,175 @@ describe('customer detail', () => {
     await userEvent.click(within(rules).getByRole('button', { name: t.customerDetail.addRule }));
     const addable = within(rules).getByLabelText(t.customerDetail.ruleTemplate);
     expect(within(addable).getAllByRole('option')).toHaveLength(1);
+  });
+});
+
+describe('customer delete', () => {
+  const deleteButton = () => screen.queryByRole('button', { name: t.customerDetail.delete });
+
+  async function loaded(customerId: string) {
+    const name = db.tables.customers.find((row) => row.id === customerId)?.name;
+    await screen.findByRole('heading', { level: 1, name: String(name) });
+  }
+
+  it('offers the delete for a record with no appointments, transactions or rules', async () => {
+    renderAt(`/t/stranke/${cvet.id}`);
+    await loaded(cvet.id);
+    expect(deleteButton()).toBeVisible();
+  });
+
+  it('shows no delete while the page is still loading', async () => {
+    const release = holdTable('recurring_rules');
+    renderAt(`/t/stranke/${cvet.id}`);
+    await waitFor(() =>
+      expect(selects.some((select) => select.table === 'recurring_rules')).toBe(true),
+    );
+    expect(screen.getByText(t.common.loading)).toBeVisible();
+    expect(deleteButton()).toBeNull();
+    release();
+    await loaded(cvet.id);
+    expect(deleteButton()).toBeVisible();
+  });
+
+  it('offers no delete for a record with only a future cancelled appointment', async () => {
+    const future = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    db.tables.appointments = [
+      {
+        id: 'cancelled-1',
+        customer_id: cvet.id,
+        slot_template_id: template.id,
+        starts_at: future,
+        ends_at: future,
+        status: 'cancelled',
+      },
+    ];
+    renderAt(`/t/stranke/${cvet.id}`);
+    await loaded(cvet.id);
+    expect(deleteButton()).toBeNull();
+  });
+
+  it('offers no delete for a record with only a future booked appointment', async () => {
+    const future = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    db.tables.appointments = [
+      {
+        id: 'booked-1',
+        customer_id: cvet.id,
+        slot_template_id: template.id,
+        starts_at: future,
+        ends_at: future,
+        status: 'booked',
+      },
+    ];
+    renderAt(`/t/stranke/${cvet.id}`);
+    await loaded(cvet.id);
+    expect(deleteButton()).toBeNull();
+  });
+
+  it('offers no delete for a record with only a past charged appointment', async () => {
+    const past = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    db.tables.appointments = [
+      {
+        id: 'charged-1',
+        customer_id: cvet.id,
+        slot_template_id: template.id,
+        starts_at: past,
+        ends_at: past,
+        status: 'charged',
+      },
+    ];
+    renderAt(`/t/stranke/${cvet.id}`);
+    await loaded(cvet.id);
+    expect(deleteButton()).toBeNull();
+  });
+
+  it('offers no delete for a record with only a credit transaction', async () => {
+    db.tables.credit_transactions = [
+      {
+        id: 'tx-cvet',
+        customer_id: cvet.id,
+        amount: 1,
+        type: 'topup',
+        note: null,
+        created_at: new Date().toISOString(),
+      },
+    ];
+    renderAt(`/t/stranke/${cvet.id}`);
+    await loaded(cvet.id);
+    expect(deleteButton()).toBeNull();
+  });
+
+  it('offers no delete for a record with only a stopped rule', async () => {
+    db.tables.recurring_rules = [
+      { id: 'r-cvet', customer_id: cvet.id, slot_template_id: template.id, active: false },
+    ];
+    renderAt(`/t/stranke/${cvet.id}`);
+    await loaded(cvet.id);
+    expect(deleteButton()).toBeNull();
+  });
+
+  it('asks for a second tap, deletes and goes back to the customer list', async () => {
+    const router = renderAt(`/t/stranke/${cvet.id}`);
+    await loaded(cvet.id);
+    await userEvent.click(deleteButton() as HTMLElement);
+    expect(fakeSupabase.rpc).not.toHaveBeenCalledWith('delete_customer', expect.anything());
+    expect(screen.getByText(t.customerDetail.deleteWarning)).toBeVisible();
+    expect(screen.getByRole('button', { name: t.customerDetail.confirmDelete })).toHaveFocus();
+    await userEvent.click(screen.getByRole('button', { name: t.customerDetail.confirmDelete }));
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('delete_customer', { p_customer_id: cvet.id });
+    await waitFor(() => expect(router.state.location.pathname).toBe('/t/stranke'));
+    const list = await screen.findByRole('region', { name: t.customers.listTitle });
+    expect(within(list).queryByRole('link', { name: cvet.name })).toBeNull();
+  });
+
+  it('drops the confirmation on Prekliči without deleting', async () => {
+    renderAt(`/t/stranke/${cvet.id}`);
+    await loaded(cvet.id);
+    await userEvent.click(deleteButton() as HTMLElement);
+    await userEvent.click(screen.getByRole('button', { name: t.common.cancel }));
+    expect(screen.queryByRole('button', { name: t.customerDetail.confirmDelete })).toBeNull();
+    expect(deleteButton()).toHaveFocus();
+    expect(fakeSupabase.rpc).not.toHaveBeenCalledWith('delete_customer', expect.anything());
+  });
+
+  it('explains a refusal and stays on the page', async () => {
+    fakeSupabase.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'AMRAP_NOT_DELETABLE: customer has appointments' },
+    });
+    const router = renderAt(`/t/stranke/${cvet.id}`);
+    await loaded(cvet.id);
+    await userEvent.click(deleteButton() as HTMLElement);
+    await userEvent.click(screen.getByRole('button', { name: t.customerDetail.confirmDelete }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(t.errors.AMRAP_NOT_DELETABLE);
+    expect(router.state.location.pathname).toBe(`/t/stranke/${cvet.id}`);
+    expect(screen.queryByRole('button', { name: t.customerDetail.confirmDelete })).toBeNull();
+  });
+
+  it('moves focus to the details heading when a refusal removes the delete', async () => {
+    const past = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    fakeSupabase.rpc.mockImplementationOnce(() => {
+      db.tables.appointments = [
+        {
+          id: 'charged-1',
+          customer_id: cvet.id,
+          slot_template_id: template.id,
+          starts_at: past,
+          ends_at: past,
+          status: 'charged',
+        },
+      ];
+      return Promise.resolve({
+        data: null,
+        error: { message: 'AMRAP_NOT_DELETABLE: customer has appointments' },
+      });
+    });
+    renderAt(`/t/stranke/${cvet.id}`);
+    await loaded(cvet.id);
+    await userEvent.click(deleteButton() as HTMLElement);
+    await userEvent.click(screen.getByRole('button', { name: t.customerDetail.confirmDelete }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(t.errors.AMRAP_NOT_DELETABLE);
+    await waitFor(() => expect(deleteButton()).toBeNull());
+    expect(screen.getByRole('heading', { name: t.customerDetail.detailsTitle })).toHaveFocus();
   });
 });
 

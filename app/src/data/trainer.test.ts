@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { t } from '../i18n';
 import { db, fakeSupabase, makeCustomer, resetFake } from '../test/fakeSupabase';
 import { book } from './appointments';
 import type { Client } from './client';
@@ -6,10 +7,13 @@ import { adjust, allBalances, topUp } from './credits';
 import {
   createCustomer,
   createInvite,
+  deleteCustomer,
+  getCustomer,
   inviteStatus,
   listCustomers,
   type Customer,
 } from './customers';
+import { getRegistrationCode, setRegistrationCode } from './registration';
 import { addRule, deactivateRule } from './rules';
 import { setLateCancelHours } from './settings';
 import { deleteBlocked, saveBlocked, upcomingBlocked } from './slots';
@@ -32,6 +36,33 @@ describe('customers', () => {
     expect((await listCustomers(client)).map((row) => row.name)).toEqual(expected);
   });
 
+  it('reads when a customer registered and whether any rule exists, a stopped one included', async () => {
+    const registeredAt = '2026-10-20T08:00:00+00:00';
+    db.tables.customers.push(
+      makeCustomer({ id: 'c-c', name: 'Cene', registered_at: registeredAt }),
+      makeCustomer({ id: 'c-d', name: 'Dora', registered_at: registeredAt }),
+    );
+    db.tables.recurring_rules = [
+      { id: 'r1', customer_id: 'c-a', slot_template_id: 't', active: true },
+      { id: 'r2', customer_id: 'c-d', slot_template_id: 't', active: false },
+    ];
+    const byId = new Map((await listCustomers(client)).map((row) => [row.id, row]));
+    expect(byId.get('c-c')).toMatchObject({
+      registeredAt: new Date(registeredAt),
+      hasRules: false,
+    });
+    expect(byId.get('c-d')).toMatchObject({ registeredAt: new Date(registeredAt), hasRules: true });
+    expect(byId.get('c-a')).toMatchObject({ registeredAt: null, hasRules: true });
+    expect(byId.get('c-b')).toMatchObject({ registeredAt: null, hasRules: false });
+  });
+
+  it('reads the same fields for one customer', async () => {
+    db.tables.recurring_rules = [
+      { id: 'r1', customer_id: 'c-a', slot_template_id: 't', active: false },
+    ];
+    expect(await getCustomer(client, 'c-a')).toMatchObject({ registeredAt: null, hasRules: true });
+  });
+
   it('derives the invite status', () => {
     const base: Customer = {
       id: 'x',
@@ -41,6 +72,8 @@ describe('customers', () => {
       linked: false,
       inviteToken: null,
       inviteExpiresAt: null,
+      registeredAt: null,
+      hasRules: false,
     };
     const later = new Date(now.getTime() + 60_000);
     const earlier = new Date(now.getTime() - 60_000);
@@ -64,6 +97,53 @@ describe('customers', () => {
     expect(result).toEqual({
       ok: true,
       data: db.tables.customers.find((row) => row.id === 'c-b')?.invite_token,
+    });
+  });
+
+  it('deletes a record through delete_customer', async () => {
+    expect(await deleteCustomer(client, 'c-b')).toEqual({ ok: true, data: null });
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('delete_customer', { p_customer_id: 'c-b' });
+    expect(db.tables.customers.some((row) => row.id === 'c-b')).toBe(false);
+  });
+
+  it('turns a refused delete into its copy', async () => {
+    fakeSupabase.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'AMRAP_NOT_DELETABLE: customer c-a has appointments' },
+    });
+    expect(await deleteCustomer(client, 'c-a')).toEqual({
+      ok: false,
+      message: t.errors.AMRAP_NOT_DELETABLE,
+    });
+  });
+});
+
+describe('registration code', () => {
+  it('reads the gym code, or null while registration is closed', async () => {
+    expect(await getRegistrationCode(client)).toBeNull();
+    db.registrationCode = 'gym-code-1234';
+    expect(await getRegistrationCode(client)).toBe(db.registrationCode);
+  });
+
+  it('sets the gym code through set_registration_code', async () => {
+    expect(await setRegistrationCode(client, 'gym-code-1234')).toEqual({ ok: true, data: null });
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('set_registration_code', {
+      p_code: 'gym-code-1234',
+    });
+    expect(db.registrationCode).toBe('gym-code-1234');
+  });
+
+  it('clears the gym code with null', async () => {
+    db.registrationCode = 'gym-code-1234';
+    expect(await setRegistrationCode(client, null)).toEqual({ ok: true, data: null });
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('set_registration_code', { p_code: null });
+    expect(db.registrationCode).toBeNull();
+  });
+
+  it('turns a refused code into its copy', async () => {
+    expect(await setRegistrationCode(client, 'short')).toEqual({
+      ok: false,
+      message: t.errors.AMRAP_INVALID_ARGUMENT,
     });
   });
 });

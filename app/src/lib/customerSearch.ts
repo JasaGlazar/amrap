@@ -1,8 +1,8 @@
-import type { Customer } from '../data/customers';
+import { isNewCustomer, type Customer } from '../data/customers';
 
 export type SearchableCustomer = Customer & { balance: number };
 
-export const customerFilters = ['vsi', 'dolzniki', 'brez'] as const;
+export const customerFilters = ['vsi', 'dolzniki', 'brez', 'novi'] as const;
 
 export type CustomerFilter = (typeof customerFilters)[number];
 
@@ -42,6 +42,7 @@ export function matchesCustomer(customer: SearchableCustomer, query: string): bo
 function passes(customer: SearchableCustomer, filter: CustomerFilter): boolean {
   if (filter === 'dolzniki') return customer.balance < 0;
   if (filter === 'brez') return !customer.linked;
+  if (filter === 'novi') return isNewCustomer(customer);
   return true;
 }
 

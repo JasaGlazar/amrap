@@ -11,22 +11,24 @@ column names the key group in `t`. Every screen of `PLAN.md` "Screens" exists as
 |---|---|---|---|---|
 | `/login` | anyone; a signed-in user is sent to `/` | Email and password sign-in: heading **Prijava**, button **Prijavi se** (a heading and its button never say the same thing). A failed sign-in shows `authErrors` copy. | `login`, `authErrors` | Stage 1 |
 | `/invite/:token` | anyone | Sign-up from an invite link (heading **Nov račun**, button **Ustvari račun**): email, password, confirm password. Creates the auth user (or signs in when that account already exists but is unlinked), calls `accept_invite(token)`, reloads the customer record and goes to `/`. A rejected invite shows its `errors.AMRAP_*` copy. | `invite`, `errors`, `authErrors` | Stage 1 |
+| `/registracija` | anyone; a signed-in user with a record is sent to `/` | Registration with the gym code from the QR link (`?koda=<gym code>`), heading **Registracija**, intro `register.intro` (signed out) or `register.finishIntro` (signed in without a record). Without `koda` it shows only `register.noCode` and no form; a signed-in user without a record also gets a sign-out link to `/logout` (`common.signOut`). If the customer lookup fails it shows `LookupFailedPage` and no form. Signed out: name, phone (`type="tel"`), email, password, password again, button **Ustvari račun**. Signed in without a record: name and phone only, button **Dokončaj registracijo**. Checks name (trimmed, 2 to 80 characters), phone (trimmed, 6 to 30) and the passwords before any request; signs up (or signs in when the account exists and the password is right; a wrong password shows `register.accountExists` with a link to `/login`), calls `register_customer`, reloads the customer record and goes to `/`. A refusal shows its `errors.AMRAP_*` copy. Details in [auth.md](auth.md#registration). | `register`, `errors`, `authErrors`, `common.signOut` | self-registration |
 | `/logout` | anyone | Removes this device's push subscription (best effort), signs out and redirects to `/login` (a route loader). If signing out fails it stays and shows the error with a continue link. | `logoutFailed`, `common.continue`, `genericError` | Stage 1, push Stage 3 |
 | `/` | signed in | Redirects to `/t` for the trainer or `/c` for a customer. | none | Stage 1 |
 | (any route below `/`) | signed in, customer lookup failed | Error page with a retry button and a sign-out link to `/logout`. | `lookupFailed`, `common.signOut` | Stage 1 |
-| (any route below `/`) | signed in, no `customers` row | "Account not linked" page with a sign-out link to `/logout`. Shown instead of the route, URL unchanged. | `notLinked`, `common.signOut` | Stage 1 |
+| (any route below `/`) | signed in, no `customers` row | "Account not linked" page: ask the trainer, or scan the QR code in the gym again to finish a registration. A link **Dokončaj registracijo** to `/registracija` and a sign-out link to `/logout`. Shown instead of the route, URL unchanged. | `notLinked`, `common.signOut` | Stage 1, registration link with self-registration |
 | `/c` | customer | Customer shell: top bar with the framed wordmark and the [account menu](#account-menu) (theme, sign-out), the [install card](#install-card), the [main navigation](#main-navigation) (Home, Calendar, History). Index is Home: balance, next appointment, upcoming list with cancel, cancelled list with undo, notifications toggle ([Customer screens](#customer-screens)). | `nav`, `account`, `install`, `customer`, `slot`, `time`, `cancelDialog`, `pushToggle`, `errors` | Stage 2, push Stage 3, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
 | `/c/koledar` | customer | Week calendar: free places of each session, cancel own bookings. Book buttons only while [customer booking is on](#customer-booking-switch). | `customer`, `calendar`, `slot`, `cancelDialog`, `errors` | Stage 2, booking switch minimal customer scope, free slots overview |
 | `/c/zgodovina` | customer | Past and cancelled appointments with status, and the credit ledger. | `customer`, `history`, `appointmentStatus`, `transactionType`, `slot` | Stage 2 |
 | `/t` | trainer | Trainer shell: the same top bar with the [account menu](#account-menu), the [install card](#install-card), the [main navigation](#main-navigation) (Today, Calendar, Customers, Settings). Index is Today: debtors and today's occurrences with names ([Trainer screens](#trainer-screens)). | `nav`, `account`, `install`, `trainer`, `calendar`, `slot` | Stage 2, install Stage 4, account menu Stage 6, nav in the top bar Stage 7 |
 | `/t/koledar` | trainer | Week calendar of all customers: add a customer to an occurrence, ad-hoc appointments, cancel any appointment. A day view below 1024 px and a week grid from 1024 px; the selected day (and so the week) in `?dan=YYYY-MM-DD`. | `trainer`, `calendar`, `slot`, `cancelDialog`, `common` | Stage 2, add control and forms on demand Stage 7, day view and week grid Stage 10 |
-| `/t/stranke` | trainer | Customer list with balance and, for customers without an account, invite status; search and filters kept in the query (`?q=…&f=…`); create a customer. | `trainer`, `customers`, `common` | Stage 2, form on demand Stage 7, search and filters Stage 9 |
-| `/t/stranke/:id` | trainer | One customer: balance and credits, upcoming appointments, recurring rules, recent sessions, ledger, invite link, details. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType`, `common` | Stage 2, order and forms on demand Stage 7 |
+| `/t/stranke` | trainer | Customer list with balance, the **Nov** tag for new registrations and, for customers without an account, invite status; search and filters kept in the query (`?q=…&f=…`); create a customer. | `trainer`, `customers`, `common` | Stage 2, form on demand Stage 7, search and filters Stage 9, **Nov** tag and filter with self-registration |
+| `/t/stranke/:id` | trainer | One customer: balance and credits, upcoming appointments, recurring rules, recent sessions, ledger, invite link, details; delete a record with no history. | `customerDetail`, `customers`, `customer`, `slot`, `cancelDialog`, `transactionType`, `common` | Stage 2, order and forms on demand Stage 7, delete with self-registration |
 | `/t/nastavitve` | trainer | Settings, one tab per topic ([Settings](#settings-tnastavitve)); the bare path redirects to `/t/nastavitve/urnik`. | `settings` | Stage 2, tabs Stage 7 |
 | `/t/nastavitve/urnik` | trainer | Tab **Urnik**: slot templates, a week grid from 768 px and day groups below. | `settings`, `trainer` | Stage 2, own route Stage 7, week grid Stage 9 |
 | `/t/nastavitve/odpoved` | trainer | Tab **Odpoved**: cutoff hours. | `settings` | Stage 2, own route Stage 7 |
 | `/t/nastavitve/zaprto` | trainer | Tab **Zaprta obdobja**: blocked periods. | `settings`, `trainer`, `slot` | Stage 2, own route Stage 7 |
 | `/t/nastavitve/obvestila` | trainer | Tab **Obvestila**: notifications toggle. | `pushToggle` | Stage 3, own route Stage 7 |
+| `/t/nastavitve/registracija` | trainer | Tab **Registracija**: open or close registration, the registration link with the gym code, a new code. | `settings`, `common` | self-registration |
 | anything else | anyone | Redirects to `/`. | none | Stage 1 |
 
 ## Customer screens
@@ -66,7 +68,11 @@ buttons; `book()` then fails and the notice line shows `errors.AMRAP_BOOKING_DIS
   none.
 - **Upcoming list:** every upcoming appointment, soonest first, each with **Odpovej**, which opens
   the cancel dialog; a successful cancel shows `cancelDialog.done` (a status line). Empty:
-  `customer.noUpcoming`.
+  `customer.noUpcoming` while there is a future free cancel (shown or not), otherwise
+  `customer.noAppointmentsYet` ("Trener vam bo dodelil termine. Videli jih boste tukaj."), the
+  line a new customer sees before the trainer assigns sessions. Never both. The install card
+  and the notifications toggle show as usual, so a new customer can turn on notifications at
+  once.
 - **Odpovedani termini** (`customer.cancelledTitle`): my free cancels whose cutoff is still
   ahead (`now < starts_at − lateCancelHours`, the same strict rule as the cancel dialog, with
   `now` from page load), soonest first, each with **Razveljavi odpoved** (`customer.undo`, a
@@ -325,7 +331,10 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   links to the detail page and shows the balance (red when
   negative; a positive or zero balance is plain ink, so debtors stand out). A tag shows the invite status only while the
   customer has no account (`customers.inviteStatus`: pending = an unexpired token, none); a
-  linked account is the normal end state and has no tag.
+  linked account is the normal end state and has no tag. A customer who registered with the
+  gym code and has no recurring rule yet (active or stopped) has the tag **Nov**
+  (`customers.newTag`, `isNewCustomer` in `data/customers.ts`). It goes away when the trainer
+  adds the first fixed appointment. A record the trainer created never has it.
 - **Search** (`customers.search`, a `role="search"` block under the title, so **Nova stranka**
   keeps the title row to itself on a phone): one `type="search"` field, 16 px,
   `autoComplete="off"`, filtering the list already loaded as the trainer types
@@ -337,9 +346,11 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   finds "040 386 111" and "386" alone is not every number), so "040111" finds
   "+386 40 111 111".
 - **Filters:** a segmented control (`customers.filterLabel`, buttons with `aria-pressed`):
-  **Vsi**, **Dolžniki** (balance below 0) and **Brez računa** (no account; a customer with
+  **Vsi**, **Dolžniki** (balance below 0), **Brez računa** (no account; a customer with
   a pending invite is in it too and keeps the **Povabilo čaka** tag, so there is no separate
-  filter for invites). A filter combines with the search. The pressed segment is framed in
+  filter for invites) and **Novi** (the customers with the **Nov** tag, the same rule). A
+  filter combines with the search. The four segments fit one line at 360 px (12 px side
+  padding each); if they ever do not, the control wraps instead of scrolling the page. The pressed segment is framed in
   `--ink` on paper, not filled, so the screen keeps one black button.
 - **Count and empty state:** above the list, `customers.total` ("9 strank") or, while a
   search or filter narrows it, `customers.shown` ("Prikazanih 7 od 9"), both plural forms of
@@ -347,7 +358,7 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   the new count as the trainer types. When nothing matches, the same line says
   `customers.noMatches`, with **Počisti iskanje** under it, which empties the search, returns to **Vsi** and puts focus in
   the search field. With no customers at all the list says `customers.noCustomers`.
-- **List state in the URL:** the search is `q` and the filter `f` (`dolzniki`, `brez`; none
+- **List state in the URL:** the search is `q` and the filter `f` (`dolzniki`, `brez`, `novi`; none
   for **Vsi**), written with `replace`, so typing never adds history entries and the browser's
   back button leaves the list as a whole. Each row link carries the list's query string in its
   navigation state, so both the browser's back button and **Nazaj na stranke** on the detail
@@ -432,12 +443,23 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   title). **Uredi podatke** at the right of the heading opens the form ([on
   demand](#forms-on-demand)) with name, phone and email filled in; **Shrani** updates the record
   through RLS, closes the form and shows `customerDetail.saved`; an error stays in the form.
+- **Izbriši stranko:** a secondary button under the details, shown only once the page has
+  loaded and the record has no appointments (upcoming and history together hold every
+  status), no ledger rows and no recurring rules, active or not. A tap opens the confirmation
+  in place ([on demand](#forms-on-demand)): `customerDetail.deleteWarning`, then **Potrdi
+  izbris** (a danger button, focused) and **Prekliči** (closes it and puts focus back on
+  **Izbriši stranko**), in a card like the other forms. Only the second tap calls
+  `delete_customer`; on success the page goes back to the list (with its search and filter). A
+  refusal (for example `errors.AMRAP_NOT_DELETABLE` when history appeared meanwhile) shows under
+  the details, the confirmation closes, and the page reloads. If the reload hides **Izbriši
+  stranko**, focus moves to the **Podatki** heading. Used for fake registrations and for a
+  person who registered twice (runbook "A customer registered twice").
 
 ### Settings (`/t/nastavitve`)
 
 - **Layout:** the title **Nastavitve**, then a row of tabs, a `nav` named
   `settings.sectionsLabel`: **Urnik** (`urnik`), **Odpoved** (`odpoved`), **Zaprta obdobja**
-  (`zaprto`), **Obvestila** (`obvestila`), each a link to its own route with
+  (`zaprto`), **Obvestila** (`obvestila`), **Registracija** (`registracija`), each a link to its own route with
   `aria-current="page"` on the open one (`--ink` with a 2 px underline on the row's 1 px
   `--line`; the others `--muted`). Below 768 px the tabs spread across the column (wrapping on a screen
   too narrow for one line), from 768 px
@@ -445,7 +467,7 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   history entry), and the main navigation's **Nastavitve** stays current on every tab.
 - **Data:** each tab loads only what it shows: **Urnik** `allTemplates` (active and inactive),
   **Odpoved** `getSettings`, **Zaprta obdobja** `getSettings` (the timezone) and
-  `upcomingBlocked` (periods that have not ended). Every write goes through RLS and shows
+  `upcomingBlocked` (periods that have not ended), **Registracija** `getRegistrationCode`. Every write goes through RLS and shows
   `settings.saved` or the error.
 - **Termini v tednu** (tab **Urnik**): every template, active and inactive, in one of two
   layouts chosen by the window width (`useMediaQuery('(min-width: 48rem)')`, so only one is
@@ -547,6 +569,29 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
   nothing; **Prekliči** on an edit clears the warning, so the next save counts again.
 - **Obvestila** (tab **Obvestila**): the notifications toggle with the trainer hint
   (`pushToggle.trainerHint`).
+- **Registracija s QR kodo** (tab **Registracija**, `SettingsRegistration.tsx`): the gym code
+  that the registration QR code carries ([auth.md](auth.md#registration)).
+  - **Closed** (no code): `settings.registration.closed` and its hint, and **Odpri
+    registracijo**, which saves a new random code at once (`newRegistrationCode`: 18 bytes from
+    `crypto.getRandomValues`, base64url, so 24 URL-safe characters) through
+    `setRegistrationCode`.
+  - **Open:** `settings.registration.open`, then the full link
+    `<origin>/registracija?koda=<code>` in a read-only text box (`<textarea>`,
+    `settings.registration.link`, selected on focus) with its hint and **Kopiraj**
+    (`navigator.clipboard.writeText`; success is a status line, a refusal an alert that says to
+    select and copy the link by hand), then **Nova koda** and **Zapri registracijo** side by
+    side. The link wraps inside the box, so the trainer sees the whole link on a phone and the
+    page never scrolls sideways. The box grows with the link (`field-sizing: content`); a
+    browser without it shows 3 rows, which fit the about 70-character link at 360 px.
+  - **Nova koda** and **Zapri registracijo** each open a card in place of both buttons
+    ([on demand](#forms-on-demand), the delete-customer pattern): the warning that the printed
+    QR code stops working (`newCodeWarning`, `closeWarning`), a red confirm button
+    (**Potrdi novo kodo**, **Potrdi zaprtje**, focused) and **Prekliči**, which puts focus back
+    on the button that opened it. Only the confirm tap saves: a new random code, or null.
+  - Every save shows `settings.saved` or the error and reloads the code. When the save removes
+    the button that had focus (**Odpri registracijo**, or **Potrdi zaprtje** with the whole
+    open state), focus moves to the section heading (`tabindex="-1"`), so it never falls back
+    to the top of the page; after a new code it returns to **Nova koda**.
 
 ## Show more
 
@@ -577,21 +622,25 @@ until it is asked for (`pages/shared/OnDemand.tsx`,
 [ADR 0011](adr/0011-responsive-navigation-and-on-demand-forms.md)). Where it is used: **Nov termin**
 (Urnik), **Novo zaprto obdobje** (Zaprta obdobja), **Nova stranka** (Stranke, at the page
 title), **Nov termin po dogovoru** (Koledar, at the page title), **Dodaj stalni termin** and
-**Uredi podatke** (customer detail; the latter a secondary button without `+`), and **Dodaj
-stranko** on each
-occurrence of the trainer calendar (a small secondary button at the right of the occurrence).
+**Uredi podatke** (customer detail; the latter a secondary button without `+`), **Izbriši
+stranko** (customer detail, under the details: a confirmation with no fields), **Nova koda**
+and **Zapri registracijo** (Nastavitve → Registracija: confirmations with no fields, focus on
+the confirm button), and **Dodaj stranko** on each occurrence of the trainer calendar (a small secondary button at the right of
+the occurrence).
 
 - **Closed:** one button named after the action, at the right of the heading the form belongs
-  to; on a narrow screen it wraps below the heading. Its weight follows the heading: a
-  page-level action in the page head is the one primary (black) button (**Nova stranka**,
-  **Nov termin po dogovoru**; on customer detail the always-open **Dodaj kredite** plays that
-  part), a section-level one is secondary, outlined (**Nov termin**, **Novo zaprto obdobje**,
-  **Dodaj stalni termin**, **Uredi podatke**, the calendar's small **Dodaj stranko**). "New"
-  actions carry a `+`, **Uredi podatke** does not. So a screen never has two black buttons
-  competing for the main action.
+  to; on a narrow screen it wraps below the heading (**Izbriši stranko** sits under the details
+  instead). Its weight follows the heading: a page-level action in the page head is the one
+  primary (black) button (**Nova stranka**, **Nov termin po dogovoru**; on customer detail the
+  always-open **Dodaj kredite** plays that part), a section-level one is secondary, outlined
+  (**Nov termin**, **Novo zaprto obdobje**, **Dodaj stalni termin**, **Uredi podatke**, the
+  calendar's small **Dodaj stranko**). "New" actions carry a `+`, **Uredi podatke** does not. So
+  a screen never has two black buttons competing for the main action.
 - **Open:** pressing it replaces the button with the form, as a card under the heading,
-  above the list; focus moves to the form's first field. The form has **Prekliči** next to
-  its submit button (`settings.cancelEdit` in Nastavitve, `common.cancel` elsewhere).
+  above the list (**Izbriši stranko** opens its card in place, under the details); focus
+  moves to the form's first field (on **Izbriši stranko**, which has no field, to **Potrdi
+  izbris**). The form has **Prekliči** next to its submit button
+  (`settings.cancelEdit` in Nastavitve, `common.cancel` elsewhere).
 - **Prekliči** closes it, drops what was typed (the next open starts empty) and returns focus
   to the button. It is disabled, like the submit button, while a save or the count before one
   (stranded or overlapping bookings) runs, so a late answer never lands on a closed or
@@ -703,10 +752,10 @@ state is loaded once and again after each action; the button is disabled while o
 
 How the guards and the auth state work is in [auth.md](auth.md).
 
-- `RequireAuth` wraps every route except `/login`, `/invite/:token` and `/logout`. While the
-  stored session and the customer record are loading it shows a loading line, so a reload never
-  flashes the login page. No session redirects to `/login`; a session without a `customers` row
-  shows the not-linked page.
+- `RequireAuth` wraps every route except `/login`, `/invite/:token`, `/registracija` and
+  `/logout`. While the stored session and the customer record are loading it shows a loading
+  line, so a reload never flashes the login page. No session redirects to `/login`; a session
+  without a `customers` row shows the not-linked page.
 - `RequireRole('customer' | 'trainer')` wraps `/c` and `/t`. A user of the other role is
   redirected straight to their own home (`/t` or `/c`).
 - If the customers lookup fails (network, server error, paused project) `RequireAuth` shows an
@@ -756,8 +805,8 @@ How the guards and the auth state work is in [auth.md](auth.md).
 
 - **Brand mark.** The framed AMRAP wordmark (`public/brand-mark.png`, alt `app.name`) replaces
   the plain "AMRAP" text: at the left of the top bar in both shells, and as the `h1` above the
-  heading on `/login` and `/invite/:token`. It is black on white in the light theme and white on
-  black in the dark theme.
+  heading on `/login`, `/invite/:token` and `/registracija`. It is black on white in the light
+  theme and white on black in the dark theme.
 
 - **Type.** One family, Archivo ([app-structure.md](app-structure.md#font)), tabular figures
   everywhere so times and amounts line up. Scale (tokens `--text-xs` to `--text-2xl`): 0.8125

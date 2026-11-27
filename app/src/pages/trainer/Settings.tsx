@@ -6,6 +6,7 @@ const tabs = [
   { to: 'odpoved', label: t.settings.tabs.cutoff },
   { to: 'zaprto', label: t.settings.tabs.blocked },
   { to: 'obvestila', label: t.settings.tabs.notifications },
+  { to: 'registracija', label: t.settings.tabs.registration },
 ];
 
 export function TrainerSettings() {

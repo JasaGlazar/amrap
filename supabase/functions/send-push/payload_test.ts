@@ -25,10 +25,27 @@ Deno.test('every kind sends its kind, data and the screen to open', () => {
     ['credit_adjustment', '/c/zgodovina'],
     ['appointment_cancelled_by_trainer', '/c/zgodovina'],
     ['booking_restored', '/t'],
+    ['customer_registered', '/t/stranke'],
   ];
   for (const [kind, url] of cases) {
     const data = { appointment_id: appointmentId, cutoff_at: '2026-10-24T11:00:00Z', amount: 1 };
     assertEquals(JSON.parse(buildPush(row(kind, data), now).payload), { kind, data, url });
+  }
+});
+
+Deno.test("a registration opens the new customer's page", () => {
+  const customerId = '0b8e7f6a-5d4c-4b3a-9f2e-1d0c9b8a7f6e';
+  const push = buildPush(
+    row('customer_registered', { customer_id: customerId, customer_name: 'Ana' }),
+    now,
+  );
+  assertEquals(JSON.parse(push.payload).url, `/t/stranke/${customerId}`);
+});
+
+Deno.test('a registration without a usable customer id opens the customer list', () => {
+  for (const customerId of [undefined, '', '../../c', 42]) {
+    const push = buildPush(row('customer_registered', { customer_id: customerId }), now);
+    assertEquals(JSON.parse(push.payload).url, '/t/stranke');
   }
 });
 
@@ -70,6 +87,7 @@ Deno.test('other kinds live a day at normal urgency without a topic', () => {
       'credit_adjustment',
       'appointment_cancelled_by_trainer',
       'booking_restored',
+      'customer_registered',
     ] as const
   ) {
     const push = buildPush(row(kind, { appointment_id: appointmentId }), now);

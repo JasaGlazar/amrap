@@ -10,10 +10,13 @@ const URLS: Record<NotificationKind, string> = {
   credit_adjustment: '/c/zgodovina',
   appointment_cancelled_by_trainer: '/c/zgodovina',
   booking_restored: '/t',
+  customer_registered: '/t/stranke',
 };
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function buildPush(row: ClaimedRow, now: Date): BuiltPush {
-  const url = URLS[row.kind] ?? '/';
+  const url = urlFor(row);
   const payload = JSON.stringify({ kind: row.kind, data: row.data, url });
 
   if (row.kind === 'cutoff_reminder') {
@@ -22,6 +25,17 @@ export function buildPush(row: ClaimedRow, now: Date): BuiltPush {
     return { payload, ttl, urgency: 'high', topic: topicFor(row.data.appointment_id) };
   }
   return { payload, ttl: DAY_SECONDS, urgency: 'normal' };
+}
+
+function urlFor(row: ClaimedRow): string {
+  const url = URLS[row.kind] ?? '/';
+  const customerId = row.data.customer_id;
+  if (
+    row.kind === 'customer_registered' && typeof customerId === 'string' && UUID.test(customerId)
+  ) {
+    return `${url}/${customerId}`;
+  }
+  return url;
 }
 
 function topicFor(appointmentId: unknown): string | undefined {

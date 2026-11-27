@@ -1,6 +1,6 @@
 # 0006. Email/password auth with invite tokens
 
-Status: Accepted
+Status: Superseded in part by 0021
 Date: 2026-10-23
 
 ## Context

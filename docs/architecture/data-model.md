@@ -3,17 +3,20 @@
 Entity-relationship diagram of every table. The model is ledger-first: there is no balance
 column; a customer's balance is `SUM(credit_transactions.amount)`, exposed by the view
 `customer_balances` (ADR 0003). Invite status is not stored; it is derived: linked when
-`auth_user_id` is not null, pending when `invite_token` is not null and `invite_expires_at > now()`,
-otherwise none. `push_subscriptions.user_id` and `credit_transactions.created_by` reference
-`auth.users` (not drawn), so they reach a customer only indirectly through
+`auth_user_id` is not null, pending when `invite_token` is not null and `invite_expires_at >
+now()`, otherwise none. `push_subscriptions.user_id` and `credit_transactions.created_by`
+reference `auth.users` (not drawn), so they reach a customer only indirectly through
 `customers.auth_user_id`. A recurring rule materializes at most one appointment per start
 (unique `appointments(rule_id, starts_at)` where `rule_id` is set, any status). The view
 `slot_occupancy` (not drawn) counts `booked` and `charged` appointments per slot template and
 `starts_at` for linked callers; it runs as its owner and exposes counts only, never customer
-identities. `notifications` is the push log (ADR 0009): one row per push the database decided to
-send, unique per `(kind, appointment_id)`, closed to the API. All tables are under RLS and all credit and capacity changes go
-through RPCs. Column lists show the main fields; the migration is the exact definition and
-`docs/schema.md` is the reference.
+identities. `notifications` is the push log (ADR 0009): one row per push the database decided
+to send, unique per `(kind, appointment_id)`, closed to the API. `registration_settings` holds
+the gym code in one row; only the trainer can read it, and it changes only through
+`set_registration_code()` (ADR 0021). It has no relationships. `customers.registered_at` is set
+when a person registered themselves and is null for records the trainer created. All tables are
+under RLS and all credit and capacity changes go through RPCs. Column lists show the main
+fields; the migration is the exact definition and `docs/schema.md` is the reference.
 
 ```mermaid
 erDiagram
@@ -27,6 +30,7 @@ erDiagram
         text invite_token "nullable, unique, single use, cleared on accept"
         timestamptz invite_expires_at "nullable, token expiry 7 days"
         timestamptz created_at
+        timestamptz registered_at "nullable, set by register_customer"
     }
     slot_templates {
         uuid id PK
@@ -80,6 +84,11 @@ erDiagram
         boolean customer_booking_enabled "default false"
         text timezone "default Europe/Ljubljana"
     }
+    registration_settings {
+        int id PK "single row"
+        text code "nullable, 8 or more characters, null means closed, trainer reads only"
+        timestamptz updated_at
+    }
     push_subscriptions {
         uuid id PK
         uuid user_id "auth user"
@@ -91,7 +100,7 @@ erDiagram
     notifications {
         uuid id PK
         uuid customer_id FK "recipient"
-        notification_kind kind "cutoff_reminder, booking_created, booking_cancelled, credit_topup, credit_adjustment, appointment_cancelled_by_trainer, booking_restored"
+        notification_kind kind "cutoff_reminder, booking_created, booking_cancelled, credit_topup, credit_adjustment, appointment_cancelled_by_trainer, booking_restored, customer_registered"
         uuid appointment_id FK "nullable, unique with kind"
         uuid transaction_id FK "nullable"
         jsonb data

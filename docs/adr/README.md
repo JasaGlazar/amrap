@@ -13,7 +13,7 @@ of it changes).
 | [0003](0003-ledger-only-balance.md) | Ledger-only balance with a partial unique index on charges | Accepted |
 | [0004](0004-slot-templates-per-slot-capacity.md) | Slot templates with per-slot capacity | Accepted |
 | [0005](0005-supabase-free-tier-cloudflare-pages.md) | Supabase free tier and Cloudflare Pages | Superseded in part by 0012 |
-| [0006](0006-auth-invite-token-password.md) | Email/password auth with invite tokens | Accepted |
+| [0006](0006-auth-invite-token-password.md) | Email/password auth with invite tokens | Superseded in part by 0021 |
 | [0007](0007-relink-by-deleting-auth-user.md) | Re-link a customer by deleting their auth user | Accepted |
 | [0008](0008-recurrence-and-occupancy.md) | Recurrence, blocked periods, slot occupancy and cron roles | Accepted |
 | [0009](0009-web-push-design.md) | Web push through a notification log, pg_net and one edge function | Accepted |
@@ -28,6 +28,7 @@ of it changes).
 | [0018](0018-customers-do-not-book-in-first-release.md) | Customers do not book in the first release | Accepted |
 | [0019](0019-customers-see-the-calendar-read-only.md) | Customers see the calendar read-only | Accepted |
 | [0020](0020-playwright-browser-tests.md) | Playwright browser tests against the built app and the local stack | Accepted |
+| [0021](0021-customers-register-with-a-gym-code.md) | Customers register themselves with a gym code | Accepted |
 
 ## Template
 

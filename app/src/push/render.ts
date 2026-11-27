@@ -21,7 +21,7 @@ export function parsePush(text: string | undefined): RenderedNotification {
 export function renderNotification(kind: string, data: Data): Omit<RenderedNotification, 'url'> {
   const timeZone = typeof data.timezone === 'string' ? data.timezone : deviceTimeZone();
   const startsAt = dateOf(data.starts_at);
-  const tag = `${kind}:${String(data.appointment_id ?? data.transaction_id ?? '')}`;
+  const tag = `${kind}:${String(data.appointment_id ?? data.transaction_id ?? data.customer_id ?? '')}`;
   const when = startsAt && {
     day: formatLongDay(startsAt, timeZone),
     time: formatTime(startsAt, timeZone),
@@ -59,6 +59,15 @@ export function renderNotification(kind: string, data: Data): Omit<RenderedNotif
       return {
         title,
         body: fill(sl.push.bookingBody, { name: String(data.customer_name ?? ''), ...when }),
+        tag,
+      };
+    }
+    case 'customer_registered': {
+      const name = textOf(data.customer_name);
+      if (!name) break;
+      return {
+        title: sl.push.customerRegisteredTitle,
+        body: fill(sl.push.customerRegisteredBody, { name }),
         tag,
       };
     }

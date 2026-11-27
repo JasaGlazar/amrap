@@ -73,6 +73,15 @@ describe('renderNotification', () => {
     });
   });
 
+  it('tells the trainer about a registration, tagged by the customer', () => {
+    const data = { customer_id: 'c-1', customer_name: 'Ana Novak' };
+    expect(renderNotification('customer_registered', data)).toEqual({
+      title: t.push.customerRegisteredTitle,
+      body: fill(t.push.customerRegisteredBody, { name: 'Ana Novak' }),
+      tag: 'customer_registered:c-1',
+    });
+  });
+
   it('tells the customer about a top-up with the new balance', () => {
     const data = { transaction_id: 'tx-1', amount: 8, note: null, balance: 7 };
     expect(renderNotification('credit_topup', data)).toEqual({
@@ -136,6 +145,7 @@ describe('renderNotification', () => {
     ['a reminder without dates', 'cutoff_reminder', { appointment_id: appointmentId }],
     ['a booking with a broken date', 'booking_created', { starts_at: 'yesterday' }],
     ['a top-up without a balance', 'credit_topup', { amount: 1 }],
+    ['a registration without a name', 'customer_registered', { customer_id: 'c-1' }],
   ])('falls back to generic copy for %s', (_name, kind, data) => {
     const rendered = renderNotification(kind, data);
     expect([rendered.title, rendered.body]).toEqual([t.push.genericTitle, t.push.genericBody]);

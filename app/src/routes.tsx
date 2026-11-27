@@ -12,11 +12,13 @@ import { CustomerHome } from './pages/customer/Home';
 import { InvitePage } from './pages/InvitePage';
 import { LoginPage } from './pages/LoginPage';
 import { LogoutFailedPage } from './pages/LogoutFailedPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { TrainerShell } from './pages/TrainerPages';
 import { TrainerSettings } from './pages/trainer/Settings';
 import { SettingsBlocked } from './pages/trainer/SettingsBlocked';
 import { SettingsCutoff } from './pages/trainer/SettingsCutoff';
 import { SettingsNotifications } from './pages/trainer/SettingsNotifications';
+import { SettingsRegistration } from './pages/trainer/SettingsRegistration';
 import { SettingsTemplates } from './pages/trainer/SettingsTemplates';
 import { TrainerCustomerDetail } from './pages/trainer/CustomerDetail';
 import { TrainerCustomers } from './pages/trainer/Customers';
@@ -53,6 +55,7 @@ export const routes: RouteObject[] = [
     children: [
       { path: '/login', element: <LoginPage /> },
       { path: '/invite/:token', element: <InvitePage /> },
+      { path: '/registracija', element: <RegisterPage /> },
       { path: '/logout', loader: logout, element: <LogoutFailedPage /> },
       {
         element: <RequireAuth />,
@@ -92,6 +95,7 @@ export const routes: RouteObject[] = [
                       { path: 'odpoved', element: <SettingsCutoff /> },
                       { path: 'zaprto', element: <SettingsBlocked /> },
                       { path: 'obvestila', element: <SettingsNotifications /> },
+                      { path: 'registracija', element: <SettingsRegistration /> },
                     ],
                   },
                 ],

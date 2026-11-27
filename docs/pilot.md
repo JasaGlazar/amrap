@@ -20,7 +20,9 @@ All on the hosted project, from an up-to-date `main`; steps in [runbook.md](runb
 4. The trainer account exists ([Bootstrap the trainer](runbook.md#bootstrap-the-trainer)).
 5. On the trainer's phone: AMRAP opened from the home screen (install card), signed in as the
    trainer, **Vklopi obvestila** on **Nastavitve → Obvestila**.
-6. The trainer has this guide's Slovenian parts (below) and the copy review
+6. The registration QR code is printed and up in the gym once the trainer has opened
+   registration ([Print the registration QR](runbook.md#print-the-registration-qr)).
+7. The trainer has this guide's Slovenian parts (below) and the copy review
    ([copy-review.md](copy-review.md)) if it is not signed off yet.
 
 ## Prvi dan: nastavitev (trener)
@@ -50,10 +52,16 @@ Vse na telefonu, v aplikaciji AMRAP, prijavljeni kot trener. Papirnati list imej
 5. **Stalni termini** (na strani stranke): tapnite »Dodaj stalni termin«, izberite termin in
    znova tapnite »Dodaj stalni termin«.
    Aplikacija takoj rezervira ta termin za naslednje 4 tedne (sporočilo pove, koliko terminov).
-6. **Povabilo** (na strani stranke, za vsako stranko, ki bo uporabljala aplikacijo): »Ustvari
-   povabilo«, nato »Kopiraj« in povezavo pošljite stranki (SMS, WhatsApp) skupaj z besedilom
-   spodaj. Povezava velja 7 dni; novo povabilo razveljavi prejšnje.
-7. Stranke brez aplikacije ostanejo v aplikaciji kot zapis: njihove termine dodajate vi
+6. **Nastavitve → Registracija:** tapnite »Odpri registracijo«, nato »Kopiraj«. Iz povezave
+   naredite QR kodo (lastnik vam pri tem pomaga), jo natisnite in obesite v telovadnici. Nove
+   stranke se s to QR kodo registrirajo same. Na seznamu **Stranke** imajo oznako »Nov«, dokler
+   jim ne dodate stalnega termina; filter »Novi« pokaže samo njih. Ob vsaki registraciji dobite
+   obvestilo. »Nova koda« in »Zapri registracijo« razveljavita natisnjeno QR kodo.
+7. **Povabilo** (na strani stranke, za stranko, ki jo že imate v aplikaciji, na primer s
+   krediti s papirnatega lista): »Ustvari povabilo«, nato »Kopiraj« in povezavo pošljite stranki
+   (SMS, WhatsApp) skupaj z besedilom spodaj. Povezava velja 7 dni; novo povabilo razveljavi
+   prejšnje. Takšna stranka naj se ne registrira s QR kodo, sicer ima dva zapisa.
+8. Stranke brez aplikacije ostanejo v aplikaciji kot zapis: njihove termine dodajate vi
    (**Koledar**, pri terminu »Dodaj stranko«, izberite stranko in »Dodaj«) in jih tudi
    odpoveste vi.
 
@@ -61,16 +69,19 @@ Na koncu primerjajte **Stranke** (stanje vsake stranke) s papirnatim listom.
 
 ## Besedilo za stranke (za posredovanje)
 
-> Pozdravljeni! Termine in kredite odslej vodimo v aplikaciji AMRAP. Odprite povezavo spodaj in
-> ustvarite račun (e-poštni naslov in geslo). Nato:
+> Pozdravljeni! Termine in kredite odslej vodimo v aplikaciji AMRAP.
 >
-> 1. Dodajte AMRAP na začetni zaslon telefona (navodila so na vrhu aplikacije). Na iPhonu je to
+> 1. V telovadnici s telefonom skenirajte QR kodo in ustvarite račun (ime, telefon, e-poštni
+>    naslov in geslo). Če ste od trenerja dobili povezavo za povabilo, namesto tega odprite
+>    povezavo spodaj in ustvarite račun (e-poštni naslov in geslo).
+> 2. Dodajte AMRAP na začetni zaslon telefona (navodila so na vrhu aplikacije). Na iPhonu je to
 >    nujno, sicer obvestila ne delujejo.
-> 2. Na zaslonu **Domov** tapnite »Vklopi obvestila«. Uro pred rokom za brezplačno odpoved
+> 3. Na zaslonu **Domov** tapnite »Vklopi obvestila«. Uro pred rokom za brezplačno odpoved
 >    dobite opomnik.
-> 3. Na zaslonu **Domov** vidite termine, ki vam jih je dodelil trener. Termin odpoveste
->    (»Odpovej«), brezplačno odpoved pa do roka prekličete (»Razveljavi odpoved«).
-> 4. Na zaslonu **Koledar** vidite, koliko prostih mest ima vsak termin. Za prost termin se
+> 4. Na zaslonu **Domov** vidite termine, ki vam jih je dodelil trener; dokler jih ni, piše, da
+>    vam jih bo dodelil. Termin odpoveste (»Odpovej«), brezplačno odpoved pa do roka prekličete
+>    (»Razveljavi odpoved«).
+> 5. Na zaslonu **Koledar** vidite, koliko prostih mest ima vsak termin. Za prost termin se
 >    dogovorite s trenerjem.
 >
 > Odpoved do roka (8 ur pred začetkom) je brezplačna. Kasnejša odpoved ali termin, na katerega ne
@@ -79,7 +90,8 @@ Na koncu primerjajte **Stranke** (stanje vsake stranke) s papirnatim listom.
 >
 > Povezava: <povezava za povabilo>
 
-Če ste rok za brezplačno odpoved spremenili, popravite »8 ur« v besedilu.
+Če ste rok za brezplačno odpoved spremenili, popravite »8 ur« v besedilu. Stranki brez povabila
+pošljite besedilo brez zadnje vrstice s povezavo.
 
 ## Med poskusnim tednom: dnevni pregled (trener)
 
@@ -92,8 +104,10 @@ Vsak dan, nekaj minut:
 3. **Koledar → Termini zunaj urnika:** termini po dogovoru in rezervacije terminov, ki jih ni
    več v urniku (na telefonu pod izbranim dnem, na računalniku v stolpcu dneva z oznako).
    Preverite, ali so pravi.
-4. **Obvestila na telefonu:** odpovedi strank in obnovljeni termini (stranka je odpoved
-   razveljavila z »Razveljavi odpoved«).
+4. **Obvestila na telefonu:** nove registracije, odpovedi strank in obnovljeni termini (stranka
+   je odpoved razveljavila z »Razveljavi odpoved«).
+5. **Stranke → Novi:** stranke, ki so se registrirale s QR kodo in še nimajo stalnega termina.
+   Vsaki na njeni strani dodajte stalni termin; oznaka »Nov« nato izgine.
 
 Popravki:
 

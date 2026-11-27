@@ -18,8 +18,9 @@ These constraints bind every task and are what the reviewer checks against (alon
 - Slovenian UI; every user-visible string lives in `app/src/i18n/sl.ts`. No hardcoded UI strings.
 - Docs 1:1 (below), no generated artifacts except the DB types, tests derive counts, no
   blocking hooks (all below).
-- Auth: email/password with email confirmations disabled. Customers join only via trainer
-  invite token (`create_invite` / `accept_invite`). Magic links and OTP are not used.
+- Auth: email/password with email confirmations disabled. Customers join in one of two ways:
+  the trainer invite (`create_invite` / `accept_invite`) or registration with the gym code
+  (`register_customer`, ADR 0021). Magic links and OTP are not used.
 - Tests: pgTAP via `supabase test db` (`supabase/tests/*.sql`); frontend logic tests with Vitest;
   edge function tests with Deno (`scripts/test-functions.sh`); browser tests with Playwright
   (`app/e2e/`, see [Browser tests](#browser-tests)).
@@ -210,6 +211,9 @@ run, so test files do not create it.
 | `035_booking_switch.sql` | the cutoff (8 hours in the row and as the default), `customer_booking_enabled` (default false, not null); a customer `book()` refused while it is false, the trainer's `book()` and `materialize_recurring` still booking, a customer `book()` once it is true, a missing settings row |
 | `036_undo_cancel.sql` | `undo_cancel`: definition and grants, `book()`'s lock held and taken before the blocked check; a customer's own free cancel restored with no ledger row and later charged once by the charge job; another customer, the trainer, an unlinked user and anon refused; unknown and null id; `booked`, `charged`, `cancelled_late` and `cancelled_by_trainer` refused; exactly at the cutoff refused and one second before it allowed; blocked period, full slot (count stays at capacity), inactive template, another live booking at the same start, inactive and active recurring rule, ad-hoc appointment; missing settings |
 | `037_booking_restored.sql` | the `booking_restored` notification: definition and grants, the enum value; a customer's undo notifies the trainer with the name, start and timezone and queues its request; the customer gets nothing; `cancelled_late` → `booked` notifies nobody; no trainer device records nothing and the undo still succeeds; cancel, undo, cancel, undo on one appointment writes a new undispatched row of the step's kind each time and queues each one; a status change succeeds when its push request cannot be queued or its notification fails |
+| `038_registration.sql` | `register_customer` and `set_registration_code`: definitions and grants, `registration_settings` shape, default row and table grants, `customers.registered_at`; signed out and no user refused; closed, wrong and null code refused with one token, also with invalid fields; name and phone bounds, spaces and null; the new record (role, trimmed fields, auth email, link, `registered_at`); a second call, a linked customer and the trainer refused with exactly one record kept; who can read and write `registration_settings`; the trainer sets, refuses a 7-character code, replaces and clears the code; a replaced code is refused and, after the clear, the old code is refused; a missing settings row fails closed. The two-tabs-at-once path of `register_customer` (a `unique_violation` turned into `AMRAP_ALREADY_LINKED`) has no test; it is checked by reading the code |
+| `039_customer_registered.sql` | the `customer_registered` notification: definition and grants, the enum value, the trigger on `customers`; a registration notifies the trainer with the customer's id and name and queues its request; the new customer gets nothing; a record the trainer creates notifies nobody; two registrations write two rows; no trainer device records nothing and the registration still succeeds; a registration succeeds when its push request cannot be queued (the row stays undispatched) or its notification fails (nothing recorded) |
+| `040_delete_customer.sql` | `delete_customer()`: definition and grants; a customer is refused, a null id and an unknown id are refused; a record with an appointment (here a future cancelled one), a credit transaction or an inactive rule is refused, and so is a trainer record, and each refused record keeps its rows; a record with no history is deleted, its notifications go with it, its auth user stays; a second delete finds nothing |
 
 Helpers in `supabase/seeds/test_helpers.sql` (schema `tests`, local only):
 
@@ -243,6 +247,17 @@ How to write a test:
 5. Call `tests.clear_authentication()` before going back to superuser fixtures.
 6. Write the test first and watch it fail, then write the migration; run
    `supabase db reset && supabase test db` until the output is green with no notices.
+
+### App tests
+
+Vitest tests sit next to the code in `app/src/` (`*.test.ts`, `*.test.tsx`) and run with
+`npm test` in `app/`. Page tests use the fake Supabase client in `app/src/test/fakeSupabase.ts`
+([app-structure.md](app-structure.md#testing-with-the-fake-client)). The table below is not a
+full list of the files.
+
+| File | Covers |
+|---|---|
+| `app/src/pages/register.test.tsx` | the registration page: no code shows the scan-the-QR copy and no form, signed out (no sign-out link) and signed in without a record (a sign-out link that signs out); the fields signed out (all required, the phone keyboard, autofill hints) and signed in without a record (name and phone only); name, phone and password checks before any request, with the trimmed bounds; sign-up, `register_customer` with the trimmed fields and the code, then the customer Home; a sign-up with no session; an existing account with the right password (registered), with the wrong password (a link to sign in) and with a record already (ends on Home); other sign-up and sign-in errors; a refused code shows the closed copy and the short form, and a retry calls `register_customer` again with no new sign-up; a failed customer lookup shows the lookup-failed page and no form; a linked user sent to the customer Home |
 
 ### Browser tests
 
@@ -306,6 +321,18 @@ How the fixtures in `app/e2e/fixtures.ts` make data:
   `activate_rule`). It fails when `activate_rule` creates fewer than 3 appointments; a blocked
   period in the local database is the likely cause. It gives the template id, the rule id, the
   start time and the capacity.
+- `registrationCode`: sets a fresh gym code `e2e-<random>` on the one row of
+  `registration_settings`, through the service-role client (it bypasses RLS;
+  `set_registration_code` accepts only the trainer). It fails when the row (id 1) is missing.
+  It reads the stored code first and writes it back after the test.
+- `registrant`: a unique email `e2e-<random>@test.local`, a password, a name and a phone for a
+  person who signs up through the app. It makes no data itself. After the test it finds the
+  auth user by the email (it reads every page of the admin user list). When a customer row is
+  linked to that user, it first deletes the trainer's `customer_registered` notification for
+  that customer (`data->>'customer_id'`). The trigger writes it only when push is set up locally
+  and the trainer has a device, and it does not cascade. Then it deletes the row's credit
+  transactions, appointments, recurring rules and the row, the same way and with the same retry
+  as `customer`. Then it deletes the auth user. This runs even when the test fails part way.
 - `signIn(page, who)`: fills the real login page and waits for the role's home (`/t` or `/c`).
 - `TRAINER`: the seeded `trainer@amrap.local` from `supabase/seeds/dev.sql`.
 
@@ -331,9 +358,18 @@ Rules that keep the tests stable:
 - The tests assume the local database is at seed defaults: `customer_booking_enabled` is false,
   the cutoff is the default and no blocked period falls in the next four weeks. CI always
   starts from seed defaults.
+- The gym code is one shared row. Tests that use `registrationCode` sit in a describe block
+  with Playwright's test lock `registration-code` (`{ lock: 'registration-code' }`). Tests
+  that share a lock never run at the same time, on any worker. They also run in serial mode.
+  Serial mode is not enough on its own: with `--repeat-each`, each repeat of a serial block is
+  its own group, and the groups run on different workers at the same time. The lock lives in
+  the Playwright runner, so it guards one run only. Two runs at once cannot happen locally:
+  with `reuseExistingServer: false`, Playwright stops the second run because
+  `http://localhost:4173` is already used. No other spec reads or sets the gym code.
 
 | File | Covers |
 |---|---|
 | `auth.spec.ts` | the trainer lands on `/t` and a customer on `/c` after sign-in; a wrong password shows the invalid-credentials error; a customer who opens `/t` is sent to `/c`; during a customer sign-in the app sends at least one auth and one REST request, all to `127.0.0.1` or `localhost` |
 | `customer.spec.ts` | a customer with a fixed appointment sees at least three upcoming rows on Home; they cancel the last one, it moves to the cancelled list, they undo it and it is back in the upcoming list with the "restored" status; next week's calendar shows free places on their session and no book button |
 | `trainer.spec.ts` | the trainer adds a fixed appointment on the customer's page, then the customer (in a second browser context) sees it on Home; the trainer cancels the customer's last upcoming appointment with a reason, then the customer sees it in History as cancelled by the trainer, with the reason |
+| `registration.spec.ts` | a person opens the registration link with the gym code, signs up and lands on `/c` with the empty-Home copy; the trainer finds them in the customer list with the "Nov" tag and adds a fixed appointment on their page, and the tag is gone from the list; the person reloads Home and sees an upcoming appointment. A wrong code shows the registration-closed copy and stays on `/registracija`. The link without a code shows no form |

@@ -19,6 +19,8 @@ function customer(overrides: Partial<SearchableCustomer>): SearchableCustomer {
     linked: true,
     inviteToken: null,
     inviteExpiresAt: null,
+    registeredAt: null,
+    hasRules: false,
     balance: 0,
     ...overrides,
   };
@@ -76,6 +78,7 @@ describe('customerFilterOf', () => {
   it('reads the known filters and falls back to all', () => {
     expect(customerFilterOf('dolzniki')).toBe('dolzniki');
     expect(customerFilterOf('brez')).toBe('brez');
+    expect(customerFilterOf('novi')).toBe('novi');
     expect(customerFilterOf('vsi')).toBe('vsi');
     expect(customerFilterOf(null)).toBe('vsi');
     expect(customerFilterOf('unknown')).toBe('vsi');
@@ -117,6 +120,15 @@ describe('searchCustomers', () => {
     const result = searchCustomers(list, '', 'brez');
     expect(names(result).sort()).toEqual(names(list.filter((row) => !row.linked)).sort());
     expect(names(result)).toContain('Dora');
+  });
+
+  it('keeps only registered customers without a rule for novi', () => {
+    const rows = [
+      ...list,
+      customer({ name: 'Nejc', registeredAt: earlier }),
+      customer({ name: 'Rok', registeredAt: earlier, hasRules: true }),
+    ];
+    expect(names(searchCustomers(rows, '', 'novi'))).toEqual(['Nejc']);
   });
 
   it('combines a filter with the search', () => {

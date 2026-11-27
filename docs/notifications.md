@@ -27,10 +27,11 @@ and records it in a log; one edge function, `send-push`, delivers. The functions
 ## The log
 
 `public.notifications` holds one row per push the database decided to send: the recipient
-(`customer_id`), the `kind`, the appointment or transaction it is about, the `data` the service
-worker renders, `created_at` and `dispatched_at` (set once, by the claim). It is closed to the
-API (RLS on, no policy, no grants to `anon` or `authenticated`). `send_cutoff_reminders()`
-deletes rows older than 30 days on every run, so the table stays small (Free Plan 500 MB).
+(`customer_id`), the `kind`, the appointment or transaction it is about (neither for
+`customer_registered`), the `data` the service worker renders, `created_at` and
+`dispatched_at` (set once, by the claim). It is closed to the API (RLS on, no policy, no
+grants to `anon` or `authenticated`). `send_cutoff_reminders()` deletes rows older than 30
+days on every run, so the table stays small (Free Plan 500 MB).
 
 Rows are written only when push is configured and the recipient is linked and has at least one
 push subscription. Nothing is recorded otherwise, so a reminder is still sent if the config or
@@ -47,9 +48,12 @@ the customer's subscription appears while the cutoff is in the window.
 | `credit_topup` | the customer | trigger on a `topup` row | `transaction_id`, `amount`, `note` (or null), `balance` (after the row) |
 | `credit_adjustment` | the customer | trigger on an `adjustment` row | `transaction_id`, `amount` (signed), `note` (or null), `balance` (after the row) |
 | `appointment_cancelled_by_trainer` | the appointment's customer | trigger on a trainer cancel (`cancel()` by the trainer, `cancel_occurrence()`, `deactivate_rule()`) | `appointment_id`, `starts_at`, `timezone`, `refunded` (true when the appointment was `charged`, so a refund was written), `reason` (the trimmed reason, or null) |
+| `customer_registered` | the trainer | trigger on a registration (`register_customer()`) | `customer_id`, `customer_name` |
 
 Appointment kinds set `notifications.appointment_id`; credit kinds set `transaction_id` and
-leave `appointment_id` null.
+leave `appointment_id` null; `customer_registered` sets neither. A null `appointment_id` never
+collides with another under the `(kind, appointment_id)` key, so every registration gets its
+own row. The gym code is never in `data`.
 
 `cutoff_at` is `starts_at − late_cancel_hours · 1 h`, the same cutoff `cancel()` uses.
 
@@ -70,6 +74,7 @@ The encrypted payload is JSON with no display text, so all copy stays in the app
 | `cutoff_reminder` | `/c` | seconds until `data.cutoff_at` (0 when passed or missing) | `high` | the appointment id without dashes (32 characters), so a newer reminder replaces an undelivered older one |
 | `booking_created`, `booking_cancelled`, `booking_restored` | `/t` | 24 hours | `normal` | none |
 | `credit_topup`, `credit_adjustment`, `appointment_cancelled_by_trainer` | `/c/zgodovina` (the trainer cancel's reason is shown there) | 24 hours | `normal` | none |
+| `customer_registered` | `/t/stranke/<customer_id>` (the new customer's page); `/t/stranke` when `data.customer_id` is not a UUID | 24 hours | `normal` | none |
 
 A reminder that expires at the cutoff is never delivered after it, when it would be useless.
 
@@ -93,12 +98,13 @@ and registered by the plugin's `registerSW.js`:
   (`push.bookingRestoredTitle`); a trainer cancel the start
   (`push.trainerCancelledBody`), then `push.withRefund` when `refunded` and `push.withReason`
   last when the reason is not blank; credit notifications the signed amount and the
-  new balance, plus the note when there is one. An unknown kind, missing fields or a payload
-  that is not JSON shows `push.genericTitle` / `push.genericBody`. The tag is
-  `<kind>:<appointment or transaction id>`, so a repeated notification replaces the earlier one.
-  `renotify: true` makes that replacement alert again, so a second cancel or undo of the same
-  appointment is not silent (the option is missing from the WebWorker types, hence the
-  intersection type in `sw.ts`).
+  new balance, plus the note when there is one; a registration `push.customerRegisteredTitle`
+  and the customer's name (`push.customerRegisteredBody`). An unknown kind, missing fields or
+  a payload that is not JSON shows `push.genericTitle` / `push.genericBody`. The tag is
+  `<kind>:<appointment, transaction or customer id>`, so a repeated notification replaces the
+  earlier one and two registrations show side by side. `renotify: true` makes that
+  replacement alert again, so a second cancel or undo of the same appointment is not silent
+  (the option is missing from the WebWorker types, hence the intersection type in `sw.ts`).
 - **notificationclick:** closes the notification, then focuses a window of the app that the
   service worker controls and navigates it to `url`; with no such window, or when navigating
   fails, it opens a new window there. `parsePush` keeps a `url` only when it starts with `/` and
@@ -132,7 +138,7 @@ and registered by the plugin's `registerSW.js`:
 
 ## Event notifications
 
-Five triggers ([schema.md](schema.md#triggers)) call `enqueue_notification()`; no RPC body
+Six triggers ([schema.md](schema.md#triggers)) call `enqueue_notification()`; no RPC body
 knows about push:
 
 | Event | Trigger condition | Notifies |
@@ -142,11 +148,14 @@ knows about push:
 | A customer undoes a free cancel (`undo_cancel()`) | `after update of status`, `cancelled` → `booked` | the trainer, `booking_restored` |
 | The trainer cancels (`cancel()` by the trainer, `cancel_occurrence()`, `deactivate_rule()`) | `after update of status`, `booked` or `charged` → `cancelled_by_trainer` | the customer, `appointment_cancelled_by_trainer` |
 | The trainer tops up or adjusts | `after insert on credit_transactions`, `type in ('topup', 'adjustment')` | the customer, `credit_topup` / `credit_adjustment` |
+| A person registers (`register_customer()` sets `registered_at`) | `after insert on customers`, `registered_at is not null` | the trainer, `customer_registered` |
 
 Nothing else notifies: trainer bookings (`source = 'trainer'`), materialization
 (`source = 'recurring'`, so the nightly run sends nothing), the charge job (`booked` →
 `charged`), charges and refunds (a refund is part of the trainer cancel's notification,
-`refunded`). The trainer is not notified of their own cancels.
+`refunded`), and a customer record the trainer creates in the app (the app never sends
+`registered_at`). The trainer's table policy would allow a direct insert with `registered_at`
+set, and that insert would notify too. The trainer is not notified of their own cancels.
 
 A trainer cancel tells the customer (issue #18, [ADR 0015](adr/0015-trainer-cancel-notifies-customer.md)).
 `refunded` comes from the old status (`charged`), because `cancel()` inserts the refund after
@@ -161,13 +170,14 @@ this log.
 
 The domain has one trainer. The booking triggers pick a single recipient, matching the
 `(kind, appointment_id)` key: the earliest-created `role = 'trainer'` record with a push
-subscription (ties by id). The credit trigger reads the balance after the row from
-`customer_balances`.
+subscription (ties by id). The registration trigger picks the trainer the same way. The
+credit trigger reads the balance after the row from `customer_balances`.
 
 `enqueue_notification()` records nothing without push config or when the recipient has no linked
 user or no subscription, inserts the row and dispatches its id. It and each trigger function
 catch every error (`raise warning`), so a failing notification never fails `book`, `cancel`,
-`undo_cancel`, `cancel_occurrence`, `deactivate_rule`, `top_up` or `adjust`.
+`undo_cancel`, `cancel_occurrence`, `deactivate_rule`, `top_up`, `adjust` or
+`register_customer`.
 
 ## Repeat cancel and undo
 
@@ -195,7 +205,9 @@ function call an arbitrary URL. Deleting is a plain RLS delete of an own row.
 
 The unique key `(kind, appointment_id)` allows one notification of a kind per appointment at
 a time; only the customer cancel and undo triggers replace their earlier row (see
-[Repeat cancel and undo](#repeat-cancel-and-undo)), so a reminder is still sent once, ever. A writer pushes only the ids its own insert returned, so a second run, a retry or an
+[Repeat cancel and undo](#repeat-cancel-and-undo)), so a reminder is still sent once, ever.
+Rows with a null `appointment_id` (credit kinds, `customer_registered`) never collide. A
+writer pushes only the ids its own insert returned, so a second run, a retry or an
 overlapping run (which waits on the unique index, then skips) never sends a second reminder.
 `claim_notifications` sets `dispatched_at` only where it is null, so a repeated or duplicated
 call to `send-push` sends nothing either: each notification is pushed at most once. A push
@@ -257,6 +269,9 @@ Setting them on the hosted project is in [runbook.md](runbook.md#turn-on-push-no
   `save_push_subscription`.
 - `supabase/tests/037_booking_restored.sql`: the undo notification (trainer only, data, no
   device, best effort) and cancel, undo, cancel, undo on one appointment pushing each change.
+- `supabase/tests/039_customer_registered.sql`: the registration notification (trainer only,
+  data, none for a record the trainer creates, one row per registration, no device, best
+  effort).
 - `supabase/functions/send-push/*_test.ts` (Deno): payload per kind (URL, TTL, urgency,
   topic), the handler's 405/401/503/400/500 answers, pushes to every claimed subscription,
   404/410 deleting exactly those subscriptions, other failures kept, non-https endpoints never

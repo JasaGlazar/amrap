@@ -5,7 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fill, plural, t } from '../../i18n';
 import { weekdayHeading, weekdayName } from '../../lib/time';
 import { routes } from '../../routes';
-import { db, holdTable, makeCustomer, makeSession, resetFake } from '../../test/fakeSupabase';
+import {
+  db,
+  fakeSupabase,
+  holdTable,
+  makeCustomer,
+  makeSession,
+  resetFake,
+} from '../../test/fakeSupabase';
 
 vi.mock('../../lib/supabase', async () => ({
   supabase: (await import('../../test/fakeSupabase')).fakeSupabase,
@@ -22,7 +29,7 @@ const existing = {
   active: true,
 };
 
-function renderSettings(tab: 'urnik' | 'odpoved' | 'zaprto') {
+function renderSettings(tab: 'urnik' | 'odpoved' | 'zaprto' | 'registracija') {
   const router = createMemoryRouter(routes, { initialEntries: [`/t/nastavitve/${tab}`] });
   render(<RouterProvider router={router} />);
 }
@@ -727,6 +734,143 @@ describe('cutoff', () => {
     await userEvent.click(within(form).getByRole('button', { name: t.settings.save }));
     expect(within(form).getByRole('alert')).toHaveTextContent(t.settings.cutoffInvalid);
     expect(db.settings.late_cancel_hours).toBe(before);
+  });
+});
+
+describe('registration', () => {
+  const r = t.settings.registration;
+  const linkOf = (code: string) => `${window.location.origin}/registracija?koda=${code}`;
+  const codeCalls = () =>
+    fakeSupabase.rpc.mock.calls.filter(([name]) => name === 'set_registration_code');
+  const clipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    if (clipboard) Object.defineProperty(navigator, 'clipboard', clipboard);
+    else delete (navigator as { clipboard?: unknown }).clipboard;
+  });
+
+  async function section() {
+    renderSettings('registracija');
+    return screen.findByRole('region', { name: r.title });
+  }
+
+  it('says registration is closed and offers to open it', async () => {
+    const tab = await section();
+    expect(within(tab).getByText(r.closed)).toBeVisible();
+    expect(within(tab).getByRole('button', { name: r.openAction })).toBeVisible();
+    expect(within(tab).queryByLabelText(r.link)).toBeNull();
+  });
+
+  it('opens registration with a new random URL-safe code of at least 16 characters', async () => {
+    const random = vi.spyOn(crypto, 'getRandomValues');
+    const tab = await section();
+    await userEvent.click(within(tab).getByRole('button', { name: r.openAction }));
+    expect(random).toHaveBeenCalled();
+    expect(codeCalls()).toHaveLength(1);
+    const code = String(codeCalls()[0][1].p_code);
+    expect(code).toMatch(/^[A-Za-z0-9_-]{16,}$/);
+    expect(await within(tab).findByLabelText(r.link)).toHaveValue(linkOf(code));
+  });
+
+  it('shows the full link, a copy button, Nova koda and Zapri registracijo while open', async () => {
+    db.registrationCode = 'open-code-1234567890';
+    const tab = await section();
+    expect(within(tab).getByText(r.open)).toBeVisible();
+    expect(within(tab).getByLabelText(r.link)).toHaveValue(linkOf(db.registrationCode));
+    for (const name of [r.copy, r.newCode, r.close]) {
+      expect(within(tab).getByRole('button', { name })).toBeVisible();
+    }
+  });
+
+  it('shows the link in a wrapping text box, not a one-line input', async () => {
+    db.registrationCode = 'open-code-1234567890';
+    const tab = await section();
+    const field = within(tab).getByLabelText(r.link);
+    expect(field).toBeInstanceOf(HTMLTextAreaElement);
+    expect(field).toHaveAttribute('readonly');
+    expect(field).toHaveValue(linkOf(db.registrationCode));
+  });
+
+  it('copies the link', async () => {
+    db.registrationCode = 'open-code-1234567890';
+    const tab = await section();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    await userEvent.click(within(tab).getByRole('button', { name: r.copy }));
+    expect(writeText).toHaveBeenCalledWith(linkOf(db.registrationCode));
+    expect(await within(tab).findByRole('status')).toHaveTextContent(r.copied);
+  });
+
+  it('says so when the link cannot be copied', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    db.registrationCode = 'open-code-1234567890';
+    const tab = await section();
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    await userEvent.click(within(tab).getByRole('button', { name: r.copy }));
+    expect(await within(tab).findByRole('alert')).toHaveTextContent(r.copyFailed);
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('warns that the printed QR stops working and makes a new code only on the second tap', async () => {
+    const old = 'open-code-1234567890';
+    db.registrationCode = old;
+    const tab = await section();
+    await userEvent.click(within(tab).getByRole('button', { name: r.newCode }));
+    expect(within(tab).getByText(r.newCodeWarning)).toBeVisible();
+    expect(codeCalls()).toHaveLength(0);
+    await userEvent.click(within(tab).getByRole('button', { name: r.confirmNewCode }));
+    expect(codeCalls()).toHaveLength(1);
+    const code = String(codeCalls()[0][1].p_code);
+    expect(code).not.toBe(old);
+    expect(code).toMatch(/^[A-Za-z0-9_-]{16,}$/);
+    expect(await within(tab).findByLabelText(r.link)).toHaveValue(linkOf(code));
+    await waitFor(() => expect(within(tab).getByRole('button', { name: r.newCode })).toHaveFocus());
+  });
+
+  it('warns that the printed QR stops working and closes only on the second tap', async () => {
+    db.registrationCode = 'open-code-1234567890';
+    const tab = await section();
+    await userEvent.click(within(tab).getByRole('button', { name: r.close }));
+    expect(within(tab).getByText(r.closeWarning)).toBeVisible();
+    expect(codeCalls()).toHaveLength(0);
+    await userEvent.click(within(tab).getByRole('button', { name: r.confirmClose }));
+    expect(fakeSupabase.rpc).toHaveBeenCalledWith('set_registration_code', { p_code: null });
+    expect(await within(tab).findByText(r.closed)).toBeVisible();
+    expect(db.registrationCode).toBeNull();
+  });
+
+  it.each([
+    ['opening', null, [r.openAction]],
+    ['closing', 'open-code-1234567890', [r.close, r.confirmClose]],
+  ] as const)('moves focus to the heading after %s removes the button', async (_, code, taps) => {
+    db.registrationCode = code;
+    const tab = await section();
+    for (const name of taps) await userEvent.click(within(tab).getByRole('button', { name }));
+    await waitFor(() =>
+      expect(within(tab).getByRole('heading', { level: 2, name: r.title })).toHaveFocus(),
+    );
+  });
+
+  it('drops the confirmation on Prekliči without a change', async () => {
+    db.registrationCode = 'open-code-1234567890';
+    const tab = await section();
+    await userEvent.click(within(tab).getByRole('button', { name: r.close }));
+    await userEvent.click(within(tab).getByRole('button', { name: t.common.cancel }));
+    expect(within(tab).queryByText(r.closeWarning)).toBeNull();
+    expect(within(tab).getByRole('button', { name: r.close })).toHaveFocus();
+    expect(codeCalls()).toHaveLength(0);
+  });
+
+  it('shows a refusal', async () => {
+    const tab = await section();
+    fakeSupabase.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'AMRAP_FORBIDDEN: trainer only' },
+    });
+    await userEvent.click(within(tab).getByRole('button', { name: r.openAction }));
+    expect(await within(tab).findByRole('alert')).toHaveTextContent(t.errors.AMRAP_FORBIDDEN);
+    expect(within(tab).getByText(r.closed)).toBeVisible();
   });
 });
 

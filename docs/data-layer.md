@@ -37,6 +37,7 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 | `allBalances(client)` | `customer_balances` | every row the caller may see (the trainer: all), as a map from customer id to balance |
 | `listCustomers(client)` | `customers` | `role = 'customer'` (not the trainer's own row), by name |
 | `getCustomer(client, id)` | `customers` | one customer record; throws when missing |
+| `getRegistrationCode(client)` | `registration_settings` | the gym code of row `id = 1`, or null when registration is closed (or the caller is not the trainer, whom RLS gives no row). In `data/registration.ts`. |
 | `rulesOf(client, customerId)` | `recurring_rules` | that customer's rules, oldest first |
 | `allTemplates(client)` | `slot_templates` | active and inactive, by `weekday`, `start_time` |
 | `upcomingBlocked(client, now)` | `blocked_periods` | `ends_at > now`, by start |
@@ -46,8 +47,17 @@ functions and never build queries themselves. RLS and the RPCs ([schema.md](sche
 | `liveCountBetween(client, from, to, now)` | `appointments` | the number of live (`booked` or `charged`) appointments overlapping `[from, to)` that have not ended: `starts_at < to` and `ends_at` after both `from` and `now` |
 | `hasPushSubscription(client, endpoint, userId)` | `push_subscriptions` | whether a row with that endpoint belongs to `userId` (the signed-in auth user); filtered by `user_id` because the trainer's RLS policy returns every user's rows |
 
+A `Customer` from `listCustomers` and `getCustomer` (one select for both) carries `id`, `name`,
+`phone`, `email`, `linked`, `inviteToken`, `inviteExpiresAt`, `registeredAt` (`Date`, null for
+a record the trainer created) and `hasRules` (whether the customer has any recurring rule,
+active or stopped). `hasRules` comes from the embedded count `recurring_rules(count)`, which
+PostgREST answers as `"recurring_rules": [{ "count": 0 }]` (an array with one object).
+
 `inviteStatus(customer, now)` derives a customer's invite status: `linked` (an auth user is
 linked), `pending` (an invite token that has not expired) or `none`.
+`isNewCustomer(customer)` is true for a registered customer without any rule
+(`registeredAt !== null && !hasRules`); the customer list uses it for the **Nov** tag and the
+`novi` filter.
 
 Appointments carry `customerId`, `slotTemplateId` (null for ad hoc), `startsAt`, `endsAt`,
 `status` and `cancelReason` (the trainer's reason, or null).
@@ -104,6 +114,9 @@ in the future stays in History and is also offered for undo on Home.
 | `topUp(client, customerId, amount, note)` | `top_up` | `p_customer_id`, `p_amount`, `p_note` (omitted when null) |
 | `adjust(client, customerId, amount, note)` | `adjust` | same as `topUp` |
 | `createInvite(client, customerId)` | `create_invite` | `p_customer_id`; `data` is the token |
+| `registerCustomer(client, { name, phone, code })` | `register_customer` | `p_name` and `p_phone` (both trimmed), `p_code`; `data` is the new customer id. The database checks the code and the lengths (`AMRAP_REGISTRATION_CLOSED`, `AMRAP_INVALID_ARGUMENT`). In `data/registration.ts`. |
+| `setRegistrationCode(client, code)` | `set_registration_code` | `p_code`, a string of 8 or more characters or null, which clears the code and closes registration; `data` is null. The generated type has `p_code: string`, so the call casts null. In `data/registration.ts`, with `newRegistrationCode()`, which makes a random URL-safe code of 24 characters. |
+| `deleteCustomer(client, customerId)` | `delete_customer` | `p_customer_id`; `data` is null. The database decides whether the record may go (`AMRAP_NOT_DELETABLE`) |
 | `activateRule(client, ruleId)` / `deactivateRule(client, ruleId)` | `activate_rule` / `deactivate_rule` | `p_rule_id`; `data` is the number inserted / cancelled |
 | `savePushSubscription(client, { endpoint, p256dh, auth })` | `save_push_subscription` | `p_endpoint`, `p_p256dh`, `p_auth` |
 

@@ -97,7 +97,7 @@ export function CustomerHome() {
         </p>
       )}
       {upcoming.length === 0 ? (
-        <p>{t.customer.noUpcoming}</p>
+        <p>{cancelled.length === 0 ? t.customer.noAppointmentsYet : t.customer.noUpcoming}</p>
       ) : (
         <ul className="list">
           {upcoming.map((appointment) => (
