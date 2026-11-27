@@ -162,6 +162,7 @@ h2 {
 a,
 button,
 input,
+textarea,
 select,
 label {
   touch-action: manipulation;
@@ -227,7 +228,8 @@ a {
   }
 }
 
-input {
+input,
+textarea {
   font: inherit;
   min-height: var(--tap);
   padding: 0.625rem 0.75rem;
@@ -235,6 +237,12 @@ input {
   border-radius: var(--radius);
   background: var(--paper);
   color: var(--text);
+}
+
+textarea {
+  resize: none;
+  overflow-wrap: anywhere;
+  field-sizing: content;
 }
 
 input[type='checkbox'] {

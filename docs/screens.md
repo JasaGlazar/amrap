@@ -576,11 +576,13 @@ are matched to appointments by customer id. Load failures show `common.loadFaile
     `crypto.getRandomValues`, base64url, so 24 URL-safe characters) through
     `setRegistrationCode`.
   - **Open:** `settings.registration.open`, then the full link
-    `<origin>/registracija?koda=<code>` in a read-only field (`settings.registration.link`,
-    selected on focus) with its hint and **Kopiraj** (`navigator.clipboard.writeText`; success
-    is a status line, a refusal an alert that says to select and copy the link by hand), then
-    **Nova koda** and **Zapri registracijo** side by side. The field keeps the long link on
-    one line inside its own box, so the page never scrolls sideways.
+    `<origin>/registracija?koda=<code>` in a read-only text box (`<textarea>`,
+    `settings.registration.link`, selected on focus) with its hint and **Kopiraj**
+    (`navigator.clipboard.writeText`; success is a status line, a refusal an alert that says to
+    select and copy the link by hand), then **Nova koda** and **Zapri registracijo** side by
+    side. The link wraps inside the box, so the trainer sees the whole link on a phone and the
+    page never scrolls sideways. The box grows with the link (`field-sizing: content`); a
+    browser without it shows 3 rows, which fit the about 70-character link at 360 px.
   - **Nova koda** and **Zapri registracijo** each open a card in place of both buttons
     ([on demand](#forms-on-demand), the delete-customer pattern): the warning that the printed
     QR code stops working (`newCodeWarning`, `closeWarning`), a red confirm button

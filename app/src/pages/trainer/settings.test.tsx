@@ -742,6 +742,13 @@ describe('registration', () => {
   const linkOf = (code: string) => `${window.location.origin}/registracija?koda=${code}`;
   const codeCalls = () =>
     fakeSupabase.rpc.mock.calls.filter(([name]) => name === 'set_registration_code');
+  const clipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    if (clipboard) Object.defineProperty(navigator, 'clipboard', clipboard);
+    else delete (navigator as { clipboard?: unknown }).clipboard;
+  });
 
   async function section() {
     renderSettings('registracija');
@@ -764,7 +771,6 @@ describe('registration', () => {
     const code = String(codeCalls()[0][1].p_code);
     expect(code).toMatch(/^[A-Za-z0-9_-]{16,}$/);
     expect(await within(tab).findByLabelText(r.link)).toHaveValue(linkOf(code));
-    random.mockRestore();
   });
 
   it('shows the full link, a copy button, Nova koda and Zapri registracijo while open', async () => {
@@ -775,6 +781,15 @@ describe('registration', () => {
     for (const name of [r.copy, r.newCode, r.close]) {
       expect(within(tab).getByRole('button', { name })).toBeVisible();
     }
+  });
+
+  it('shows the link in a wrapping text box, not a one-line input', async () => {
+    db.registrationCode = 'open-code-1234567890';
+    const tab = await section();
+    const field = within(tab).getByLabelText(r.link);
+    expect(field).toBeInstanceOf(HTMLTextAreaElement);
+    expect(field).toHaveAttribute('readonly');
+    expect(field).toHaveValue(linkOf(db.registrationCode));
   });
 
   it('copies the link', async () => {
@@ -794,7 +809,7 @@ describe('registration', () => {
     Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
     await userEvent.click(within(tab).getByRole('button', { name: r.copy }));
     expect(await within(tab).findByRole('alert')).toHaveTextContent(r.copyFailed);
-    warn.mockRestore();
+    expect(warn).toHaveBeenCalled();
   });
 
   it('warns that the printed QR stops working and makes a new code only on the second tap', async () => {
@@ -810,6 +825,7 @@ describe('registration', () => {
     expect(code).not.toBe(old);
     expect(code).toMatch(/^[A-Za-z0-9_-]{16,}$/);
     expect(await within(tab).findByLabelText(r.link)).toHaveValue(linkOf(code));
+    await waitFor(() => expect(within(tab).getByRole('button', { name: r.newCode })).toHaveFocus());
   });
 
   it('warns that the printed QR stops working and closes only on the second tap', async () => {

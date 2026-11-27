@@ -136,7 +136,7 @@ export function SettingsRegistration() {
           <div className="form">
             <label>
               {r.link}
-              <input readOnly value={link} onFocus={(e) => e.target.select()} />
+              <textarea readOnly rows={3} value={link} onFocus={(e) => e.target.select()} />
             </label>
             <p className="detail">{r.openHint}</p>
             <button type="button" className="button secondary" onClick={() => void copyLink(link)}>
