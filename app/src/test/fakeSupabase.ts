@@ -159,12 +159,21 @@ function rowsOf(table: string): Row[] | Result {
   if (table === 'settings') {
     return db.settingsError ? { data: null, error: db.settingsError } : [db.settings];
   }
+  if (table === 'registration_settings') {
+    return db.customer?.role === 'trainer' ? [{ id: 1, code: db.registrationCode }] : [];
+  }
   if (table in db.tables) return db.tables[table as keyof Tables];
   throw new Error(`fakeSupabase: unexpected table ${table}`);
 }
 
 const insertDefaults: Record<string, Row> = {
-  customers: { role: 'customer', auth_user_id: null, invite_token: null, invite_expires_at: null },
+  customers: {
+    role: 'customer',
+    auth_user_id: null,
+    invite_token: null,
+    invite_expires_at: null,
+    registered_at: null,
+  },
   recurring_rules: { active: true },
   slot_templates: { active: true, duration_minutes: 60, capacity: 5 },
   blocked_periods: { reason: null },
@@ -206,8 +215,14 @@ function orPredicate(filters: string): Predicate {
   return (row) => parts.some((part) => part(row));
 }
 
+function withRuleCount(row: Row): Row {
+  const count = db.tables.recurring_rules.filter((rule) => rule.customer_id === row.id).length;
+  return { ...row, recurring_rules: [{ count }] };
+}
+
 function makeQuery(table: string): Query {
   const predicates: Predicate[] = [];
+  let columns: string | undefined;
   const orders: { column: string; ascending: boolean }[] = [];
   let offset = 0;
   let limit: number | undefined;
@@ -252,10 +267,9 @@ function makeQuery(table: string): Query {
       }
       return 0;
     });
-    return {
-      data: matched.slice(offset, limit === undefined ? undefined : offset + limit),
-      error: null,
-    };
+    const page = matched.slice(offset, limit === undefined ? undefined : offset + limit);
+    const embedsRules = table === 'customers' && columns?.includes('recurring_rules(count)');
+    return { data: embedsRules ? page.map(withRuleCount) : page, error: null };
   }
 
   function where(operator: string) {
@@ -266,8 +280,11 @@ function makeQuery(table: string): Query {
   }
 
   const query: Query = {
-    select: (columns) => {
-      if (write === null) selects.push({ table, columns });
+    select: (selected) => {
+      if (write === null) {
+        columns = selected;
+        selects.push({ table, columns: selected });
+      }
       return query;
     },
     insert: (values) => {
@@ -452,6 +469,18 @@ function fakeRegisterCustomer(args: Row): Result {
   return { data: db.customer.id, error: null };
 }
 
+function fakeSetRegistrationCode(args: Row): Result {
+  if (db.customer?.role !== 'trainer') {
+    return { data: null, error: { message: 'AMRAP_FORBIDDEN: x' } };
+  }
+  const code = args.p_code === null ? null : String(args.p_code);
+  if (code !== null && code.length < 8) {
+    return { data: null, error: { message: 'AMRAP_INVALID_ARGUMENT: x' } };
+  }
+  db.registrationCode = code;
+  return { data: null, error: null };
+}
+
 function fakeSetRule(args: Row, active: boolean): Result {
   const rule = db.tables.recurring_rules.find((row) => row.id === args.p_rule_id);
   if (rule === undefined) return { data: null, error: { message: 'AMRAP_NOT_FOUND: x' } };
@@ -491,6 +520,7 @@ const rpcs: Record<string, (args: Row) => Result> = {
   create_invite: fakeCreateInvite,
   delete_customer: fakeDeleteCustomer,
   register_customer: fakeRegisterCustomer,
+  set_registration_code: fakeSetRegistrationCode,
   activate_rule: (args) => fakeSetRule(args, true),
   deactivate_rule: (args) => fakeSetRule(args, false),
   save_push_subscription: fakeSavePushSubscription,

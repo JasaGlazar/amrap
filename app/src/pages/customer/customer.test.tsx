@@ -520,6 +520,30 @@ describe('home', () => {
     expect(screen.queryByText(t.customer.debt)).not.toBeInTheDocument();
   });
 
+  it('says the trainer will assign sessions while there are no appointments yet', async () => {
+    renderAt('/c');
+    expect(await screen.findByText(t.customer.noAppointmentsYet)).toBeVisible();
+    expect(screen.queryByText(t.customer.noUpcoming)).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: t.pushToggle.title })).toBeVisible();
+  });
+
+  it('keeps the plain empty line when a cancelled appointment exists, even past its cutoff', async () => {
+    const startsAt = new Date(now.getTime() + 2 * 3_600_000);
+    db.tables.appointments = [
+      {
+        id: 'cancelled-1',
+        customer_id: me.id,
+        slot_template_id: null,
+        starts_at: startsAt.toISOString(),
+        ends_at: new Date(startsAt.getTime() + 3_600_000).toISOString(),
+        status: 'cancelled',
+      },
+    ];
+    renderAt('/c');
+    expect(await screen.findByText(t.customer.noUpcoming)).toBeVisible();
+    expect(screen.queryByText(t.customer.noAppointmentsYet)).not.toBeInTheDocument();
+  });
+
   it('shows the next appointment with the time left and lists the upcoming ones', async () => {
     const starts = ['2026-10-26T06:00:00Z', '2026-10-22T16:00:00Z'].map((iso) => new Date(iso));
     db.tables.appointments = starts.map((startsAt, index) => ({

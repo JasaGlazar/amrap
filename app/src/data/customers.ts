@@ -10,11 +10,14 @@ export type Customer = {
   linked: boolean;
   inviteToken: string | null;
   inviteExpiresAt: Date | null;
+  registeredAt: Date | null;
+  hasRules: boolean;
 };
 
 export type CustomerFields = { name: string; phone: string | null; email: string | null };
 
-const columns = 'id, name, phone, email, auth_user_id, invite_token, invite_expires_at';
+const columns =
+  'id, name, phone, email, auth_user_id, invite_token, invite_expires_at, registered_at, recurring_rules(count)';
 
 type Row = {
   id: string;
@@ -24,6 +27,8 @@ type Row = {
   auth_user_id: string | null;
   invite_token: string | null;
   invite_expires_at: string | null;
+  registered_at: string | null;
+  recurring_rules: { count: number }[];
 };
 
 function toCustomer(row: Row): Customer {
@@ -35,7 +40,13 @@ function toCustomer(row: Row): Customer {
     linked: row.auth_user_id !== null,
     inviteToken: row.invite_token,
     inviteExpiresAt: row.invite_expires_at === null ? null : new Date(row.invite_expires_at),
+    registeredAt: row.registered_at === null ? null : new Date(row.registered_at),
+    hasRules: (row.recurring_rules[0]?.count ?? 0) > 0,
   };
+}
+
+export function isNewCustomer(customer: Customer): boolean {
+  return customer.registeredAt !== null && !customer.hasRules;
 }
 
 export function inviteStatus(customer: Customer, now: Date): InviteStatus {

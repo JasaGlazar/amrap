@@ -119,6 +119,69 @@ describe('customer list', () => {
     }
   });
 
+  describe('new registrations', () => {
+    const registered = '2026-10-20T08:00:00+00:00';
+    const nina = makeCustomer({ id: 'c-nina', name: 'Nina', registered_at: registered });
+    const rok = makeCustomer({ id: 'c-rok', name: 'Rok', registered_at: registered });
+    const tia = makeCustomer({ id: 'c-tia', name: 'Tia', registered_at: registered });
+
+    beforeEach(() => {
+      db.tables.customers = [cvet, ana, bor, nina, rok, tia];
+      db.tables.recurring_rules = [
+        { id: 'r-rok', customer_id: rok.id, slot_template_id: template.id, active: true },
+        { id: 'r-tia', customer_id: tia.id, slot_template_id: template.id, active: false },
+      ];
+    });
+
+    const rowOf = (list: HTMLElement, name: string) =>
+      within(list).getByRole('link', { name }).closest('li') as HTMLElement;
+
+    it('tags a registered customer without a rule as Nov', async () => {
+      renderAt('/t/stranke');
+      const list = await screen.findByRole('region', { name: t.customers.listTitle });
+      expect(within(rowOf(list, nina.name)).getByText(t.customers.newTag)).toBeVisible();
+    });
+
+    it('drops the tag once the customer has a rule, a stopped one included', async () => {
+      renderAt('/t/stranke');
+      const list = await screen.findByRole('region', { name: t.customers.listTitle });
+      for (const row of [rok, tia]) {
+        expect(within(rowOf(list, row.name)).queryByText(t.customers.newTag)).toBeNull();
+      }
+    });
+
+    it('does not tag a customer the trainer created', async () => {
+      renderAt('/t/stranke');
+      const list = await screen.findByRole('region', { name: t.customers.listTitle });
+      for (const row of [ana, bor, cvet]) {
+        expect(within(rowOf(list, row.name)).queryByText(t.customers.newTag)).toBeNull();
+      }
+    });
+
+    it('lists only the tagged customers under Novi', async () => {
+      renderAt('/t/stranke');
+      const list = await screen.findByRole('region', { name: t.customers.listTitle });
+      const group = screen.getByRole('group', { name: t.customers.filterLabel });
+      await userEvent.click(within(group).getByRole('button', { name: t.customers.filters.novi }));
+      expect(
+        within(list)
+          .getAllByRole('link')
+          .map((link) => link.textContent),
+      ).toEqual([nina.name]);
+    });
+
+    it('reads the Novi filter from the URL', async () => {
+      const router = renderAt('/t/stranke?f=novi');
+      const list = await screen.findByRole('region', { name: t.customers.listTitle });
+      expect(
+        within(list)
+          .getAllByRole('link')
+          .map((link) => link.textContent),
+      ).toEqual([nina.name]);
+      expect(router.state.location.search).toBe('?f=novi');
+    });
+  });
+
   it('shows Nova stranka as a button in the page header until it is pressed', async () => {
     renderAt('/t/stranke');
     const button = await screen.findByRole('button', { name: t.customers.newTitle });

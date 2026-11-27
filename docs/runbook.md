@@ -145,6 +145,23 @@ trainer, create a new auth user as in "Bootstrap the trainer" step 1, then run
 `update public.customers set auth_user_id = '<new auth user uid>' where role = 'trainer';`
 (after deleting the old auth user).
 
+## Print the registration QR
+
+The QR code in the gym holds the registration link with the gym code. The app makes no QR
+image; any QR generator does.
+
+1. The trainer opens **Nastavitve → Registracija** and taps **Odpri registracijo**. The app
+   makes a random gym code and shows the full link
+   (`https://<pages-domain>/registracija?koda=<gym code>`).
+2. Tap **Kopiraj** and paste the link into any QR generator.
+3. Print the QR code and put it up in the gym. Scan it once with a phone to check that the
+   registration page opens with the form.
+
+**Nova koda** replaces the gym code and **Zapri registracijo** clears it. Both ask for a second
+tap and warn first. After either one the printed QR code stops working: a person who scans it
+gets `AMRAP_REGISTRATION_CLOSED`. A new code needs a new print. Registration stays open until
+the trainer closes it.
+
 ## A customer registered twice
 
 A person the trainer already had a record for (for example with a credit balance) registered

@@ -18,6 +18,7 @@ import { TrainerSettings } from './pages/trainer/Settings';
 import { SettingsBlocked } from './pages/trainer/SettingsBlocked';
 import { SettingsCutoff } from './pages/trainer/SettingsCutoff';
 import { SettingsNotifications } from './pages/trainer/SettingsNotifications';
+import { SettingsRegistration } from './pages/trainer/SettingsRegistration';
 import { SettingsTemplates } from './pages/trainer/SettingsTemplates';
 import { TrainerCustomerDetail } from './pages/trainer/CustomerDetail';
 import { TrainerCustomers } from './pages/trainer/Customers';
@@ -94,6 +95,7 @@ export const routes: RouteObject[] = [
                       { path: 'odpoved', element: <SettingsCutoff /> },
                       { path: 'zaprto', element: <SettingsBlocked /> },
                       { path: 'obvestila', element: <SettingsNotifications /> },
+                      { path: 'registracija', element: <SettingsRegistration /> },
                     ],
                   },
                 ],

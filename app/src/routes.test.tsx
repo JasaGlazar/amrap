@@ -268,6 +268,7 @@ describe('shells', () => {
     ['odpoved', t.settings.tabs.cutoff, 'form', t.settings.cutoffTitle],
     ['zaprto', t.settings.tabs.blocked, 'region', t.settings.blockedTitle],
     ['obvestila', t.settings.tabs.notifications, 'region', t.pushToggle.title],
+    ['registracija', t.settings.tabs.registration, 'region', t.settings.registration.title],
   ] as const)(
     'shows /t/nastavitve/%s as the current settings tab',
     async (child, tab, role, name) => {
@@ -330,12 +331,21 @@ describe('shells', () => {
     expect(router.state.location.pathname).toBe('/login');
   });
 
-  it('shows the balance from customer_balances and no upcoming appointments', async () => {
+  it('shows the balance from customer_balances and the empty Home before any appointment', async () => {
     signedInAs(customer);
     db.balance = 6;
     renderAt('/c');
     expect(await screen.findByText(String(db.balance))).toBeInTheDocument();
-    expect(screen.getByText(t.customer.noUpcoming)).toBeInTheDocument();
+    expect(screen.getByText(t.customer.noAppointmentsYet)).toBeInTheDocument();
+    expect(screen.queryByText(t.customer.noUpcoming)).not.toBeInTheDocument();
+  });
+
+  it('keeps the install card and the notifications toggle on the empty Home', async () => {
+    signedInAs(customer);
+    renderAt('/c', fakeInstallPlatform({ device: { ios: true } }).platform);
+    expect(await screen.findByText(t.customer.noAppointmentsYet)).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: t.install.title })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: t.pushToggle.title })).toBeInTheDocument();
   });
 
   it('marks a negative balance', async () => {

@@ -58,6 +58,8 @@ is a question below.
 | `settings.active` | Aktiven (stranke ga vidijo in rezervirajo) | Aktiven (v urniku) | Customers do not book in the first release (ADR 0018) |
 | `pushToggle.trainerHint` | Obvestila o rezervacijah in odpovedih strank. | Obvestila o odpovedih strank in obnovljenih terminih. | Customers do not book in the first release (ADR 0018); the trainer is told about cancels and restored appointments |
 | `install.iosWhyTrainer` | … obvestila o rezervacijah in odpovedih strank … | … obvestila o odpovedih strank in obnovljenih terminih … | Customers do not book in the first release (ADR 0018); same wording as `pushToggle.trainerHint` |
+| `pushToggle.trainerHint` | Obvestila o odpovedih strank in obnovljenih terminih. | Obvestila o novih registracijah, odpovedih strank in obnovljenih terminih. | Self-registration: the trainer is also told about each new registration (`customer_registered`) |
+| `install.iosWhyTrainer` | … obvestila o odpovedih strank in obnovljenih terminih … | … obvestila o novih registracijah, odpovedih strank in obnovljenih terminih … | Self-registration: same wording as `pushToggle.trainerHint` |
 
 ## Open questions for the trainer
 
@@ -183,7 +185,7 @@ is a question below.
 | `install.title` | Namestite aplikacijo |  |
 | `install.why` | Dodajte AMRAP na začetni zaslon: odprete ga z enim dotikom, kot vsako aplikacijo. | Je razlog dovolj jasen? |
 | `install.iosWhyCustomer` | Na iPhonu obvestila delujejo le v aplikaciji, odprti z začetnega zaslona. Brez nje ne prejmete opomnika pred rokom za brezplačno odpoved, edinega opozorila, preden se termin zaračuna. | Le stranke na iPhonu. Dovolj jasno, zakaj je namestitev pomembna? |
-| `install.iosWhyTrainer` | Na iPhonu obvestila o odpovedih strank in obnovljenih terminih delujejo le v aplikaciji, odprti z začetnega zaslona. | Le trener na iPhonu. |
+| `install.iosWhyTrainer` | Na iPhonu obvestila o novih registracijah, odpovedih strank in obnovljenih terminih delujejo le v aplikaciji, odprti z začetnega zaslona. | Le trener na iPhonu. Spremenjeno: dodane »nove registracije«. |
 | `install.install` | Namesti aplikacijo |  |
 | `install.notNow` | Ne zdaj |  |
 | `install.stepsLabel` | Koraki za namestitev |  |
@@ -203,6 +205,7 @@ is a question below.
 | `customer.nextLabel` | Naslednji termin |  |
 | `customer.upcomingTitle` | Prihajajoči termini |  |
 | `customer.noUpcoming` | Ni prihajajočih terminov. |  |
+| `customer.noAppointmentsYet` | Trener vam bo dodelil termine. Videli jih boste tukaj. | Novo: namesto »Ni prihajajočih terminov.«, dokler stranka nima nobenega termina (na primer takoj po registraciji s QR kodo). |
 | `customer.cancelledTitle` | Odpovedani termini | Novo: seznam brezplačno odpovedanih terminov, ki jih stranka še lahko razveljavi. |
 | `customer.undo` | Razveljavi odpoved | Novo: gumb ob odpovedanem terminu; termin je spet rezerviran. |
 | `customer.restored` | Termin je spet rezerviran. | Novo: sporočilo po uspešni razveljavitvi. |
@@ -339,6 +342,8 @@ is a question below.
 | `customers.filters.vsi` | Vsi | Novo. |
 | `customers.filters.dolzniki` | Dolžniki | Novo. |
 | `customers.filters.brez` | Brez računa | Novo. Vključuje tudi stranke s čakajočim povabilom. |
+| `customers.filters.novi` | Novi | Novo: stranke z oznako »Nov«. |
+| `customers.newTag` | Nov | Novo: oznaka stranke, ki se je registrirala s QR kodo in še nima stalnega termina. Izgine, ko ji dodate prvi stalni termin. Oznaka je v moški obliki tudi za stranke; v redu, ali raje nevtralno »Novo« ali »Nova registracija«? |
 | `customers.total` | 1 stranka, 2 stranki, 3 stranke, 5 strank | Novo. |
 | `customers.shown` | Prikazana 1 od 9, Prikazani 2 od 9, Prikazane 3 od 9, Prikazanih 5 od 9 | Novo. V redu, ali raje »Prikazanih: 5 od 9« za vsa števila? |
 | `customers.noMatches` | Ni strank, ki bi ustrezale iskanju. | Novo. |
@@ -406,6 +411,7 @@ is a question below.
 | `settings.tabs.cutoff` | Odpoved | Zavihek z rokom za brezplačno odpoved. Dovolj jasno ali »Rok odpovedi«? |
 | `settings.tabs.blocked` | Zaprta obdobja |  |
 | `settings.tabs.notifications` | Obvestila |  |
+| `settings.tabs.registration` | Registracija | Novo: zavihek, kjer odprete ali zaprete registracijo s QR kodo. |
 | `settings.templatesTitle` | Termini v tednu | »Termini v tednu« ali »Tedenski urnik«? |
 | `settings.noTemplates` | Ni terminov. |  |
 | `settings.timeRange` | {start}–{end} | Novo: čas v bloku tedenskega urnika (»07:00–08:00«). |
@@ -454,6 +460,22 @@ is a question below.
 | `settings.reason` | Razlog |  |
 | `settings.blockedOverlapWarning` | V tem obdobju je rezerviranih terminov: {count}. Zaprto obdobje jih ne odpove; ostanejo rezervirani in bodo zaračunani, dokler jih ne odpoveste v »Koledarju« (»Odpovej«). Za potrditev znova tapnite »Shrani«. | Novo (Task 18 review). Razumljivo? |
 | `settings.delete` | Izbriši |  |
+| `settings.registration.title` | Registracija s QR kodo | Novo: naslov zavihka »Registracija«. |
+| `settings.registration.closed` | Registracija je zaprta. | Novo. |
+| `settings.registration.closedHint` | Ko jo odprete, dobite povezavo. Iz nje naredite QR kodo za telovadnico. | Novo. |
+| `settings.registration.open` | Registracija je odprta. | Novo. |
+| `settings.registration.openHint` | Kdor odpre to povezavo, si lahko ustvari račun. Iz povezave naredite QR kodo in jo natisnite. | Novo: pod povezavo. |
+| `settings.registration.link` | Povezava za registracijo | Novo: oznaka polja s celotno povezavo. |
+| `settings.registration.copy` | Kopiraj | Novo, enako kot pri povabilu. |
+| `settings.registration.copied` | Povezava je kopirana. | Novo, enako kot pri povabilu. |
+| `settings.registration.copyFailed` | Kopiranje ni uspelo. Povezavo označite in kopirajte ročno. | Novo, enako kot pri povabilu. |
+| `settings.registration.openAction` | Odpri registracijo | Novo: gumb, ki ustvari kodo in odpre registracijo. |
+| `settings.registration.newCode` | Nova koda | Novo: gumb; najprej pokaže opozorilo. |
+| `settings.registration.close` | Zapri registracijo | Novo: gumb; najprej pokaže opozorilo. |
+| `settings.registration.newCodeWarning` | Nova koda zamenja staro: natisnjena QR koda ne bo več delovala. Natisniti boste morali novo. | Novo: opozorilo pred potrditvijo. Dovolj jasno? |
+| `settings.registration.closeWarning` | Natisnjena QR koda ne bo več delovala in nove stranke se ne bodo mogle registrirati. | Novo: opozorilo pred potrditvijo. |
+| `settings.registration.confirmNewCode` | Potrdi novo kodo | Novo: drugi dotik, ki res ustvari novo kodo. |
+| `settings.registration.confirmClose` | Potrdi zaprtje | Novo: drugi dotik, ki res zapre registracijo. |
 
 ### Obvestila na telefonu in stikalo za obvestila
 
@@ -481,7 +503,7 @@ is a question below.
 | `push.genericBody` | Imate novo obvestilo. |  |
 | `pushToggle.title` | Obvestila |  |
 | `pushToggle.customerHint` | Opomnik pred rokom za brezplačno odpoved ter obvestila o kreditih. |  |
-| `pushToggle.trainerHint` | Obvestila o odpovedih strank in obnovljenih terminih. |  |
+| `pushToggle.trainerHint` | Obvestila o novih registracijah, odpovedih strank in obnovljenih terminih. | Spremenjeno: dodane »nove registracije«. |
 | `pushToggle.on` | Obvestila so na tej napravi vklopljena. |  |
 | `pushToggle.off` | Obvestila so na tej napravi izklopljena. |  |
 | `pushToggle.enable` | Vklopi obvestila |  |

@@ -94,6 +94,7 @@ export const sl = {
     nextLabel: 'Naslednji termin',
     upcomingTitle: 'Prihajajoči termini',
     noUpcoming: 'Ni prihajajočih terminov.',
+    noAppointmentsYet: 'Trener vam bo dodelil termine. Videli jih boste tukaj.',
     cancelledTitle: 'Odpovedani termini',
     undo: 'Razveljavi odpoved',
     restored: 'Termin je spet rezerviran.',
@@ -172,7 +173,9 @@ export const sl = {
       vsi: 'Vsi',
       dolzniki: 'Dolžniki',
       brez: 'Brez računa',
+      novi: 'Novi',
     },
+    newTag: 'Nov',
     total: {
       one: '{count} stranka',
       two: '{count} stranki',
@@ -252,6 +255,7 @@ export const sl = {
       cutoff: 'Odpoved',
       blocked: 'Zaprta obdobja',
       notifications: 'Obvestila',
+      registration: 'Registracija',
     },
     templatesTitle: 'Termini v tednu',
     noTemplates: 'Ni terminov.',
@@ -307,6 +311,27 @@ export const sl = {
     blockedOverlapWarning:
       'V tem obdobju je rezerviranih terminov: {count}. Zaprto obdobje jih ne odpove; ostanejo rezervirani in bodo zaračunani, dokler jih ne odpoveste v »Koledarju« (»Odpovej«). Za potrditev znova tapnite »Shrani«.',
     delete: 'Izbriši',
+    registration: {
+      title: 'Registracija s QR kodo',
+      closed: 'Registracija je zaprta.',
+      closedHint: 'Ko jo odprete, dobite povezavo. Iz nje naredite QR kodo za telovadnico.',
+      open: 'Registracija je odprta.',
+      openHint:
+        'Kdor odpre to povezavo, si lahko ustvari račun. Iz povezave naredite QR kodo in jo natisnite.',
+      link: 'Povezava za registracijo',
+      copy: 'Kopiraj',
+      copied: 'Povezava je kopirana.',
+      copyFailed: 'Kopiranje ni uspelo. Povezavo označite in kopirajte ročno.',
+      openAction: 'Odpri registracijo',
+      newCode: 'Nova koda',
+      close: 'Zapri registracijo',
+      newCodeWarning:
+        'Nova koda zamenja staro: natisnjena QR koda ne bo več delovala. Natisniti boste morali novo.',
+      closeWarning:
+        'Natisnjena QR koda ne bo več delovala in nove stranke se ne bodo mogle registrirati.',
+      confirmNewCode: 'Potrdi novo kodo',
+      confirmClose: 'Potrdi zaprtje',
+    },
   },
   appointmentStatus: {
     booked: 'Rezervirano',
@@ -381,7 +406,7 @@ export const sl = {
   pushToggle: {
     title: 'Obvestila',
     customerHint: 'Opomnik pred rokom za brezplačno odpoved ter obvestila o kreditih.',
-    trainerHint: 'Obvestila o odpovedih strank in obnovljenih terminih.',
+    trainerHint: 'Obvestila o novih registracijah, odpovedih strank in obnovljenih terminih.',
     on: 'Obvestila so na tej napravi vklopljena.',
     off: 'Obvestila so na tej napravi izklopljena.',
     enable: 'Vklopi obvestila',
@@ -404,7 +429,7 @@ export const sl = {
     iosWhyCustomer:
       'Na iPhonu obvestila delujejo le v aplikaciji, odprti z začetnega zaslona. Brez nje ne prejmete opomnika pred rokom za brezplačno odpoved, edinega opozorila, preden se termin zaračuna.',
     iosWhyTrainer:
-      'Na iPhonu obvestila o odpovedih strank in obnovljenih terminih delujejo le v aplikaciji, odprti z začetnega zaslona.',
+      'Na iPhonu obvestila o novih registracijah, odpovedih strank in obnovljenih terminih delujejo le v aplikaciji, odprti z začetnega zaslona.',
     install: 'Namesti aplikacijo',
     notNow: 'Ne zdaj',
     stepsLabel: 'Koraki za namestitev',
